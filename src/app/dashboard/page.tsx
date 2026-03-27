@@ -133,22 +133,27 @@ export default async function DashboardPage() {
       </Section>
 
       {/* Organised events */}
-      {organisedEvents.length > 0 && (
-        <Section title="Events you've organised" count={organisedEvents.length}>
-          {organisedEvents.map((e) => (
-            <EventCard key={e.id} event={e} />
-          ))}
-        </Section>
-      )}
+      <Section
+        title="Events you've organised"
+        count={organisedEvents.length}
+        emptyMessage="You haven't organised any events yet."
+        emptyAction={{ href: "/events/create", label: "Create an event" }}
+      >
+        {organisedEvents.map((e) => (
+          <EventCard key={e.id} event={e} />
+        ))}
+      </Section>
 
       {/* Past events */}
-      {pastJoined.length > 0 && (
-        <Section title="Past picks" count={pastJoined.length}>
-          {pastJoined.map((e) => (
-            <EventCard key={e.id} event={e} />
-          ))}
-        </Section>
-      )}
+      <Section
+        title="Past picks"
+        count={pastJoined.length}
+        emptyMessage="You haven't attended any events yet."
+      >
+        {pastJoined.map((e) => (
+          <EventCard key={e.id} event={e} />
+        ))}
+      </Section>
     </div>
   );
 }

@@ -6,7 +6,6 @@ import { cn } from "@/lib/utils";
 
 const links = [
   { href: "/events", label: "Events" },
-  { href: "/my-events", label: "My Events" },
 ];
 
 interface NavLinksProps {
