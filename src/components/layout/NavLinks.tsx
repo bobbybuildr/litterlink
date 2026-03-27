@@ -24,8 +24,8 @@ export function NavLinks({ className }: NavLinksProps) {
           className={cn(
             "px-3 py-1.5 rounded-md text-sm font-medium transition-colors",
             pathname.startsWith(href)
-              ? "bg-brand/10 text-brand"
-              : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+              ? "bg-brand/20 text-brand"
+              : "bg-brand/10 hover:bg-brand/20 text-brand"
           )}
         >
           {label}

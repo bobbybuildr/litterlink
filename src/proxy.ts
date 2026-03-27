@@ -1,7 +1,16 @@
-import { type NextRequest } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 
 export async function proxy(request: NextRequest) {
+  if (process.env.COMING_SOON === "true") {
+    const { pathname } = request.nextUrl;
+    const isExempt =
+      pathname === "/coming-soon" ||
+      pathname.startsWith("/auth/");
+    if (!isExempt) {
+      return NextResponse.redirect(new URL("/coming-soon", request.url));
+    }
+  }
   return await updateSession(request);
 }
 
