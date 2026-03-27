@@ -2,7 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+
+async function getSiteUrl() {
+  const headersList = await headers();
+  const host = headersList.get("host") ?? "";
+  const proto = headersList.get("x-forwarded-proto") ?? "https";
+  return `${proto}://${host}`;
+}
 
 export async function signInWithEmail(formData: FormData) {
   const supabase = await createClient();
@@ -23,6 +31,7 @@ export async function signInWithEmail(formData: FormData) {
 
 export async function signUpWithEmail(formData: FormData) {
   const supabase = await createClient();
+  const siteUrl = await getSiteUrl();
 
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
@@ -33,7 +42,7 @@ export async function signUpWithEmail(formData: FormData) {
     password,
     options: {
       data: { display_name: displayName },
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/auth/callback`,
+      emailRedirectTo: `${siteUrl}/auth/callback`,
     },
   });
 
@@ -46,11 +55,12 @@ export async function signUpWithEmail(formData: FormData) {
 
 export async function signInWithGoogle() {
   const supabase = await createClient();
+  const siteUrl = await getSiteUrl();
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/auth/callback`,
+      redirectTo: `${siteUrl}/auth/callback`,
     },
   });
 
