@@ -60,15 +60,9 @@ export async function Navbar() {
             <div className="flex items-center gap-2">
               <Link
                 href="/sign-in"
-                className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
-              >
-                Sign in
-              </Link>
-              <Link
-                href="/sign-up"
                 className="rounded-lg bg-brand px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-dark transition-colors"
               >
-                Join free
+                Sign in
               </Link>
             </div>
           )}
