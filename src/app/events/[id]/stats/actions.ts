@@ -1,0 +1,68 @@
+"use server";
+
+import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
+import { createClient } from "@/lib/supabase/server";
+
+export async function submitStats(eventId: string, formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) redirect("/sign-in");
+
+  // Verify organiser owns this event
+  const { data: event } = await supabase
+    .from("events")
+    .select("organiser_id, status")
+    .eq("id", eventId)
+    .single();
+
+  if (!event || event.organiser_id !== user.id) {
+    redirect(`/events/${eventId}?error=Not+authorised`);
+  }
+
+  const bags = formData.get("bags_collected")
+    ? parseInt(formData.get("bags_collected") as string, 10)
+    : null;
+  const weight = formData.get("weight_kg")
+    ? parseFloat(formData.get("weight_kg") as string)
+    : null;
+  const area = formData.get("area_covered_sqm")
+    ? parseFloat(formData.get("area_covered_sqm") as string)
+    : null;
+  const attendees = formData.get("actual_attendees")
+    ? parseInt(formData.get("actual_attendees") as string, 10)
+    : null;
+  const notes = (formData.get("notes") as string).trim() || null;
+
+  // Upsert stats + mark event as completed in a single round-trip
+  const [statsResult] = await Promise.all([
+    supabase.from("event_stats").upsert(
+      {
+        event_id: eventId,
+        bags_collected: bags,
+        weight_kg: weight,
+        area_covered_sqm: area,
+        actual_attendees: attendees,
+        notes,
+      },
+      { onConflict: "event_id" }
+    ),
+    supabase
+      .from("events")
+      .update({ status: "completed" })
+      .eq("id", eventId)
+      .eq("organiser_id", user.id),
+  ]);
+
+  if (statsResult.error) {
+    redirect(
+      `/events/${eventId}/stats?error=${encodeURIComponent("Failed to save stats. Please try again.")}`
+    );
+  }
+
+  revalidatePath(`/events/${eventId}`);
+  redirect(`/events/${eventId}`);
+}
