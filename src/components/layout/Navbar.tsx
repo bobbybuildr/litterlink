@@ -2,7 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { NavLinks } from "@/components/layout/NavLinks";
-import { SignOutButton } from "@/components/layout/SignOutButton";
+import { AvatarDropdown } from "@/components/layout/AvatarDropdown";
 
 export async function Navbar() {
   const supabase = await createClient();
@@ -32,43 +32,29 @@ export async function Navbar() {
           <Image
             src="/LitterLink_logo-horizontal.png"
             alt="LitterLink"
-            width={200}
-            height={60}
+            width={358}
+            height={83}
             priority
-            className="h-10 w-auto"
+            className="h-8 w-auto sm:h-10"
           />
         </Link>
 
         <div className="flex items-center gap-4">
-          <NavLinks className="hidden sm:flex" />
+          <NavLinks className="flex" />
 
           {user ? (
             <div className="flex items-center gap-3">
               <Link
                 href="/events/create"
-                className="rounded-lg bg-brand px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-dark transition-colors"
+                className="hidden sm:inline-block rounded-lg bg-brand px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-dark transition-colors"
               >
                 + Create event
               </Link>
-              <Link
-                href="/dashboard"
-                aria-label="Your dashboard"
-                className="flex-shrink-0 rounded-full ring-2 ring-transparent transition-all hover:ring-brand/40"
-              >
-                {profile?.avatar_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={profile.avatar_url}
-                    alt={profile.display_name ?? "Profile"}
-                    className="h-8 w-8 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand text-sm font-semibold text-white">
-                    {initials}
-                  </div>
-                )}
-              </Link>
-              <SignOutButton />
+              <AvatarDropdown
+                avatarUrl={profile?.avatar_url}
+                displayName={profile?.display_name}
+                initials={initials}
+              />
             </div>
           ) : (
             <div className="flex items-center gap-2">
