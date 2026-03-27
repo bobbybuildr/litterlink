@@ -33,7 +33,7 @@ export default function ComingSoonPage() {
 
       <div className="mt-8 flex items-center gap-4">
         <a
-          href="https://facebook.com/litterlink"
+          href="https://www.facebook.com/profile.php?id=61576794153198"
           target="_blank"
           rel="noopener noreferrer"
           aria-label="LitterLink on Facebook"
@@ -45,7 +45,7 @@ export default function ComingSoonPage() {
         </a>
 
         <a
-          href="https://instagram.com/litterlink"
+          href="https://instagram.com/litterlink_"
           target="_blank"
           rel="noopener noreferrer"
           aria-label="LitterLink on Instagram"
@@ -57,7 +57,7 @@ export default function ComingSoonPage() {
         </a>
 
         <a
-          href="https://x.com/litterlink"
+          href="https://x.com/litterlink_"
           target="_blank"
           rel="noopener noreferrer"
           aria-label="LitterLink on X"
