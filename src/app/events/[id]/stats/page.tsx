@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { submitStats } from "./actions";
+import { FormSubmitButton } from "@/components/FormSubmitButton";
 
 export const metadata: Metadata = { title: "Log Impact Stats" };
 
@@ -57,7 +58,7 @@ export default async function StatsPage({ params, searchParams }: Props) {
         </div>
       )}
 
-      <form className="space-y-5">
+      <form action={submitStatsForEvent} className="space-y-5">
         <div className="grid grid-cols-2 gap-4">
           <Field label="Bags collected" htmlFor="bags_collected">
             <input
@@ -113,12 +114,12 @@ export default async function StatsPage({ params, searchParams }: Props) {
         </Field>
 
         <div className="flex items-center gap-4 pt-2">
-          <button
-            formAction={submitStatsForEvent}
+          <FormSubmitButton
+            pendingText="Saving…"
             className="rounded-xl bg-brand px-6 py-3 text-sm font-semibold text-white hover:bg-brand-dark transition-colors"
           >
             Save &amp; mark completed
-          </button>
+          </FormSubmitButton>
         </div>
 
         <p className="text-xs text-gray-400">

@@ -59,5 +59,14 @@ export async function createEvent(formData: FormData) {
     );
   }
 
+  const joinEvent = formData.get("join_event") === "1";
+  if (joinEvent) {
+    await supabase.from("event_participants").insert({
+      event_id: event.id,
+      user_id: user.id,
+      status: "confirmed",
+    });
+  }
+
   redirect(`/events/${event.id}`);
 }

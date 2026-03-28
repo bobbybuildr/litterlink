@@ -8,6 +8,7 @@ import { JoinButton } from "@/components/events/JoinButton";
 import { ShareUrl } from "@/components/events/ShareUrl";
 import { EventsMap } from "@/components/map/EventsMap";
 import { cancelEvent } from "@/app/events/actions";
+import { FormSubmitButton } from "@/components/FormSubmitButton";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -158,12 +159,12 @@ export default async function EventDetailPage({ params }: Props) {
                 await cancelEvent(id);
               }}
             >
-              <button
-                type="submit"
+              <FormSubmitButton
+                pendingText="Cancelling…"
                 className="text-sm font-medium text-red-600 hover:text-red-700 hover:underline transition-colors"
               >
                 Cancel this event
-              </button>
+              </FormSubmitButton>
             </form>
           )}
 

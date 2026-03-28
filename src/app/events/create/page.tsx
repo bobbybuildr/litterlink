@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { createEvent } from "@/app/events/create/actions";
+import { SubmitButton } from "./SubmitButton";
 
 export const metadata: Metadata = {
   title: "Create a Litter Pick",
@@ -32,7 +33,7 @@ export default async function CreateEventPage({ searchParams }: Props) {
         </div>
       )}
 
-      <form className="space-y-6">
+      <form action={createEvent} className="space-y-6">
         {/* Title */}
         <Field label="Event title *" htmlFor="title">
           <input
@@ -124,13 +125,20 @@ export default async function CreateEventPage({ searchParams }: Props) {
           />
         </Field>
 
+        {/* Join on create */}
+        <label className="flex cursor-pointer items-center gap-3">
+          <input
+            type="checkbox"
+            name="join_event"
+            value="1"
+            defaultChecked
+            className="h-4 w-4 rounded border-gray-300 accent-brand"
+          />
+          <span className="text-sm text-gray-700">Join this event as a participant</span>
+        </label>
+
         <div className="flex items-center gap-4 pt-2">
-          <button
-            formAction={createEvent}
-            className="rounded-xl bg-brand px-6 py-3 text-sm font-semibold text-white hover:bg-brand-dark transition-colors"
-          >
-            Publish event
-          </button>
+          <SubmitButton />
           <p className="text-xs text-gray-400">
             Your event will be visible to everyone immediately.
           </p>
