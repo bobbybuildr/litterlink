@@ -122,6 +122,10 @@ export interface Database {
           weight_kg: number | null;
           area_covered_sqm: number | null;
           actual_attendees: number | null;
+          duration_hours: number | null;
+          litter_types: string[] | null;
+          hotspot_severity: number | null;
+          notable_brands: string | null;
           notes: string | null;
         };
         Insert: {
@@ -131,6 +135,10 @@ export interface Database {
           weight_kg?: number | null;
           area_covered_sqm?: number | null;
           actual_attendees?: number | null;
+          duration_hours?: number | null;
+          litter_types?: string[] | null;
+          hotspot_severity?: number | null;
+          notable_brands?: string | null;
           notes?: string | null;
         };
         Update: {
@@ -140,6 +148,10 @@ export interface Database {
           weight_kg?: number | null;
           area_covered_sqm?: number | null;
           actual_attendees?: number | null;
+          duration_hours?: number | null;
+          litter_types?: string[] | null;
+          hotspot_severity?: number | null;
+          notable_brands?: string | null;
           notes?: string | null;
         };
         Relationships: [];

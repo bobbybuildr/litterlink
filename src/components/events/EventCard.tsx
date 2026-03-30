@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { MapPin, Calendar, Users } from "lucide-react";
+import { MapPin, Calendar, Users, CheckCircle, XCircle, Clock } from "lucide-react";
 import type { EventWithCount } from "@/lib/events";
 import { cn } from "@/lib/utils";
 
@@ -8,31 +8,92 @@ interface EventCardProps {
   className?: string;
 }
 
+type CardState = "joinable" | "completed" | "cancelled" | "past";
+
+function getCardState(event: EventWithCount): CardState {
+  if (event.status === "cancelled") return "cancelled";
+  if (event.status === "completed" || new Date(event.starts_at) < new Date()) {
+    return "past";
+  }
+
+  return "joinable";
+}
+
+const stateStyles: Record<
+  CardState,
+  {
+    card: string;
+    badge: string | null;
+    badgeIcon: React.ReactNode;
+    badgeLabel: string | null;
+  }
+> = {
+  joinable: {
+    card: "border-gray-200 bg-white",
+    badge: null,
+    badgeIcon: null,
+    badgeLabel: null,
+  },
+  cancelled: {
+    card: "border-red-200 bg-red-50",
+    badge: "bg-red-100 text-red-600",
+    badgeIcon: <XCircle className="h-3 w-3" />,
+    badgeLabel: "Cancelled",
+  },
+  past: {
+    card: "border-gray-200 bg-gray-50",
+    badge: "bg-gray-100 text-gray-600",
+    badgeIcon: <Clock className="h-3 w-3" />,
+    badgeLabel: "Past event",
+  },
+  completed: {
+    card: "border-gray-200 bg-gray-50",
+    badge: "bg-gray-100 text-gray-600",
+    badgeIcon: <Clock className="h-3 w-3" />,
+    badgeLabel: "Past event",
+  },
+};
+
 export function EventCard({ event, className }: EventCardProps) {
-  const isPast = new Date(event.starts_at) < new Date();
+  const state = getCardState(event);
+  const styles = stateStyles[state];
+  const isMuted = state !== "joinable";
   const isCompleted = event.status === "completed";
 
   return (
     <Link
       href={`/events/${event.id}`}
       className={cn(
-        "group flex flex-col rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md",
+        "group flex flex-col rounded-xl border p-5 shadow-sm transition-shadow hover:shadow-md",
+        styles.card,
         className
       )}
     >
       {/* Status badge */}
+      {styles.badge && styles.badgeLabel && (
+        <span className={cn("mb-3 inline-flex w-fit items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium", styles.badge)}>
+          {styles.badgeIcon}
+          {styles.badgeLabel}
+        </span>
+      )}
       {isCompleted && (
-        <span className="mb-3 inline-flex w-fit items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-500">
-          Completed
+        <span className="-mt-1 mb-3 inline-flex w-fit items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
+          <CheckCircle className="h-3 w-3" />
+          Impact logged
         </span>
       )}
 
-      <h3 className="font-semibold text-gray-900 group-hover:text-brand transition-colors line-clamp-2">
+      <h3
+        className={cn(
+          "font-semibold transition-colors line-clamp-2",
+          isMuted ? "text-gray-600" : "text-gray-900 group-hover:text-brand"
+        )}
+      >
         {event.title}
       </h3>
 
       {event.description && (
-        <p className="mt-1 text-sm text-gray-500 line-clamp-2">
+        <p className={cn("mt-1 text-sm line-clamp-2", isMuted ? "text-gray-500" : "text-gray-500")}>
           {event.description}
         </p>
       )}
@@ -50,7 +111,7 @@ export function EventCard({ event, className }: EventCardProps) {
         </EventMeta>
       </div>
 
-      {!isPast && !isCompleted && (
+      {state === "joinable" && (
         <span className="mt-4 inline-flex w-fit items-center rounded-lg bg-brand/10 px-3 py-1 text-xs font-medium text-brand">
           Join this pick →
         </span>

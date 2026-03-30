@@ -1,14 +1,26 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { MapPin, Calendar, User, ArrowLeft, Package, Weight } from "lucide-react";
-import { getEventById, getUserParticipation } from "@/lib/events";
+import {
+  MapPin,
+  Calendar,
+  User,
+  ArrowLeft,
+  Package,
+  Weight,
+  Clock,
+  CheckCircle,
+  XCircle,
+} from "lucide-react";
+import { getEventById, getUserParticipation, getEventPhotos } from "@/lib/events";
 import { createClient } from "@/lib/supabase/server";
 import { JoinButton } from "@/components/events/JoinButton";
 import { ShareUrl } from "@/components/events/ShareUrl";
 import { EventsMap } from "@/components/map/EventsMap";
 import { cancelEvent } from "@/app/events/actions";
 import { FormSubmitButton } from "@/components/FormSubmitButton";
+import { EventPhotosGallery } from "@/components/events/EventPhotosGallery";
+import { PhotoUpload } from "@/components/events/PhotoUpload";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -34,18 +46,26 @@ export default async function EventDetailPage({ params }: Props) {
 
   if (!event) notFound();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const isCompleted = event.status === "completed";
+  const isCancelled = event.status === "cancelled";
+
+  const [{ data: { user } }, photos] = await Promise.all([
+    supabase.auth.getUser(),
+    isCompleted ? getEventPhotos(id) : Promise.resolve([]),
+  ]);
 
   const participationStatus = user
     ? await getUserParticipation(id, user.id)
     : null;
 
+  const photoUrls = photos.map(
+    (p) =>
+      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/event-photos/${p.storage_path}`,
+  );
+
   const isPast = new Date(event.starts_at) < new Date();
-  const isCompleted = event.status === "completed";
-  const isCancelled = event.status === "cancelled";
   const isOrganiser = user?.id === event.organiser_id;
+  const needsWrapUp = isOrganiser && isPast && !isCompleted && !isCancelled;
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
@@ -63,11 +83,26 @@ export default async function EventDetailPage({ params }: Props) {
         <div className="lg:col-span-2 space-y-6">
           {/* Title + status */}
           <div>
-            {isCompleted && (
-              <span className="mb-2 inline-flex rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-500">
-                Completed
-              </span>
-            )}
+            <div className="mb-2 flex flex-wrap gap-2">
+              {isCancelled && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-700">
+                  <XCircle className="h-3 w-3" />
+                  Cancelled
+                </span>
+              )}
+              {isCompleted && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
+                  <CheckCircle className="h-3 w-3" />
+                  Completed
+                </span>
+              )}
+              {isPast && !isCompleted && !isCancelled && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">
+                  <Clock className="h-3 w-3" />
+                  Past event
+                </span>
+              )}
+            </div>
             <h1 className="text-2xl font-bold text-gray-900">{event.title}</h1>
             {event.organiser_name && (
               <p className="mt-1 flex items-center gap-1.5 text-sm text-gray-500">
@@ -135,9 +170,17 @@ export default async function EventDetailPage({ params }: Props) {
                 )}
               </div>
               {event.event_stats.notes && (
-                <p className="mt-3 text-sm text-green-800 italic">&ldquo;{event.event_stats.notes}&rdquo;</p>
+                <p className="mt-3 text-sm text-green-800">Organiser message:&nbsp;<span className="italic">&ldquo;{event.event_stats.notes}&rdquo;</span></p>
               )}
             </div>
+          )}
+
+          {/* Event photos gallery */}
+          {isCompleted && <EventPhotosGallery photoUrls={photoUrls} />}
+
+          {/* Organiser: upload photos */}
+          {isOrganiser && isCompleted && (
+            <PhotoUpload eventId={id} />
           )}
 
           {/* Organiser: log stats CTA */}
@@ -152,7 +195,7 @@ export default async function EventDetailPage({ params }: Props) {
           )}
 
           {/* Organiser: cancel event */}
-          {isOrganiser && !isCompleted && !isCancelled && (
+          {isOrganiser && !isCompleted && !isCancelled && !isPast && (
             <form
               action={async () => {
                 "use server";
@@ -174,16 +217,22 @@ export default async function EventDetailPage({ params }: Props) {
               <p className="text-sm font-medium text-red-800">This event has been cancelled.</p>
             </div>
           )}
-          {isOrganiser && (isPast || isCompleted) && !event.event_stats && (
+          {needsWrapUp && !event.event_stats && (
             <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-              <p className="text-sm font-medium text-amber-800">Log your impact</p>
-              <p className="mt-1 text-sm text-amber-700">This event has passed. Add bags collected, weight, and attendance.</p>
+              <p className="text-sm font-medium text-amber-800">Needs wrap-up</p>
+              <p className="mt-1 text-sm text-amber-700">This event has passed. Add bags collected, weight, and attendance to mark it complete.</p>
               <Link
                 href={`/events/${id}/stats`}
                 className="mt-3 inline-block rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 transition-colors"
               >
                 Log stats →
               </Link>
+            </div>
+          )}
+          {isPast && !isCompleted && !isCancelled && !isOrganiser && (
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+              <p className="text-sm font-medium text-gray-700">This event has finished.</p>
+              <p className="mt-1 text-sm text-gray-500">Check back later for impact updates from the organiser.</p>
             </div>
           )}
         </div>
@@ -198,9 +247,13 @@ export default async function EventDetailPage({ params }: Props) {
               initialStatus={participationStatus}
               isAuthenticated={!!user}
               isPast={isPast || isCompleted}
+              eventTitle={event.title}
+              startsAt={event.starts_at}
+              endsAt={event.ends_at ?? null}
+              location={event.address_label ?? event.location_postcode}
             />
             {event.max_attendees != null && (
-              <p className="mt-2 text-xs text-gray-400">
+              <p className="mt-2 text-xs text-gray-400 text-center">
                 {event.max_attendees - event.confirmed_count} spots remaining
               </p>
             )}

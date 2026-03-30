@@ -12,6 +12,9 @@ export type EventWithStats = EventWithCount & {
   event_stats: Database["public"]["Tables"]["event_stats"]["Row"] | null;
 };
 
+export type EventPhotoRow =
+  Database["public"]["Tables"]["event_photos"]["Row"];
+
 /**
  * Fetch upcoming published events for the list/map view.
  * Optionally filter by radius (km) around a lat/lng.
@@ -119,6 +122,19 @@ export async function getUserParticipation(
     .maybeSingle();
 
   return (data?.status as "confirmed" | "waitlisted" | "cancelled") ?? null;
+}
+
+/** Fetch all photos for a completed event, ordered oldest-first. */
+export async function getEventPhotos(eventId: string): Promise<EventPhotoRow[]> {
+  const supabase = await createClient();
+
+  const { data } = await supabase
+    .from("event_photos")
+    .select("*")
+    .eq("event_id", eventId)
+    .order("created_at", { ascending: true });
+
+  return (data ?? []) as EventPhotoRow[];
 }
 
 // Haversine distance in km

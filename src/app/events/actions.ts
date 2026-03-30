@@ -78,3 +78,72 @@ export async function cancelEvent(eventId: string) {
   revalidatePath("/events");
   return { error: null };
 }
+
+export async function uploadEventPhoto(eventId: string, formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "Not authenticated." };
+
+  // Authorisation: only the event organiser may upload photos
+  const { data: event, error: fetchError } = await supabase
+    .from("events")
+    .select("organiser_id, status")
+    .eq("id", eventId)
+    .single();
+
+  if (fetchError || !event) return { error: "Event not found." };
+  if (event.organiser_id !== user.id)
+    return { error: "Only the organiser can upload photos." };
+  if (event.status !== "completed")
+    return { error: "Photos can only be uploaded once the event is completed." };
+
+  const files = formData.getAll("photos") as File[];
+  const validFiles = files.filter((f) => f instanceof File && f.size > 0);
+  if (!validFiles.length) return { error: "No files selected." };
+
+  const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
+  const MAX_BYTES = 5 * 1024 * 1024; // 5 MB
+  const errors: string[] = [];
+
+  for (const file of validFiles) {
+    if (!allowedTypes.has(file.type)) {
+      errors.push(`${file.name}: unsupported file type.`);
+      continue;
+    }
+    if (file.size > MAX_BYTES) {
+      errors.push(`${file.name}: exceeds the 5 MB limit.`);
+      continue;
+    }
+
+    const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
+    const safeName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const storagePath = `${eventId}/${user.id}/${safeName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("event-photos")
+      .upload(storagePath, file, { contentType: file.type });
+
+    if (uploadError) {
+      errors.push(`${file.name}: upload failed.`);
+      continue;
+    }
+
+    const { error: dbError } = await supabase.from("event_photos").insert({
+      event_id: eventId,
+      uploaded_by: user.id,
+      storage_path: storagePath,
+    });
+
+    if (dbError) {
+      // Roll back the storage object if the DB row fails
+      await supabase.storage.from("event-photos").remove([storagePath]);
+      errors.push(`${file.name}: failed to save.`);
+    }
+  }
+
+  revalidatePath(`/events/${eventId}`);
+  return { error: errors.length ? errors.join(" ") : null };
+}
