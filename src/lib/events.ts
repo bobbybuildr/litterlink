@@ -2,10 +2,17 @@ import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/database";
 
 export type EventRow = Database["public"]["Tables"]["events"]["Row"];
+export type GroupRow = Database["public"]["Tables"]["groups"]["Row"];
+export type OrganiserApplicationRow =
+  Database["public"]["Tables"]["organiser_applications"]["Row"];
+
 export type EventWithCount = EventRow & {
   organiser_name: string | null;
   organiser_avatar: string | null;
+  organiser_is_verified: boolean;
   confirmed_count: number;
+  group_name: string | null;
+  group_slug: string | null;
 };
 
 export type EventWithStats = EventWithCount & {

@@ -14,6 +14,7 @@ export type Json =
 
 export type EventStatus = "draft" | "published" | "completed" | "cancelled";
 export type ParticipantStatus = "confirmed" | "waitlisted" | "cancelled";
+export type OrganiserApplicationStatus = "pending" | "approved" | "rejected";
 
 export interface Database {
   public: {
@@ -24,6 +25,8 @@ export interface Database {
           display_name: string | null;
           postcode: string | null;
           avatar_url: string | null;
+          is_verified_organiser: boolean;
+          is_admin: boolean;
           created_at: string;
         };
         Insert: {
@@ -31,6 +34,8 @@ export interface Database {
           display_name?: string | null;
           postcode?: string | null;
           avatar_url?: string | null;
+          is_verified_organiser?: boolean;
+          is_admin?: boolean;
           created_at?: string;
         };
         Update: {
@@ -38,6 +43,8 @@ export interface Database {
           display_name?: string | null;
           postcode?: string | null;
           avatar_url?: string | null;
+          is_verified_organiser?: boolean;
+          is_admin?: boolean;
           created_at?: string;
         };
         Relationships: [];
@@ -46,6 +53,7 @@ export interface Database {
         Row: {
           id: string;
           organiser_id: string;
+          group_id: string | null;
           title: string;
           description: string | null;
           location_postcode: string;
@@ -61,6 +69,7 @@ export interface Database {
         Insert: {
           id?: string;
           organiser_id: string;
+          group_id?: string | null;
           title: string;
           description?: string | null;
           location_postcode: string;
@@ -76,6 +85,7 @@ export interface Database {
         Update: {
           id?: string;
           organiser_id?: string;
+          group_id?: string | null;
           title?: string;
           description?: string | null;
           location_postcode?: string;
@@ -180,12 +190,91 @@ export interface Database {
         };
         Relationships: [];
       };
+      groups: {
+        Row: {
+          id: string;
+          name: string;
+          slug: string;
+          description: string | null;
+          logo_url: string | null;
+          website_url: string | null;
+          social_url: string | null;
+          contact_email: string | null;
+          group_type: string;
+          created_by: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          slug: string;
+          description?: string | null;
+          logo_url?: string | null;
+          website_url?: string | null;
+          social_url?: string | null;
+          contact_email?: string | null;
+          group_type?: string;
+          created_by: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          slug?: string;
+          description?: string | null;
+          logo_url?: string | null;
+          website_url?: string | null;
+          social_url?: string | null;
+          contact_email?: string | null;
+          group_type?: string;
+          created_by?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      organiser_applications: {
+        Row: {
+          id: string;
+          user_id: string;
+          motivation: string;
+          experience: string | null;
+          organisation_name: string | null;
+          social_links: string | null;
+          status: OrganiserApplicationStatus;
+          reviewed_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          motivation: string;
+          experience?: string | null;
+          organisation_name?: string | null;
+          social_links?: string | null;
+          status?: OrganiserApplicationStatus;
+          reviewed_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          motivation?: string;
+          experience?: string | null;
+          organisation_name?: string | null;
+          social_links?: string | null;
+          status?: OrganiserApplicationStatus;
+          reviewed_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
     Enums: {
       event_status: EventStatus;
       participant_status: ParticipantStatus;
+      organiser_application_status: OrganiserApplicationStatus;
     };
   };
 }

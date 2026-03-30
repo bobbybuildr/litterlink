@@ -5,12 +5,14 @@ import {
   MapPin,
   Calendar,
   User,
+  Users,
   ArrowLeft,
   Package,
   Weight,
   Clock,
   CheckCircle,
   XCircle,
+  BadgeCheck,
 } from "lucide-react";
 import { getEventById, getUserParticipation, getEventPhotos } from "@/lib/events";
 import { createClient } from "@/lib/supabase/server";
@@ -51,7 +53,7 @@ export default async function EventDetailPage({ params }: Props) {
 
   const [{ data: { user } }, photos] = await Promise.all([
     supabase.auth.getUser(),
-    isCompleted ? getEventPhotos(id) : Promise.resolve([]),
+    isCompleted ? getEventPhotos(id) : Promise.resolve([] as Awaited<ReturnType<typeof getEventPhotos>>),
   ]);
 
   const participationStatus = user
@@ -108,6 +110,18 @@ export default async function EventDetailPage({ params }: Props) {
               <p className="mt-1 flex items-center gap-1.5 text-sm text-gray-500">
                 <User className="h-3.5 w-3.5" />
                 Organised by {event.organiser_name}
+                {event.organiser_is_verified && (
+                  <BadgeCheck className="h-4 w-4 text-brand" aria-label="Verified Organiser" />
+                )}
+              </p>
+            )}
+            {event.group_name && event.group_slug && (
+              <p className="mt-0.5 flex items-center gap-1.5 text-sm text-gray-500">
+                <Users className="h-3.5 w-3.5" />
+                On behalf of{" "}
+                <Link href={`/groups/${event.group_slug}`} className="font-medium text-brand hover:underline">
+                  {event.group_name}
+                </Link>
               </p>
             )}
           </div>

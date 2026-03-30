@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Calendar, Package, Users, ClipboardList } from "lucide-react";
+import { BadgeCheck, Calendar, ClipboardList, Package } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { EventCard } from "@/components/events/EventCard";
 import type { EventWithCount } from "@/lib/events";
@@ -19,7 +19,7 @@ export default async function DashboardPage() {
   // Fetch user profile
   const { data: profile } = await supabase
     .from("profiles")
-    .select("display_name, postcode")
+    .select("display_name, postcode, is_verified_organiser")
     .eq("id", user.id)
     .single();
 
@@ -87,8 +87,11 @@ export default async function DashboardPage() {
       {/* Header */}
       <div className="mb-8 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="inline-flex items-center gap-2 text-2xl font-bold text-gray-900">
             Welcome back{profile?.display_name ? `, ${profile.display_name}` : ""}
+            {profile?.is_verified_organiser && (
+              <BadgeCheck className="h-6 w-6 text-brand" aria-label="Verified Organiser" />
+            )}
           </h1>
           <p className="mt-1 text-sm text-gray-500">Your litter-picking activity</p>
         </div>
@@ -105,8 +108,37 @@ export default async function DashboardPage() {
           >
             + Create event
           </Link>
+          {profile?.is_verified_organiser && (
+          <Link
+            href="/groups/create"
+            className="w-fit rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-dark transition-colors"
+          >
+            + Create group
+          </Link>)}
         </div>
       </div>
+
+      {/* Organiser status */}
+      {profile?.is_verified_organiser ? (
+        <div className="mb-6 flex items-center gap-3 rounded-xl border border-brand/20 bg-brand/5 px-4 py-3">
+          <BadgeCheck className="h-5 w-5 shrink-0 text-brand" />
+          <p className="text-sm font-medium text-brand">
+            You are a Verified Organiser — you can create verified events and groups.
+          </p>
+        </div>
+      ) : (
+        <div className="mb-6 flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3">
+          <p className="text-sm text-gray-500">
+            Planning on hosting your own litter picks?
+          </p>
+          <Link
+            href="/become-a-verified-organiser"
+            className="shrink-0 text-sm font-medium text-brand hover:underline"
+          >
+            Become a Verified Organiser
+          </Link>
+        </div>
+      )}
 
       {/* Impact summary */}
       <div className="mb-10 grid grid-cols-1 gap-4 sm:grid-cols-3">

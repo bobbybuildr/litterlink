@@ -21,10 +21,28 @@ export async function createEvent(formData: FormData) {
   const maxAttendees = formData.get("max_attendees")
     ? parseInt(formData.get("max_attendees") as string, 10)
     : null;
+  const rawGroupId = (formData.get("group_id") as string | null) ?? null;
+  const groupId = rawGroupId && rawGroupId !== "" ? rawGroupId : null;
 
   // Validate required fields
   if (!title || !postcode || !startsAt) {
     redirect("/events/create?error=Please+fill+in+all+required+fields.");
+  }
+
+  // If a group_id was supplied, verify it belongs to the current user server-side
+  if (groupId) {
+    const { data: group } = await supabase
+      .from("groups")
+      .select("id")
+      .eq("id", groupId)
+      .eq("created_by", user.id)
+      .maybeSingle();
+
+    if (!group) {
+      redirect(
+        `/events/create?error=${encodeURIComponent("Selected group is invalid or not owned by you.")}`
+      );
+    }
   }
 
   // Geocode the postcode
@@ -39,6 +57,7 @@ export async function createEvent(formData: FormData) {
     .from("events")
     .insert({
       organiser_id: user.id,
+      group_id: groupId,
       title,
       description,
       location_postcode: geo.postcode,

@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
 import { createEvent } from "@/app/events/create/actions";
 import { SubmitButton } from "./SubmitButton";
+import type { GroupRow } from "@/lib/events";
 
 export const metadata: Metadata = {
   title: "Create a Litter Pick",
@@ -11,6 +14,22 @@ interface Props {
 }
 
 export default async function CreateEventPage({ searchParams }: Props) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) redirect("/sign-in?redirectTo=/events/create");
+
+  // Fetch groups owned by the current user (only verified organisers can have groups)
+  const { data: groupsRaw } = await supabase
+    .from("groups")
+    .select("id, name, slug")
+    .eq("created_by", user.id)
+    .order("name", { ascending: true });
+
+  const groups = (groupsRaw ?? []) as Pick<GroupRow, "id" | "name" | "slug">[];
+
   const { error } = await searchParams;
 
   // Set min datetime to now (rounded up to next 15 min)
@@ -34,6 +53,20 @@ export default async function CreateEventPage({ searchParams }: Props) {
       )}
 
       <form action={createEvent} className="space-y-6">
+        {/* Organising as */}
+        {groups.length > 0 && (
+          <Field label="Organising as" htmlFor="group_id">
+            <select id="group_id" name="group_id" className={inputCls}>
+              <option value="">Myself</option>
+              {groups.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
+
         {/* Title */}
         <Field label="Event title *" htmlFor="title">
           <input
