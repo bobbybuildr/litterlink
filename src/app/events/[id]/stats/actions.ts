@@ -26,16 +26,18 @@ export async function submitStats(eventId: string, formData: FormData) {
   const bags = formData.get("bags_collected")
     ? parseInt(formData.get("bags_collected") as string, 10)
     : null;
-  const weight = formData.get("weight_kg")
-    ? parseFloat(formData.get("weight_kg") as string)
-    : null;
-  const area = formData.get("area_covered_sqm")
-    ? parseFloat(formData.get("area_covered_sqm") as string)
-    : null;
   const attendees = formData.get("actual_attendees")
     ? parseInt(formData.get("actual_attendees") as string, 10)
     : null;
-  const notes = (formData.get("notes") as string).trim() || null;
+  const duration = formData.get("duration_hours")
+    ? parseFloat(formData.get("duration_hours") as string)
+    : null;
+  const litterTypes = (formData.getAll("litter_types") as string[]).filter(Boolean);
+  const severity = formData.get("hotspot_severity")
+    ? parseInt(formData.get("hotspot_severity") as string, 10)
+    : null;
+  const notableBrands = (formData.get("notable_brands") as string | null)?.trim() || null;
+  const notes = (formData.get("notes") as string | null)?.trim() || null;
 
   // Upsert stats + mark event as completed in a single round-trip
   const [statsResult] = await Promise.all([
@@ -43,9 +45,11 @@ export async function submitStats(eventId: string, formData: FormData) {
       {
         event_id: eventId,
         bags_collected: bags,
-        weight_kg: weight,
-        area_covered_sqm: area,
         actual_attendees: attendees,
+        duration_hours: duration,
+        litter_types: litterTypes.length > 0 ? litterTypes : null,
+        hotspot_severity: severity,
+        notable_brands: notableBrands,
         notes,
       },
       { onConflict: "event_id" }

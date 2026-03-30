@@ -39,7 +39,7 @@ export function EventsMap({ events, centerLat, centerLng }: EventsMapProps) {
 
       const defaultLat = centerLat ?? 51.505;
       const defaultLng = centerLng ?? -0.09;
-      const defaultZoom = centerLat != null ? 11 : 6;
+      const defaultZoom = centerLat != null ? 11 : 7;
 
       const map = L.map(containerRef.current!).setView(
         [defaultLat, defaultLng],

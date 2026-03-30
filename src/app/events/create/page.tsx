@@ -1,5 +1,9 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
 import { createEvent } from "@/app/events/create/actions";
+import { SubmitButton } from "./SubmitButton";
+import type { GroupRow } from "@/lib/events";
 
 export const metadata: Metadata = {
   title: "Create a Litter Pick",
@@ -10,6 +14,22 @@ interface Props {
 }
 
 export default async function CreateEventPage({ searchParams }: Props) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) redirect("/sign-in?redirectTo=/events/create");
+
+  // Fetch groups owned by the current user (only verified organisers can have groups)
+  const { data: groupsRaw } = await supabase
+    .from("groups")
+    .select("id, name, slug")
+    .eq("created_by", user.id)
+    .order("name", { ascending: true });
+
+  const groups = (groupsRaw ?? []) as Pick<GroupRow, "id" | "name" | "slug">[];
+
   const { error } = await searchParams;
 
   // Set min datetime to now (rounded up to next 15 min)
@@ -32,7 +52,21 @@ export default async function CreateEventPage({ searchParams }: Props) {
         </div>
       )}
 
-      <form className="space-y-6">
+      <form action={createEvent} className="space-y-6">
+        {/* Organising as */}
+        {groups.length > 0 && (
+          <Field label="Organising as" htmlFor="group_id">
+            <select id="group_id" name="group_id" className={inputCls}>
+              <option value="">Myself</option>
+              {groups.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
+
         {/* Title */}
         <Field label="Event title *" htmlFor="title">
           <input
@@ -124,13 +158,20 @@ export default async function CreateEventPage({ searchParams }: Props) {
           />
         </Field>
 
+        {/* Join on create */}
+        <label className="flex cursor-pointer items-center gap-3">
+          <input
+            type="checkbox"
+            name="join_event"
+            value="1"
+            defaultChecked
+            className="h-4 w-4 rounded border-gray-300 accent-brand"
+          />
+          <span className="text-sm text-gray-700">Join this event as a participant</span>
+        </label>
+
         <div className="flex items-center gap-4 pt-2">
-          <button
-            formAction={createEvent}
-            className="rounded-xl bg-brand px-6 py-3 text-sm font-semibold text-white hover:bg-brand-dark transition-colors"
-          >
-            Publish event
-          </button>
+          <SubmitButton />
           <p className="text-xs text-gray-400">
             Your event will be visible to everyone immediately.
           </p>

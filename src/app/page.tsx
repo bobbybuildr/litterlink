@@ -4,18 +4,21 @@ import { createClient } from "@/lib/supabase/server";
 async function getImpactStats() {
   const supabase = await createClient();
 
-  const [{ count: eventCount }, { data: statsData }] = await Promise.all([
+  const [{ count: eventCount }, { data: statsData }, { count: volunteerCount }] = await Promise.all([
     supabase
       .from("events")
       .select("*", { count: "exact", head: true })
       .eq("status", "completed"),
-    supabase.from("event_stats").select("bags_collected, weight_kg"),
+    supabase.from("event_stats").select("bags_collected"),
+    supabase
+      .from("event_participants")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "confirmed"),
   ]);
 
   const totalBags = statsData?.reduce((sum, s) => sum + (s.bags_collected ?? 0), 0) ?? 0;
-  const totalKg = statsData?.reduce((sum, s) => sum + (s.weight_kg ?? 0), 0) ?? 0;
 
-  return { eventCount: eventCount ?? 0, totalBags, totalKg };
+  return { eventCount: eventCount ?? 0, totalBags, volunteerCount: volunteerCount ?? 0 };
 }
 
 export default async function HomePage() {
@@ -60,10 +63,7 @@ export default async function HomePage() {
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
             <StatCard value={stats.eventCount} label="Events completed" />
             <StatCard value={stats.totalBags.toLocaleString()} label="Bags of litter collected" />
-            <StatCard
-              value={`${stats.totalKg.toLocaleString()} kg`}
-              label="Litter removed"
-            />
+            <StatCard value={stats.volunteerCount.toLocaleString()} label="Volunteers taken part" />
           </div>
         </div>
       </section>

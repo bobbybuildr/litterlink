@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Calendar, Package, Users } from "lucide-react";
+import { BadgeCheck, Calendar, ClipboardList, Package } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { EventCard } from "@/components/events/EventCard";
 import type { EventWithCount } from "@/lib/events";
@@ -19,7 +19,7 @@ export default async function DashboardPage() {
   // Fetch user profile
   const { data: profile } = await supabase
     .from("profiles")
-    .select("display_name, postcode")
+    .select("display_name, postcode, is_verified_organiser")
     .eq("id", user.id)
     .single();
 
@@ -61,12 +61,11 @@ export default async function DashboardPage() {
   const { data: statsRows } = completedIds.length
     ? await supabase
         .from("event_stats")
-        .select("bags_collected, weight_kg, actual_attendees")
+        .select("bags_collected, actual_attendees")
         .in("event_id", completedIds)
     : { data: [] };
 
   const totalBags = statsRows?.reduce((s, r) => s + (r.bags_collected ?? 0), 0) ?? 0;
-  const totalKg = statsRows?.reduce((s, r) => s + Number(r.weight_kg ?? 0), 0) ?? 0;
 
   const upcomingJoined = joinedEvents.filter(
     (e) => new Date(e.starts_at) >= new Date() && e.status === "published"
@@ -74,14 +73,25 @@ export default async function DashboardPage() {
   const pastJoined = joinedEvents.filter(
     (e) => new Date(e.starts_at) < new Date() || e.status === "completed"
   );
+  const needsWrapUp = organisedEvents.filter(
+    (e) => e.status === "published" && new Date(e.starts_at) < new Date()
+  );
+  const organisedOverview = organisedEvents.filter(
+    (e) => !(e.status === "published" && new Date(e.starts_at) < new Date())
+  );
+  const organisedActive = organisedOverview.filter((e) => e.status !== "completed");
+  const organisedCompleted = organisedOverview.filter((e) => e.status === "completed");
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
       {/* Header */}
       <div className="mb-8 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="inline-flex items-center gap-2 text-2xl font-bold text-gray-900">
             Welcome back{profile?.display_name ? `, ${profile.display_name}` : ""}
+            {profile?.is_verified_organiser && (
+              <BadgeCheck className="h-6 w-6 text-brand" aria-label="Verified Organiser" />
+            )}
           </h1>
           <p className="mt-1 text-sm text-gray-500">Your litter-picking activity</p>
         </div>
@@ -98,8 +108,37 @@ export default async function DashboardPage() {
           >
             + Create event
           </Link>
+          {profile?.is_verified_organiser && (
+          <Link
+            href="/groups/create"
+            className="w-fit rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-dark transition-colors"
+          >
+            + Create group
+          </Link>)}
         </div>
       </div>
+
+      {/* Organiser status */}
+      {profile?.is_verified_organiser ? (
+        <div className="mb-6 flex items-center gap-3 rounded-xl border border-brand/20 bg-brand/5 px-4 py-3">
+          <BadgeCheck className="h-5 w-5 shrink-0 text-brand" />
+          <p className="text-sm font-medium text-brand">
+            You are a Verified Organiser — you can create verified events and groups.
+          </p>
+        </div>
+      ) : (
+        <div className="mb-6 flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3">
+          <p className="text-sm text-gray-500">
+            Planning on hosting your own litter picks?
+          </p>
+          <Link
+            href="/become-a-verified-organiser"
+            className="shrink-0 text-sm font-medium text-brand hover:underline"
+          >
+            Become a Verified Organiser
+          </Link>
+        </div>
+      )}
 
       {/* Impact summary */}
       <div className="mb-10 grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -112,11 +151,6 @@ export default async function DashboardPage() {
           icon={<Package className="h-5 w-5 text-brand" />}
           value={totalBags}
           label="Bags collected"
-        />
-        <ImpactCard
-          icon={<Users className="h-5 w-5 text-brand" />}
-          value={`${totalKg.toFixed(1)} kg`}
-          label="Litter removed"
         />
       </div>
 
@@ -132,14 +166,38 @@ export default async function DashboardPage() {
         ))}
       </Section>
 
+      <Section
+        title="Needs wrap-up"
+        count={needsWrapUp.length}
+        emptyMessage="No organised events are waiting for stats."
+      >
+        {needsWrapUp.map((e) => (
+          <ActionCard
+            key={e.id}
+            event={e}
+            title="Log your impact"
+            body="This event has passed. Add attendance and clean-up totals to mark it complete."
+            actionHref={`/events/${e.id}/stats`}
+            actionLabel="Open stats"
+          />
+        ))}
+      </Section>
+
       {/* Organised events */}
       <Section
         title="Events you've organised"
-        count={organisedEvents.length}
+        count={organisedActive.length}
         emptyMessage="You haven't organised any events yet."
         emptyAction={{ href: "/events/create", label: "Create an event" }}
+        collapsibleCount={organisedCompleted.length}
+        collapsibleLabel="completed event"
+        collapsibleChildren={
+          organisedCompleted.map((e) => (
+            <EventCard key={e.id} event={e} />
+          ))
+        }
       >
-        {organisedEvents.map((e) => (
+        {organisedActive.map((e) => (
           <EventCard key={e.id} event={e} />
         ))}
       </Section>
@@ -180,18 +238,61 @@ function ImpactCard({
   );
 }
 
+function ActionCard({
+  event,
+  title,
+  body,
+  actionHref,
+  actionLabel,
+}: {
+  event: EventWithCount;
+  title: string;
+  body: string;
+  actionHref: string;
+  actionLabel: string;
+}) {
+  return (
+    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+      <div className="mb-4 flex items-start gap-3">
+        <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+          <ClipboardList className="h-4 w-4" />
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-amber-900">{title}</p>
+          <p className="mt-1 text-sm text-amber-800">{body}</p>
+        </div>
+      </div>
+
+      <EventCard event={event} className="border-amber-200 bg-white shadow-none" />
+
+      <Link
+        href={actionHref}
+        className="mt-4 inline-flex items-center rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-700"
+      >
+        {actionLabel}
+      </Link>
+    </div>
+  );
+}
+
 function Section({
   title,
   count,
   children,
   emptyMessage,
   emptyAction,
+  collapsibleCount,
+  collapsibleLabel,
+  collapsibleChildren,
 }: {
   title: string;
   count: number;
   children?: React.ReactNode;
   emptyMessage?: string;
   emptyAction?: { href: string; label: string };
+  collapsibleCount?: number;
+  collapsibleLabel?: string;
+  collapsibleChildren?: React.ReactNode;
 }) {
   return (
     <div className="mb-10">
@@ -213,6 +314,22 @@ function Section({
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">{children}</div>
+      )}
+      {collapsibleCount != null && collapsibleCount > 0 && collapsibleChildren && (
+        <details className="group mt-4">
+          <summary className="flex cursor-pointer list-none items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors">
+            <svg
+              className="h-4 w-4 shrink-0 rotate-0 transition-transform group-open:rotate-90"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+            Show {collapsibleCount} {collapsibleLabel}{collapsibleCount !== 1 ? "s" : ""}
+          </summary>
+          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">{collapsibleChildren}</div>
+        </details>
       )}
     </div>
   );

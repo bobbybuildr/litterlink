@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { signInWithEmail, signInWithGoogle } from "@/app/(auth)/actions";
+import { FormSubmitButton } from "@/components/FormSubmitButton";
 
 interface Props {
   searchParams: Promise<{ error?: string; message?: string; redirectTo?: string }>;
@@ -31,8 +32,8 @@ export default async function SignInPage({ searchParams }: Props) {
 
         {/* Google OAuth */}
         <form action={signInWithGoogle}>
-          <button
-            type="submit"
+          <FormSubmitButton
+            pendingText="Redirecting…"
             className="w-full flex items-center justify-center gap-3 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 transition-colors"
           >
             <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
@@ -54,7 +55,7 @@ export default async function SignInPage({ searchParams }: Props) {
               />
             </svg>
             Continue with Google
-          </button>
+          </FormSubmitButton>
         </form>
 
         <div className="relative">
@@ -67,7 +68,7 @@ export default async function SignInPage({ searchParams }: Props) {
         </div>
 
         {/* Email / password */}
-        <form className="space-y-4">
+        <form action={signInWithEmail} className="space-y-4">
           <input type="hidden" name="redirectTo" value={redirectTo ?? "/dashboard"} />
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
@@ -95,12 +96,12 @@ export default async function SignInPage({ searchParams }: Props) {
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
             />
           </div>
-          <button
-            formAction={signInWithEmail}
+          <FormSubmitButton
+            pendingText="Signing in…"
             className="w-full rounded-lg bg-brand px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-dark transition-colors"
           >
             Sign in
-          </button>
+          </FormSubmitButton>
         </form>
 
         <p className="text-center text-sm text-gray-500">

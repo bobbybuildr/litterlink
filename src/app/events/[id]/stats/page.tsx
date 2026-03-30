@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { submitStats } from "./actions";
+import { FormSubmitButton } from "@/components/FormSubmitButton";
 
 export const metadata: Metadata = { title: "Log Impact Stats" };
 
@@ -57,33 +58,12 @@ export default async function StatsPage({ params, searchParams }: Props) {
         </div>
       )}
 
-      <form className="space-y-5">
+      <form action={submitStatsForEvent} className="space-y-5">
         <div className="grid grid-cols-2 gap-4">
           <Field label="Bags collected" htmlFor="bags_collected">
             <input
               id="bags_collected"
               name="bags_collected"
-              type="number"
-              min={0}
-              placeholder="0"
-              className={inputCls}
-            />
-          </Field>
-          <Field label="Weight (kg)" htmlFor="weight_kg">
-            <input
-              id="weight_kg"
-              name="weight_kg"
-              type="number"
-              min={0}
-              step={0.1}
-              placeholder="0.0"
-              className={inputCls}
-            />
-          </Field>
-          <Field label="Area covered (m²)" htmlFor="area_covered_sqm">
-            <input
-              id="area_covered_sqm"
-              name="area_covered_sqm"
               type="number"
               min={0}
               placeholder="0"
@@ -100,7 +80,61 @@ export default async function StatsPage({ params, searchParams }: Props) {
               className={inputCls}
             />
           </Field>
+          <Field label="Duration (hours)" htmlFor="duration_hours">
+            <input
+              id="duration_hours"
+              name="duration_hours"
+              type="number"
+              min={0.5}
+              step={0.5}
+              placeholder="1.5"
+              className={inputCls}
+            />
+          </Field>
         </div>
+
+        <Field label="Litter types found" htmlFor="litter_types" hint="select all that apply">
+          <div className="mt-1 grid grid-cols-2 gap-x-4 gap-y-2">
+            {LITTER_TYPES.map((type) => (
+              <label key={type} className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  name="litter_types"
+                  value={type}
+                  className="h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand"
+                />
+                {type}
+              </label>
+            ))}
+          </div>
+        </Field>
+
+        <Field label="Hotspot severity" htmlFor="hotspot_severity" hint="how bad was the littering?">
+          <div className="mt-1 flex items-center gap-3">
+            {SEVERITY_LABELS.map(({ value, label }) => (
+              <label key={value} className="flex flex-col items-center gap-1 cursor-pointer">
+                <input
+                  type="radio"
+                  name="hotspot_severity"
+                  value={value}
+                  className="h-4 w-4 border-gray-300 text-brand focus:ring-brand"
+                />
+                <span className="text-xs text-gray-500">{value}</span>
+                <span className="text-xs text-gray-400 text-center leading-tight max-w-16">{label}</span>
+              </label>
+            ))}
+          </div>
+        </Field>
+
+        <Field label="Notable brands" htmlFor="notable_brands" hint="optional">
+          <textarea
+            id="notable_brands"
+            name="notable_brands"
+            rows={2}
+            placeholder="e.g. Coca-Cola, McDonald's, Walkers…"
+            className={inputCls}
+          />
+        </Field>
 
         <Field label="Notes" htmlFor="notes" hint="optional">
           <textarea
@@ -113,12 +147,12 @@ export default async function StatsPage({ params, searchParams }: Props) {
         </Field>
 
         <div className="flex items-center gap-4 pt-2">
-          <button
-            formAction={submitStatsForEvent}
+          <FormSubmitButton
+            pendingText="Saving…"
             className="rounded-xl bg-brand px-6 py-3 text-sm font-semibold text-white hover:bg-brand-dark transition-colors"
           >
             Save &amp; mark completed
-          </button>
+          </FormSubmitButton>
         </div>
 
         <p className="text-xs text-gray-400">
@@ -128,6 +162,25 @@ export default async function StatsPage({ params, searchParams }: Props) {
     </div>
   );
 }
+
+const LITTER_TYPES = [
+  "Plastic bottles & packaging",
+  "Cans & tins",
+  "Glass",
+  "Cigarette butts",
+  "Food waste & wrappers",
+  "Dog waste bags",
+  "Fly-tipping",
+  "Other",
+];
+
+const SEVERITY_LABELS = [
+  { value: 1, label: "Light" },
+  { value: 2, label: "Mild" },
+  { value: 3, label: "Moderate" },
+  { value: 4, label: "Heavy" },
+  { value: 5, label: "Very heavy" },
+];
 
 const inputCls =
   "w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand";

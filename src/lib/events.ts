@@ -2,15 +2,25 @@ import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/database";
 
 export type EventRow = Database["public"]["Tables"]["events"]["Row"];
+export type GroupRow = Database["public"]["Tables"]["groups"]["Row"];
+export type OrganiserApplicationRow =
+  Database["public"]["Tables"]["organiser_applications"]["Row"];
+
 export type EventWithCount = EventRow & {
   organiser_name: string | null;
   organiser_avatar: string | null;
+  organiser_is_verified: boolean;
   confirmed_count: number;
+  group_name: string | null;
+  group_slug: string | null;
 };
 
 export type EventWithStats = EventWithCount & {
   event_stats: Database["public"]["Tables"]["event_stats"]["Row"] | null;
 };
+
+export type EventPhotoRow =
+  Database["public"]["Tables"]["event_photos"]["Row"];
 
 /**
  * Fetch upcoming published events for the list/map view.
@@ -119,6 +129,19 @@ export async function getUserParticipation(
     .maybeSingle();
 
   return (data?.status as "confirmed" | "waitlisted" | "cancelled") ?? null;
+}
+
+/** Fetch all photos for a completed event, ordered oldest-first. */
+export async function getEventPhotos(eventId: string): Promise<EventPhotoRow[]> {
+  const supabase = await createClient();
+
+  const { data } = await supabase
+    .from("event_photos")
+    .select("*")
+    .eq("event_id", eventId)
+    .order("created_at", { ascending: true });
+
+  return (data ?? []) as EventPhotoRow[];
 }
 
 // Haversine distance in km
