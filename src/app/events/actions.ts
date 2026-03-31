@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-
 export async function joinEvent(eventId: string) {
   const supabase = await createClient();
   const {
@@ -104,6 +103,18 @@ export async function uploadEventPhoto(eventId: string, formData: FormData) {
   const validFiles = files.filter((f) => f instanceof File && f.size > 0);
   if (!validFiles.length) return { error: "No files selected." };
 
+  const { count: existingCount, error: countError } = await supabase
+    .from("event_photos")
+    .select("*", { count: "exact", head: true })
+    .eq("event_id", eventId);
+  if (countError) return { error: "Could not verify photo count." };
+  const MAX_PHOTOS = 10;
+  if ((existingCount ?? 0) >= MAX_PHOTOS)
+    return { error: "This event already has the maximum of 10 photos." };
+  const remaining = MAX_PHOTOS - (existingCount ?? 0);
+  if (validFiles.length > remaining)
+    return { error: `Only ${remaining} more photo${remaining === 1 ? "" : "s"} can be added to this event.` };
+
   const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
   const MAX_BYTES = 5 * 1024 * 1024; // 5 MB
   const errors: string[] = [];
@@ -118,13 +129,12 @@ export async function uploadEventPhoto(eventId: string, formData: FormData) {
       continue;
     }
 
-    const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
-    const safeName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const safeName = `${Date.now()}-${Math.random().toString(36).slice(2)}.webp`;
     const storagePath = `${eventId}/${user.id}/${safeName}`;
 
     const { error: uploadError } = await supabase.storage
       .from("event-photos")
-      .upload(storagePath, file, { contentType: file.type });
+      .upload(storagePath, file, { contentType: "image/webp" });
 
     if (uploadError) {
       errors.push(`${file.name}: upload failed.`);
