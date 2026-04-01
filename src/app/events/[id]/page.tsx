@@ -14,7 +14,7 @@ import {
   XCircle,
   BadgeCheck,
 } from "lucide-react";
-import { getEventById, getUserParticipation, getEventPhotos } from "@/lib/events";
+import { getEventById, getUserParticipation, getEventPhotos, getEventParticipants } from "@/lib/events";
 import { createClient } from "@/lib/supabase/server";
 import { JoinButton } from "@/components/events/JoinButton";
 import { ShareUrl } from "@/components/events/ShareUrl";
@@ -51,19 +51,20 @@ export default async function EventDetailPage({ params }: Props) {
   const isCompleted = event.status === "completed";
   const isCancelled = event.status === "cancelled";
 
-  const [{ data: { user } }, photos] = await Promise.all([
+  const [{ data: { user } }, photos, participants] = await Promise.all([
     supabase.auth.getUser(),
     isCompleted ? getEventPhotos(id) : Promise.resolve([] as Awaited<ReturnType<typeof getEventPhotos>>),
+    getEventParticipants(id),
   ]);
 
   const participationStatus = user
     ? await getUserParticipation(id, user.id)
     : null;
 
-  const photoUrls = photos.map(
-    (p) =>
-      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/event-photos/${p.storage_path}`,
-  );
+  const photoData = photos.map((p) => ({
+    id: p.id,
+    url: `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/event-photos/${p.storage_path}`,
+  }));
 
   const isPast = new Date(event.starts_at) < new Date();
   const isOrganiser = user?.id === event.organiser_id;
@@ -190,22 +191,53 @@ export default async function EventDetailPage({ params }: Props) {
           )}
 
           {/* Event photos gallery */}
-          {isCompleted && <EventPhotosGallery photoUrls={photoUrls} />}
+          {isCompleted && <EventPhotosGallery photos={photoData} isOrganiser={isOrganiser} />}
 
           {/* Organiser: upload photos */}
           {isOrganiser && isCompleted && (
             <PhotoUpload eventId={id} />
           )}
+          {/* Participants */}
+          {participants.length > 0 && (
+            <div className="rounded-xl border border-gray-200 bg-white p-5">
+              <h2 className="mb-3 font-semibold text-gray-900 flex items-center gap-2">
+                <Users className="h-4 w-4 text-brand" />
+                {isCompleted ? "Who took part" : "Who\u2019s taking part"} ({participants.length})
+              </h2>
+              <ul className="divide-y divide-gray-100">
+                {participants.map((p, i) => (
+                  <li key={i} className="flex items-center justify-between py-2 text-sm">
+                    <span className="font-medium text-gray-800">
+                      {p.profiles?.display_name ?? "Anonymous"}
+                      {p.profiles?.display_name === event.organiser_name && (
+                        <span className="ml-1 font-normal text-gray-400">(organiser)</span>
+                      )}
+                    </span>
+                    <span className="text-xs text-gray-400">
+                      Joined {new Date(p.joined_at).toLocaleDateString("en-GB", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
 
           {/* Organiser: log stats CTA */}
           {isOrganiser && !isCompleted && !isPast && (
+            <div className="mb-6 flex items-center gap-3 rounded-xl border border-brand/20 bg-brand/5 px-4 py-3">
             <p className="text-sm text-gray-500">
-              After the event, come back here to{" "}
+              💡 After the event, come back here to{" "}
               <Link href={`/events/${id}/stats`} className="text-brand hover:underline font-medium">
                 log your impact stats
               </Link>
-              .
+              &nbsp;and add photos.
             </p>
+            </div>
           )}
 
           {/* Organiser: cancel event */}
@@ -234,7 +266,7 @@ export default async function EventDetailPage({ params }: Props) {
           {needsWrapUp && !event.event_stats && (
             <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
               <p className="text-sm font-medium text-amber-800">Needs wrap-up</p>
-              <p className="mt-1 text-sm text-amber-700">This event has passed. Add bags collected, weight, and attendance to mark it complete.</p>
+              <p className="mt-1 text-sm text-amber-700">This event has passed. Add bags collected, duration, attendance, and litter information to mark it complete.</p>
               <Link
                 href={`/events/${id}/stats`}
                 className="mt-3 inline-block rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 transition-colors"

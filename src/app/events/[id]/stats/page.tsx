@@ -146,6 +146,10 @@ export default async function StatsPage({ params, searchParams }: Props) {
           />
         </Field>
 
+        <p className="text-xs text-gray-500 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+          🖼️ Once marked as completed, you'll be able to add event photos to the event page.
+        </p>
+
         <div className="flex items-center gap-4 pt-2">
           <FormSubmitButton
             pendingText="Saving…"

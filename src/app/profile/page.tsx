@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { ProfileForm } from "./ProfileForm";
 
@@ -28,6 +29,9 @@ export default async function ProfilePage() {
       <p className="mb-8 text-sm text-gray-500">
         Update your display name, location, and profile photo.
       </p>
+      <Link href="/dashboard" className="mb-8 inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-800 transition-colors">
+        <span>←</span> Return to dashboard
+      </Link>
       <div className="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
         <ProfileForm
           displayName={profile?.display_name ?? null}
