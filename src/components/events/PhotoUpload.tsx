@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import imageCompression from "browser-image-compression";
 import { Camera } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -24,6 +25,7 @@ export function PhotoUpload({ eventId, className }: PhotoUploadProps) {
   const [selectedCount, setSelectedCount] = useState(0);
   const [isPending, startTransition] = useTransition();
   const formRef = useRef<HTMLFormElement>(null);
+  const router = useRouter();
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const count = e.target.files?.length ?? 0;
@@ -59,6 +61,7 @@ export function PhotoUpload({ eventId, className }: PhotoUploadProps) {
         setSuccess(true);
         setSelectedCount(0);
         formRef.current?.reset();
+        router.refresh();
       }
     });
   }

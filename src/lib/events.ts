@@ -131,6 +131,25 @@ export async function getUserParticipation(
   return (data?.status as "confirmed" | "waitlisted" | "cancelled") ?? null;
 }
 
+export type EventParticipant = {
+  joined_at: string;
+  profiles: { display_name: string | null; avatar_url: string | null } | null;
+};
+
+/** Fetch confirmed participants for an event, joined with their profile. */
+export async function getEventParticipants(eventId: string): Promise<EventParticipant[]> {
+  const supabase = await createClient();
+
+  const { data } = await supabase
+    .from("event_participants")
+    .select("joined_at, profiles(display_name, avatar_url)")
+    .eq("event_id", eventId)
+    .eq("status", "confirmed")
+    .order("joined_at", { ascending: true });
+
+  return (data ?? []) as EventParticipant[];
+}
+
 /** Fetch all photos for a completed event, ordered oldest-first. */
 export async function getEventPhotos(eventId: string): Promise<EventPhotoRow[]> {
   const supabase = await createClient();

@@ -129,7 +129,7 @@ export async function uploadEventPhoto(eventId: string, formData: FormData) {
       continue;
     }
 
-    const safeName = `${Date.now()}-${Math.random().toString(36).slice(2)}.webp`;
+    const safeName = `${crypto.randomUUID()}.webp`;
     const storagePath = `${eventId}/${user.id}/${safeName}`;
 
     const { error: uploadError } = await supabase.storage
@@ -156,4 +156,38 @@ export async function uploadEventPhoto(eventId: string, formData: FormData) {
 
   revalidatePath(`/events/${eventId}`);
   return { error: errors.length ? errors.join(" ") : null };
+}
+
+export async function deleteEventPhoto(photoId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "Not authenticated." };
+
+  const { data: photo, error: fetchError } = await supabase
+    .from("event_photos")
+    .select("id, event_id, uploaded_by, storage_path")
+    .eq("id", photoId)
+    .single();
+
+  if (fetchError || !photo) return { error: "Photo not found." };
+  if (photo.uploaded_by !== user.id) return { error: "Not authorised." };
+
+  const { error: dbError } = await supabase
+    .from("event_photos")
+    .delete()
+    .eq("id", photoId);
+
+  if (dbError) return { error: "Failed to delete photo record." };
+
+  const { error: storageError } = await supabase.storage
+    .from("event-photos")
+    .remove([photo.storage_path]);
+
+  if (storageError) return { error: "Failed to delete photo from storage." };
+
+  revalidatePath(`/events/${photo.event_id}`);
+  return { error: null };
 }

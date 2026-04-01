@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BadgeCheck, Calendar, ClipboardList, Package } from "lucide-react";
+import { BadgeCheck, Calendar, CalendarPlus, ClipboardList, Package } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { EventCard } from "@/components/events/EventCard";
 import type { EventWithCount } from "@/lib/events";
@@ -148,9 +148,9 @@ export default async function DashboardPage() {
           label="Events joined"
         />
         <ImpactCard
-          icon={<Package className="h-5 w-5 text-brand" />}
-          value={totalBags}
-          label="Bags collected"
+          icon={<CalendarPlus className="h-5 w-5 text-brand" />}
+          value={organisedEvents.length}
+          label="Events organised"
         />
       </div>
 
@@ -169,7 +169,7 @@ export default async function DashboardPage() {
       <Section
         title="Needs wrap-up"
         count={needsWrapUp.length}
-        emptyMessage="No organised events are waiting for stats."
+        emptyMessage="No completed events are waiting for stats."
       >
         {needsWrapUp.map((e) => (
           <ActionCard
@@ -185,8 +185,9 @@ export default async function DashboardPage() {
 
       {/* Organised events */}
       <Section
-        title="Events you've organised"
-        count={organisedActive.length}
+        title="Completed events you've organised"
+        count={organisedCompleted.length}
+        totalForEmpty={organisedEvents.length}
         emptyMessage="You haven't organised any events yet."
         emptyAction={{ href: "/events/create", label: "Create an event" }}
         collapsibleCount={organisedCompleted.length}
@@ -204,13 +205,17 @@ export default async function DashboardPage() {
 
       {/* Past events */}
       <Section
-        title="Past picks"
+        title="Past events you've joined"
         count={pastJoined.length}
         emptyMessage="You haven't attended any events yet."
-      >
-        {pastJoined.map((e) => (
+        collapsibleCount={pastJoined.length}
+        collapsibleLabel="joined event"
+        collapsibleChildren={
+          pastJoined.map((e) => (
           <EventCard key={e.id} event={e} />
-        ))}
+        ))
+      }
+      >
       </Section>
     </div>
   );
@@ -278,6 +283,7 @@ function ActionCard({
 function Section({
   title,
   count,
+  totalForEmpty,
   children,
   emptyMessage,
   emptyAction,
@@ -287,6 +293,7 @@ function Section({
 }: {
   title: string;
   count: number;
+  totalForEmpty?: number;
   children?: React.ReactNode;
   emptyMessage?: string;
   emptyAction?: { href: string; label: string };
@@ -294,13 +301,14 @@ function Section({
   collapsibleLabel?: string;
   collapsibleChildren?: React.ReactNode;
 }) {
+  const isEmpty = (totalForEmpty ?? count) === 0;
   return (
     <div className="mb-10">
       <h2 className="mb-4 text-lg font-semibold text-gray-900">
         {title}
         <span className="ml-2 text-sm font-normal text-gray-400">{count}</span>
       </h2>
-      {count === 0 ? (
+      {isEmpty ? (
         <div className="rounded-xl border border-dashed border-gray-300 bg-white p-8 text-center">
           <p className="text-sm text-gray-500">{emptyMessage}</p>
           {emptyAction && (
