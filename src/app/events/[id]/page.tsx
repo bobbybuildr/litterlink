@@ -110,7 +110,7 @@ export default async function EventDetailPage({ params }: Props) {
             {event.organiser_name && (
               <p className="mt-1 flex items-center gap-1.5 text-sm text-gray-500">
                 <User className="h-3.5 w-3.5" />
-                Organised by {event.organiser_name}
+                Organised by <span className="font-semibold">{event.organiser_name}</span>
                 {event.organiser_is_verified && (
                   <BadgeCheck className="h-4 w-4 text-brand" aria-label="Verified Organiser" />
                 )}
@@ -126,6 +126,16 @@ export default async function EventDetailPage({ params }: Props) {
               </p>
             )}
           </div>
+
+          {event.organiser_is_verified && (
+            <div className="mb-6 flex items-center gap-3 rounded-xl border border-brand/20 bg-brand/5 px-4 py-3">
+              <BadgeCheck className="h-5 w-5 shrink-0 text-brand" />
+              <p className="text-sm font-medium text-brand">
+                <span className="font-semibold">{event.organiser_name}</span>&nbsp;is a Verified Organiser — Verified Organisers have a proven record of organising events, helping
+          participants feel confident about who they&apos;re joining.
+              </p>
+            </div>
+          )}
 
           {/* Key info */}
           <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-3">
@@ -202,7 +212,7 @@ export default async function EventDetailPage({ params }: Props) {
             <div className="rounded-xl border border-gray-200 bg-white p-5">
               <h2 className="mb-3 font-semibold text-gray-900 flex items-center gap-2">
                 <Users className="h-4 w-4 text-brand" />
-                {isCompleted ? "Who took part" : "Who\u2019s taking part"} ({participants.length})
+                {isPast ? "Who took part" : "Who\u2019s taking part"} ({participants.length})
               </h2>
               <ul className="divide-y divide-gray-100">
                 {participants.map((p, i) => (

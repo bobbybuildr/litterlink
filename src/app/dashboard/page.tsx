@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BadgeCheck, Calendar, CalendarPlus, ClipboardList, Package } from "lucide-react";
+import { BadgeCheck, Calendar, CalendarPlus, ClipboardList, Trash } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { EventCard } from "@/components/events/EventCard";
 import type { EventWithCount } from "@/lib/events";
@@ -152,6 +152,11 @@ export default async function DashboardPage() {
           value={organisedEvents.length}
           label="Events organised"
         />
+        <ImpactCard
+          icon={<Trash className="h-5 w-5 text-brand" />}
+          value={totalBags}
+          label="Bags collected from events you've attended"
+        />
       </div>
 
       {/* Upcoming events */}
@@ -185,7 +190,7 @@ export default async function DashboardPage() {
 
       {/* Organised events */}
       <Section
-        title="Completed events you've organised"
+        title="Events you've organised"
         count={organisedCompleted.length}
         totalForEmpty={organisedEvents.length}
         emptyMessage="You haven't organised any events yet."

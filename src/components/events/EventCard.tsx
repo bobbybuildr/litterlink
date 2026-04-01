@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { MapPin, Calendar, Users, CheckCircle, XCircle, Clock } from "lucide-react";
+import { MapPin, Calendar, Users, CheckCircle, XCircle, Clock, BadgeCheck } from "lucide-react";
 import type { EventWithCount } from "@/lib/events";
 import { cn } from "@/lib/utils";
 
@@ -59,16 +59,18 @@ export function EventCard({ event, className }: EventCardProps) {
   const styles = stateStyles[state];
   const isMuted = state !== "joinable";
   const isCompleted = event.status === "completed";
+  const isVerifiedOrganiser = event.organiser_is_verified;
 
   return (
     <Link
       href={`/events/${event.id}`}
       className={cn(
-        "group flex flex-col rounded-xl border p-5 shadow-sm transition-shadow hover:shadow-md",
+        "group relative flex flex-col rounded-xl border p-3 shadow-sm transition-shadow hover:shadow-md",
         styles.card,
         className
       )}
     >
+
       {/* Status badge */}
       {styles.badge && styles.badgeLabel && (
         <span className={cn("mb-3 inline-flex w-fit items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium", styles.badge)}>
@@ -82,15 +84,22 @@ export function EventCard({ event, className }: EventCardProps) {
           Impact logged
         </span>
       )}
+      {isVerifiedOrganiser && (
+        <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-brand/5 px-2 py-1">
+          <BadgeCheck className="h-4 w-4 shrink-0 text-brand" />
+        </span>
+      )}
 
-      <h3
-        className={cn(
-          "font-semibold transition-colors line-clamp-2",
-          isMuted ? "text-gray-600" : "text-gray-900 group-hover:text-brand"
-        )}
-      >
-        {event.title}
-      </h3>
+      <div className="flex justify-between">
+        <h3
+          className={cn(
+            "font-semibold transition-colors line-clamp-2",
+            isMuted ? "text-gray-600" : "text-gray-900 group-hover:text-brand"
+          )}
+        >
+          {event.title}
+        </h3>
+      </div>
 
       {event.description && (
         <p className={cn("mt-1 text-sm line-clamp-2", isMuted ? "text-gray-500" : "text-gray-500")}>
