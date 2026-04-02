@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import imageCompression from "browser-image-compression";
 import { Camera } from "lucide-react";
 import { updateProfile, type ProfileState } from "./actions";
@@ -49,11 +50,13 @@ export function ProfileForm({ displayName, postcode, avatarUrl, email }: Props) 
           aria-label="Change profile photo"
         >
           {shownAvatar ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <Image
               src={shownAvatar}
               alt="Profile photo"
-              className="h-full w-full object-cover"
+              fill
+              sizes="96px"
+              className="object-cover"
+              unoptimized={shownAvatar.startsWith("blob:")}
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center bg-brand text-2xl font-bold text-white">
@@ -66,7 +69,7 @@ export function ProfileForm({ displayName, postcode, avatarUrl, email }: Props) 
         </button>
 
         <p className="text-xs text-gray-400">
-          {isCompressing ? "Compressing…" : "JPEG, PNG or WebP · max 5 MB"}
+          {isCompressing ? "Compressing…" : "JPEG, PNG or WebP"}
         </p>
 
         <input

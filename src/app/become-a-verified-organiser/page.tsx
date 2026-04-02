@@ -71,11 +71,10 @@ export default async function BecomeAnOrganiserPage({ searchParams }: Props) {
           Become a Verified Organiser <BadgeCheck className="h-6 w-6 text-brand" aria-label="Verified Organiser" />
         </h1>
         <p className="mt-1 text-sm text-gray-500">
-          Verified organisers get a trust badge on all their events, helping
+          Anyone can create events. But verified organisers get a trust badge on all their events, helping
           participants feel confident about who they&apos;re joining. You&apos;ll
           also be able to create community groups and affiliate multiple events
-          under one identity. Anyone can create events — but verification shows
-          you&apos;re serious.
+          under one identity.
         </p>
       </div>
 

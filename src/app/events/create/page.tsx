@@ -21,12 +21,23 @@ export default async function CreateEventPage({ searchParams }: Props) {
 
   if (!user) redirect("/sign-in?redirectTo=/events/create");
 
+  // Check if the user is a verified organiser
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("is_verified_organiser")
+    .eq("id", user.id)
+    .single();
+
+  const isVerifiedOrganiser = profile?.is_verified_organiser ?? false;
+
   // Fetch groups owned by the current user (only verified organisers can have groups)
-  const { data: groupsRaw } = await supabase
-    .from("groups")
-    .select("id, name, slug")
-    .eq("created_by", user.id)
-    .order("name", { ascending: true });
+  const { data: groupsRaw } = isVerifiedOrganiser
+    ? await supabase
+        .from("groups")
+        .select("id, name, slug")
+        .eq("created_by", user.id)
+        .order("name", { ascending: true })
+    : { data: null };
 
   const groups = (groupsRaw ?? []) as Pick<GroupRow, "id" | "name" | "slug">[];
 
@@ -54,17 +65,33 @@ export default async function CreateEventPage({ searchParams }: Props) {
 
       <form action={createEvent} className="space-y-6">
         {/* Organising as */}
-        {groups.length > 0 && (
-          <Field label="Organising as" htmlFor="group_id">
-            <select id="group_id" name="group_id" className={inputCls}>
-              <option value="">Myself</option>
-              {groups.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.name}
-                </option>
-              ))}
-            </select>
-          </Field>
+        {isVerifiedOrganiser ? (
+          groups.length > 0 && (
+            <Field label="Organising as" htmlFor="group_id">
+              <select id="group_id" name="group_id" className={inputCls}>
+                <option value="">Myself</option>
+                {groups.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )
+        ) : (
+          <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+            <p className="font-medium">Organising frequent events? Why not become a verified organiser.</p>
+            <p className="mt-1 text-blue-700">
+              Verified organisers get a trust badge on all their events, they can create groups, build a public profile, and run events
+              under their group&apos;s name.{" "}
+                <a
+                href="/become-a-verified-organiser"
+                className="block font-medium underline underline-offset-2 hover:text-blue-900"
+                >
+                Apply to become a verified organiser &rarr;
+                </a>
+            </p>
+          </div>
         )}
 
         {/* Title */}

@@ -81,7 +81,7 @@ export function PhotoUpload({ eventId, className }: PhotoUploadProps) {
           onChange={handleFileChange}
           className="block w-full text-sm text-gray-500 file:mr-3 file:rounded-lg file:border-0 file:bg-gray-100 file:px-3 file:py-1.5 file:text-sm file:font-medium hover:file:bg-gray-200"
         />
-        <p className="mt-1.5 text-xs text-gray-400">JPEG, PNG or WebP · max 5 MB per file</p>
+        <p className="mt-1.5 text-xs text-gray-400">JPEG, PNG or WebP</p>
         {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
         {success && (
           <p className="mt-2 text-sm text-emerald-700">Photos uploaded successfully.</p>
