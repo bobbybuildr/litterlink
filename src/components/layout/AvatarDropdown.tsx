@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { LayoutDashboard, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -43,10 +44,11 @@ export function AvatarDropdown({
         className="flex-shrink-0 rounded-full ring-2 ring-transparent transition-all hover:ring-brand/40 focus-visible:outline-none focus-visible:ring-brand/60"
       >
         {avatarUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <Image
             src={avatarUrl}
             alt={displayName ?? "Profile"}
+            width={32}
+            height={32}
             className="h-8 w-8 rounded-full object-cover"
           />
         ) : (

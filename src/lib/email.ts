@@ -52,7 +52,7 @@ export async function sendApplicationEmails({
         "We'll review your application and get back to you by email. In the",
         "meantime you can check your application status at any time by visiting:",
         "",
-        `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://litterlink.app"}/become-a-verified-organiser`,
+        `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://litterlink.co.uk"}/become-a-verified-organiser`,
         "",
         "Thanks,",
         "The LitterLink team",
@@ -81,7 +81,7 @@ export async function sendApplicationOutcomeEmail({
   applicantName: string | null;
   outcome: "approved" | "rejected";
 }) {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://litterlink.app";
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://litterlink.co.uk";
   const greeting = `Hi${applicantName ? ` ${applicantName}` : ""},`;
 
   const body =
