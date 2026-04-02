@@ -1,10 +1,10 @@
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BadgeCheck, Calendar, CalendarPlus, ClipboardList, Package } from "lucide-react";
+import { BadgeCheck, Calendar, CalendarPlus, ClipboardList, Trash, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { EventCard } from "@/components/events/EventCard";
-import type { EventWithCount } from "@/lib/events";
+import type { EventWithCount, GroupRow } from "@/lib/events";
 
 export const metadata: Metadata = { title: "My Events" };
 
@@ -52,6 +52,15 @@ export default async function DashboardPage() {
     .order("starts_at", { ascending: false });
 
   const organisedEvents = (organisedEventsRaw ?? []) as EventWithCount[];
+
+  // Fetch groups the user has created
+  const { data: groupsRaw } = await supabase
+    .from("groups")
+    .select("*")
+    .eq("created_by", user.id)
+    .order("created_at", { ascending: false });
+
+  const groups = (groupsRaw ?? []) as GroupRow[];
 
   // Personal impact totals from completed events
   const completedIds = joinedEvents
@@ -152,7 +161,49 @@ export default async function DashboardPage() {
           value={organisedEvents.length}
           label="Events organised"
         />
+        <ImpactCard
+          icon={<Trash className="h-5 w-5 text-brand" />}
+          value={totalBags}
+          label="Bags collected from events you've attended"
+        />
       </div>
+
+      {/* Your groups */}
+      {profile?.is_verified_organiser && <div className="mb-10">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-gray-900">
+            Your groups
+            <span className="ml-2 text-sm font-normal text-gray-400">{groups.length}</span>
+          </h2>
+          {profile?.is_verified_organiser && (
+            <Link
+              href="/groups/create"
+              className="text-sm font-medium text-brand hover:underline"
+            >
+              + New group
+            </Link>
+          )}
+        </div>
+        {groups.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-gray-300 bg-white p-8 text-center">
+            <p className="text-sm text-gray-500">You haven&apos;t created any groups yet.</p>
+            {profile?.is_verified_organiser && (
+              <Link
+                href="/groups/create"
+                className="mt-3 inline-block text-sm font-medium text-brand hover:underline"
+              >
+                Create a group
+              </Link>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {groups.map((g) => (
+              <GroupCard key={g.id} group={g} />
+            ))}
+          </div>
+        )}
+      </div>}
 
       {/* Upcoming events */}
       <Section
@@ -185,7 +236,7 @@ export default async function DashboardPage() {
 
       {/* Organised events */}
       <Section
-        title="Completed events you've organised"
+        title="Events you've organised"
         count={organisedCompleted.length}
         totalForEmpty={organisedEvents.length}
         emptyMessage="You haven't organised any events yet."
@@ -218,6 +269,49 @@ export default async function DashboardPage() {
       >
       </Section>
     </div>
+  );
+}
+
+function GroupCard({ group }: { group: GroupRow }) {
+  const GROUP_TYPE_LABELS: Record<string, string> = {
+    community: "Community",
+    school: "School",
+    corporate: "Corporate",
+    council: "Council",
+    charity: "Charity",
+    other: "Organisation",
+  };
+  return (
+    <Link
+      href={`/groups/${group.slug}`}
+      className="flex items-start gap-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
+    >
+      {group.logo_url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={group.logo_url}
+          alt={`${group.name} logo`}
+          width={44}
+          height={44}
+          className="shrink-0 rounded-lg object-cover border border-gray-100"
+        />
+      ) : (
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand/10 border border-brand/20">
+          <Users className="h-5 w-5 text-brand" />
+        </div>
+      )}
+      <div className="min-w-0">
+        <span className="inline-block rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500 mb-1">
+          {GROUP_TYPE_LABELS[group.group_type] ?? "Organisation"}
+        </span>
+        <p className="font-semibold text-gray-900 group-hover:text-brand truncate">
+          {group.name}
+        </p>
+        {group.description && (
+          <p className="mt-0.5 text-xs text-gray-500 line-clamp-2">{group.description}</p>
+        )}
+      </div>
+    </Link>
   );
 }
 

@@ -88,7 +88,7 @@ export default async function HomePage() {
             <Step
               number="3"
               title="Track your impact"
-              description="Organisers log bags collected, weight, and photos after each pick. Your contribution adds to the total."
+              description="Organisers log bags collected, event stats, and photos after each pick. Your contribution adds to the total."
             />
           </div>
         </div>

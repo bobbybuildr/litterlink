@@ -150,6 +150,33 @@ export async function getEventParticipants(eventId: string): Promise<EventPartic
   return (data ?? []) as EventParticipant[];
 }
 
+/** Fetch a group by its slug. */
+export async function getGroupBySlug(
+  slug: string
+): Promise<Database["public"]["Tables"]["groups"]["Row"] | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("groups")
+    .select("*")
+    .eq("slug", slug)
+    .single();
+  return (data as Database["public"]["Tables"]["groups"]["Row"] | null) ?? null;
+}
+
+/** Fetch all events for a group, ordered newest-first. */
+export async function getEventsByGroupId(
+  groupId: string
+): Promise<EventWithCount[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("events_with_counts")
+    .select("*")
+    .eq("group_id", groupId)
+    .in("status", ["published", "completed", "cancelled"])
+    .order("starts_at", { ascending: false });
+  return (data ?? []) as EventWithCount[];
+}
+
 /** Fetch all photos for a completed event, ordered oldest-first. */
 export async function getEventPhotos(eventId: string): Promise<EventPhotoRow[]> {
   const supabase = await createClient();

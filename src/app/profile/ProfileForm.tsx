@@ -1,8 +1,16 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
+import imageCompression from "browser-image-compression";
 import { Camera } from "lucide-react";
 import { updateProfile, type ProfileState } from "./actions";
+
+const compressionOptions = {
+  maxSizeMB: 0.25,
+  maxWidthOrHeight: 400,
+  useWebWorker: true,
+  fileType: "image/webp",
+};
 
 interface Props {
   displayName: string | null;
@@ -19,6 +27,7 @@ export function ProfileForm({ displayName, postcode, avatarUrl, email }: Props) 
 
   // Local preview of a newly-selected file before saving
   const [preview, setPreview] = useState<string | null>(null);
+  const [isCompressing, setIsCompressing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Clear preview once the server confirms the save so the fresh DB URL shows
@@ -56,7 +65,9 @@ export function ProfileForm({ displayName, postcode, avatarUrl, email }: Props) 
           </div>
         </button>
 
-        <p className="text-xs text-gray-400">JPEG, PNG or WebP · max 5 MB</p>
+        <p className="text-xs text-gray-400">
+          {isCompressing ? "Compressing…" : "JPEG, PNG or WebP · max 5 MB"}
+        </p>
 
         <input
           ref={fileInputRef}
@@ -64,9 +75,19 @@ export function ProfileForm({ displayName, postcode, avatarUrl, email }: Props) 
           name="avatar"
           accept="image/jpeg,image/png,image/webp"
           className="sr-only"
-          onChange={(e) => {
+          onChange={async (e) => {
             const file = e.target.files?.[0];
-            if (file) setPreview(URL.createObjectURL(file));
+            if (!file) return;
+            setPreview(URL.createObjectURL(file));
+            setIsCompressing(true);
+            try {
+              const compressed = await imageCompression(file, compressionOptions);
+              const dt = new DataTransfer();
+              dt.items.add(new File([compressed], "avatar.webp", { type: "image/webp" }));
+              if (fileInputRef.current) fileInputRef.current.files = dt.files;
+            } finally {
+              setIsCompressing(false);
+            }
           }}
         />
       </div>
@@ -127,10 +148,10 @@ export function ProfileForm({ displayName, postcode, avatarUrl, email }: Props) 
 
       <button
         type="submit"
-        disabled={pending}
+        disabled={pending || isCompressing}
         className="mt-6 w-full rounded-xl bg-brand py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-dark disabled:opacity-60"
       >
-        {pending ? "Saving…" : "Save changes"}
+        {isCompressing ? "Compressing…" : pending ? "Saving…" : "Save changes"}
       </button>
     </form>
   );
