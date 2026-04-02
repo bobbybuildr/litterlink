@@ -131,7 +131,7 @@ export default async function EventDetailPage({ params }: Props) {
             <div className="mb-6 flex items-center gap-3 rounded-xl border border-brand/20 bg-brand/5 px-4 py-3">
               <BadgeCheck className="h-5 w-5 shrink-0 text-brand" />
               <p className="text-sm font-medium text-brand">
-                <span className="font-semibold">{event.organiser_name}</span>&nbsp;is a Verified Organiser — Verified Organisers have a proven record of organising events, helping
+                <span className="font-semibold">{event.organiser_name}</span>&nbsp;is a Verified Organiser — Verified Organisers have a proven record of organising events. This helps
           participants feel confident about who they&apos;re joining.
               </p>
             </div>

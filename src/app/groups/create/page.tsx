@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createGroup } from "./actions";
 import { GroupSubmitButton } from "./GroupSubmitButton";
+import { LogoUploadInput } from "./LogoUploadInput";
 import Link from "next/link";
 import { CheckCircle } from "lucide-react";
 
@@ -118,13 +119,7 @@ export default async function CreateGroupPage({ searchParams }: Props) {
         </Field>
 
         <Field label="Group logo" htmlFor="logo" hint="Optional · JPEG, PNG or WebP · max 5 MB">
-          <input
-            id="logo"
-            name="logo"
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            className="block w-full text-sm text-gray-500 file:mr-3 file:rounded-lg file:border-0 file:bg-gray-100 file:px-3 file:py-1.5 file:text-sm file:font-medium hover:file:bg-gray-200"
-          />
+          <LogoUploadInput />
         </Field>
 
         <Field label="Website URL" htmlFor="website_url" hint="Optional">
