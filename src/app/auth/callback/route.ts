@@ -28,6 +28,20 @@ export async function GET(request: Request) {
           },
           { onConflict: "id", ignoreDuplicates: true }
         );
+
+        // Apply email preferences captured during sign-up
+        const emailPrefs = user.user_metadata?.email_prefs;
+        if (emailPrefs) {
+          await supabase.from("email_preferences").upsert(
+            {
+              user_id: user.id,
+              event_notifications: emailPrefs.event_notifications ?? true,
+              new_nearby_events: emailPrefs.new_nearby_events ?? false,
+              newsletter: emailPrefs.newsletter ?? false,
+            },
+            { onConflict: "user_id" }
+          );
+        }
       }
 
       return redirect(`${origin}${next}`);

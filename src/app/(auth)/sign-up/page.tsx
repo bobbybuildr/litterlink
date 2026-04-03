@@ -98,6 +98,53 @@ export default async function SignUpPage({ searchParams }: Props) {
             />
             <p className="mt-1 text-xs text-gray-400">Minimum 8 characters</p>
           </div>
+
+          {/* Email preferences */}
+          <fieldset>
+            <legend className="block text-sm font-medium text-gray-700 mb-2">
+              Email preferences
+            </legend>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm text-gray-600">
+                <input
+                  type="checkbox"
+                  name="event_notifications"
+                  defaultChecked
+                  className="h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand"
+                />
+                Event reminders and updates
+              </label>
+              <label className="flex items-center gap-2 text-sm text-gray-600">
+                <input
+                  type="checkbox"
+                  name="new_nearby_events"
+                  className="h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand"
+                />
+                Tell me about new events near me
+              </label>
+              <label className="flex items-center gap-2 text-sm text-gray-600">
+                <input
+                  type="checkbox"
+                  name="newsletter"
+                  className="h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand"
+                />
+                News and updates from LitterLink
+              </label>
+            </div>
+          </fieldset>
+
+          <p className="text-xs leading-5 text-gray-500">
+            By creating an account, you agree to the {" "}
+            <Link href="/terms" className="font-medium text-brand hover:underline">
+              Terms &amp; Conditions
+            </Link>{" "}
+            and acknowledge that you have read the {" "}
+            <Link href="/privacy" className="font-medium text-brand hover:underline">
+              Privacy Policy
+            </Link>
+            .
+          </p>
+
           <FormSubmitButton
             pendingText="Creating account…"
             className="w-full rounded-lg bg-brand px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-dark transition-colors"

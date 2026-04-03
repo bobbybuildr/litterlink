@@ -52,7 +52,7 @@ export interface Database {
       events: {
         Row: {
           id: string;
-          organiser_id: string;
+          organiser_id: string | null;
           group_id: string | null;
           title: string;
           description: string | null;
@@ -204,7 +204,7 @@ export interface Database {
           social_url: string | null;
           contact_email: string | null;
           group_type: string;
-          created_by: string;
+          created_by: string | null;
           created_at: string;
         };
         Insert: {
@@ -232,6 +232,42 @@ export interface Database {
           group_type?: string;
           created_by?: string;
           created_at?: string;
+        };
+        Relationships: [];
+      };
+      email_preferences: {
+        Row: {
+          id: string;
+          user_id: string;
+          event_notifications: boolean;
+          organiser_status_updates: boolean;
+          new_nearby_events: boolean;
+          marketing_emails: boolean;
+          newsletter: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          event_notifications?: boolean;
+          organiser_status_updates?: boolean;
+          new_nearby_events?: boolean;
+          marketing_emails?: boolean;
+          newsletter?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          event_notifications?: boolean;
+          organiser_status_updates?: boolean;
+          new_nearby_events?: boolean;
+          marketing_emails?: boolean;
+          newsletter?: boolean;
+          created_at?: string;
+          updated_at?: string;
         };
         Relationships: [];
       };
