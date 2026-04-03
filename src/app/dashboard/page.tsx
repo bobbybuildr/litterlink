@@ -217,22 +217,24 @@ export default async function DashboardPage() {
         ))}
       </Section>
 
-      <Section
-        title="Needs wrap-up"
-        count={needsWrapUp.length}
-        emptyMessage="No completed events are waiting for stats."
-      >
-        {needsWrapUp.map((e) => (
-          <ActionCard
-            key={e.id}
-            event={e}
-            title="Log your impact"
-            body="This event has passed. Add attendance and clean-up totals to mark it complete."
-            actionHref={`/events/${e.id}/stats`}
-            actionLabel="Open stats"
-          />
-        ))}
-      </Section>
+      {needsWrapUp.length > 0 && (
+        <Section
+          title="Needs wrap-up"
+          count={needsWrapUp.length}
+          emptyMessage="No completed events are waiting for stats."
+        >
+          {needsWrapUp.map((e) => (
+        <ActionCard
+          key={e.id}
+          event={e}
+          title="Log your impact"
+          body="This event has passed. Add attendance and clean-up totals to mark it complete."
+          actionHref={`/events/${e.id}/stats`}
+          actionLabel="Open stats"
+        />
+          ))}
+        </Section>
+      )}
 
       {/* Organised events */}
       <Section

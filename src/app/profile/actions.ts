@@ -1,7 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createServiceClient } from "@supabase/supabase-js";
 
 export type ProfileState = { error?: string; success?: boolean } | null;
 
@@ -87,4 +89,75 @@ export async function updateProfile(
   revalidatePath("/", "layout"); // refreshes the navbar avatar
 
   return { success: true };
+}
+
+/**
+ * Permanently deletes the authenticated user's account.
+ *
+ * What is removed:
+ *   - Avatar from Storage
+ *   - Event photos from Storage (DB rows cascade via profile deletion)
+ *   - organiser_contact_details cleared from the user's events (personal data)
+ *   - The Supabase auth user record (via service role)
+ *     → cascades to: profiles, email_preferences, organiser_applications,
+ *                     event_participants, event_photos (DB rows)
+ *     → sets NULL on: events.organiser_id, groups.created_by
+ *       (events/groups/stats are preserved for community record-keeping)
+ */
+export async function deleteAccount(
+  _prev: ProfileState,
+  _formData: FormData,
+): Promise<ProfileState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "Not signed in." };
+
+  // 1. Collect event photo storage paths before cascade wipes the DB rows
+  const { data: photos } = await supabase
+    .from("event_photos")
+    .select("storage_path")
+    .eq("uploaded_by", user.id);
+
+  // 2. Clear organiser_contact_details (may contain phone numbers / emails)
+  //    from every event the user organised. The organiser_id column will be
+  //    set to NULL by the FK cascade, but contact details must be cleared
+  //    explicitly because the constraint only becomes active on new rows.
+  await supabase
+    .from("events")
+    .update({ organiser_contact_details: null })
+    .eq("organiser_id", user.id);
+
+  // 3. Remove event photos from Storage
+  if (photos?.length) {
+    await supabase.storage
+      .from("event-photos")
+      .remove(photos.map((p) => p.storage_path));
+  }
+
+  // 4. Remove avatar from Storage (all possible extensions)
+  await supabase.storage
+    .from("avatars")
+    .remove(["jpg", "jpeg", "png", "webp"].map((ext) => `${user.id}/avatar.${ext}`));
+
+  // 5. Delete the auth user via the service role client.
+  //    This removes the row from auth.users, which cascades to public.profiles
+  //    and all tables that reference it with ON DELETE CASCADE.
+  const adminClient = createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SECRET_KEY!,
+  );
+
+  const { error: deleteError } = await adminClient.auth.admin.deleteUser(user.id);
+
+  if (deleteError) {
+    return { error: "Failed to delete your account. Please try again or contact hello@litterlink.co.uk." };
+  }
+
+  // 6. Clear the session cookie (best-effort — auth user is already gone)
+  await supabase.auth.signOut().catch(() => undefined);
+
+  redirect("/");
 }

@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { ProfileForm } from "./ProfileForm";
+import { DeleteAccountSection } from "./DeleteAccountSection";
 
 export const metadata: Metadata = {
   title: "Your Profile — LitterLink",
@@ -53,6 +54,7 @@ export default async function ProfilePage() {
           }}
         />
       </div>
+      <DeleteAccountSection />
     </main>
   );
 }

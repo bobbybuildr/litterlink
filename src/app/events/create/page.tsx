@@ -179,7 +179,7 @@ export default async function CreateEventPage({ searchParams }: Props) {
             name="organiser_contact_details"
             rows={2}
             maxLength={500}
-            placeholder="e.g. DM: facebook.com/username, Email: hello@example.com, or phone: 07123 456789"
+            placeholder="e.g. Email: hello@example.com, or DM: facebook.com/username"
             className={inputCls}
           />
         </Field>
@@ -213,7 +213,7 @@ export default async function CreateEventPage({ searchParams }: Props) {
           <span className="text-sm text-gray-700">Join this event as a participant</span>
         </label>
 
-        <div className="flex items-center gap-4 pt-2">
+        <div className="flex flex-col sm:flex-row items-center gap-4 pt-2">
           <SubmitButton />
           <p className="text-xs text-gray-400">
             Your event will be visible to everyone immediately.

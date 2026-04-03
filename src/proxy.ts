@@ -6,7 +6,11 @@ export async function proxy(request: NextRequest) {
     const { pathname } = request.nextUrl;
     const isExempt =
       pathname === "/coming-soon" ||
-      pathname.startsWith("/auth/");
+      pathname.startsWith("/auth/") ||
+      pathname === "/sign-up" ||
+      pathname === "/sign-in" ||
+      pathname === "/terms" ||
+      pathname === "/privacy";
     if (!isExempt) {
       return NextResponse.redirect(new URL("/coming-soon", request.url));
     }

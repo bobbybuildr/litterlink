@@ -52,7 +52,7 @@ export interface Database {
       events: {
         Row: {
           id: string;
-          organiser_id: string;
+          organiser_id: string | null;
           group_id: string | null;
           title: string;
           description: string | null;
@@ -204,7 +204,7 @@ export interface Database {
           social_url: string | null;
           contact_email: string | null;
           group_type: string;
-          created_by: string;
+          created_by: string | null;
           created_at: string;
         };
         Insert: {

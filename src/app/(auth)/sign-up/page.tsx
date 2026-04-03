@@ -133,6 +133,18 @@ export default async function SignUpPage({ searchParams }: Props) {
             </div>
           </fieldset>
 
+          <p className="text-xs leading-5 text-gray-500">
+            By creating an account, you agree to the {" "}
+            <Link href="/terms" className="font-medium text-brand hover:underline">
+              Terms &amp; Conditions
+            </Link>{" "}
+            and acknowledge that you have read the {" "}
+            <Link href="/privacy" className="font-medium text-brand hover:underline">
+              Privacy Policy
+            </Link>
+            .
+          </p>
+
           <FormSubmitButton
             pendingText="Creating account…"
             className="w-full rounded-lg bg-brand px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-dark transition-colors"
