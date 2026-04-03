@@ -18,9 +18,16 @@ interface Props {
   postcode: string | null;
   avatarUrl: string | null;
   email: string;
+  emailPrefs: {
+    event_notifications: boolean;
+    organiser_status_updates: boolean;
+    new_nearby_events: boolean;
+    marketing_emails: boolean;
+    newsletter: boolean;
+  };
 }
 
-export function ProfileForm({ displayName, postcode, avatarUrl, email }: Props) {
+export function ProfileForm({ displayName, postcode, avatarUrl, email, emailPrefs }: Props) {
   const [state, action, pending] = useActionState<ProfileState, FormData>(
     updateProfile,
     null,
@@ -136,6 +143,71 @@ export function ProfileForm({ displayName, postcode, avatarUrl, email }: Props) 
           </p>
         </div>
       </div>
+
+      {/* ── Email Preferences ── */}
+      <fieldset className="mt-8">
+        <legend className="mb-1.5 text-sm font-medium text-gray-700">
+          Email preferences
+        </legend>
+        <p className="mb-3 text-xs text-gray-400">
+          Choose which emails you&apos;d like to receive.
+        </p>
+
+        <div className="space-y-3">
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+            Service emails
+          </p>
+          <label className="flex items-center gap-2.5 text-sm text-gray-600">
+            <input
+              type="checkbox"
+              name="event_notifications"
+              defaultChecked={emailPrefs.event_notifications}
+              className="h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand"
+            />
+            Event reminders and updates
+          </label>
+          <label className="flex items-center gap-2.5 text-sm text-gray-600">
+            <input
+              type="checkbox"
+              name="organiser_status_updates"
+              defaultChecked={emailPrefs.organiser_status_updates}
+              className="h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand"
+            />
+            Organiser application status updates
+          </label>
+
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide pt-2">
+            Marketing emails
+          </p>
+          <label className="flex items-center gap-2.5 text-sm text-gray-600">
+            <input
+              type="checkbox"
+              name="new_nearby_events"
+              defaultChecked={emailPrefs.new_nearby_events}
+              className="h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand"
+            />
+            Tell me about new events near me
+          </label>
+          <label className="flex items-center gap-2.5 text-sm text-gray-600">
+            <input
+              type="checkbox"
+              name="marketing_emails"
+              defaultChecked={emailPrefs.marketing_emails}
+              className="h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand"
+            />
+            Product updates and tips
+          </label>
+          <label className="flex items-center gap-2.5 text-sm text-gray-600">
+            <input
+              type="checkbox"
+              name="newsletter"
+              defaultChecked={emailPrefs.newsletter}
+              className="h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand"
+            />
+            News and updates from LitterLink
+          </label>
+        </div>
+      </fieldset>
 
       {/* ── Feedback ── */}
       {state?.error && (

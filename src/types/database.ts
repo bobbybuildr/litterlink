@@ -235,6 +235,42 @@ export interface Database {
         };
         Relationships: [];
       };
+      email_preferences: {
+        Row: {
+          id: string;
+          user_id: string;
+          event_notifications: boolean;
+          organiser_status_updates: boolean;
+          new_nearby_events: boolean;
+          marketing_emails: boolean;
+          newsletter: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          event_notifications?: boolean;
+          organiser_status_updates?: boolean;
+          new_nearby_events?: boolean;
+          marketing_emails?: boolean;
+          newsletter?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          event_notifications?: boolean;
+          organiser_status_updates?: boolean;
+          new_nearby_events?: boolean;
+          marketing_emails?: boolean;
+          newsletter?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       organiser_applications: {
         Row: {
           id: string;

@@ -23,6 +23,12 @@ export default async function ProfilePage() {
     .eq("id", user.id)
     .single();
 
+  const { data: emailPrefs } = await supabase
+    .from("email_preferences")
+    .select("event_notifications, organiser_status_updates, new_nearby_events, marketing_emails, newsletter")
+    .eq("user_id", user.id)
+    .single();
+
   return (
     <main className="mx-auto max-w-lg px-4 py-12">
       <h1 className="mb-1 text-2xl font-bold text-gray-900">Your profile</h1>
@@ -38,6 +44,13 @@ export default async function ProfilePage() {
           postcode={profile?.postcode ?? null}
           avatarUrl={profile?.avatar_url ?? null}
           email={user.email ?? ""}
+          emailPrefs={{
+            event_notifications: emailPrefs?.event_notifications ?? true,
+            organiser_status_updates: emailPrefs?.organiser_status_updates ?? true,
+            new_nearby_events: emailPrefs?.new_nearby_events ?? false,
+            marketing_emails: emailPrefs?.marketing_emails ?? false,
+            newsletter: emailPrefs?.newsletter ?? false,
+          }}
         />
       </div>
     </main>

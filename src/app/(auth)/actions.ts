@@ -37,11 +37,23 @@ export async function signUpWithEmail(formData: FormData) {
   const password = formData.get("password") as string;
   const displayName = formData.get("display_name") as string;
 
+  // Capture email preferences from sign-up form (stored in metadata, applied on callback)
+  const eventNotifications = formData.get("event_notifications") === "on";
+  const newNearbyEvents = formData.get("new_nearby_events") === "on";
+  const newsletter = formData.get("newsletter") === "on";
+
   const { error } = await supabase.auth.signUp({
     email,
     password,
     options: {
-      data: { display_name: displayName },
+      data: {
+        display_name: displayName,
+        email_prefs: {
+          event_notifications: eventNotifications,
+          new_nearby_events: newNearbyEvents,
+          newsletter,
+        },
+      },
       emailRedirectTo: `${siteUrl}/auth/callback`,
     },
   });

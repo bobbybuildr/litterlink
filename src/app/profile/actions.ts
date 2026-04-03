@@ -65,6 +65,23 @@ export async function updateProfile(
 
   if (error) return { error: "Failed to save profile. Please try again." };
 
+  // Save email preferences
+  const { error: prefsError } = await supabase
+    .from("email_preferences")
+    .upsert(
+      {
+        user_id: user.id,
+        event_notifications: formData.get("event_notifications") === "on",
+        organiser_status_updates: formData.get("organiser_status_updates") === "on",
+        new_nearby_events: formData.get("new_nearby_events") === "on",
+        marketing_emails: formData.get("marketing_emails") === "on",
+        newsletter: formData.get("newsletter") === "on",
+      },
+      { onConflict: "user_id" }
+    );
+
+  if (prefsError) return { error: "Failed to save email preferences. Please try again." };
+
   revalidatePath("/profile");
   revalidatePath("/dashboard");
   revalidatePath("/", "layout"); // refreshes the navbar avatar
