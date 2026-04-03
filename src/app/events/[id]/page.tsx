@@ -160,6 +160,14 @@ export default async function EventDetailPage({ params }: Props) {
             </div>
           )}
 
+          {/* Organiser contact details */}
+          {event.organiser_contact_details && (
+            <div className="rounded-xl border border-gray-200 bg-white p-5">
+              <h2 className="mb-2 text-sm font-semibold text-gray-900">Organiser contact details</h2>
+              <p className="whitespace-pre-wrap text-sm text-gray-700">{event.organiser_contact_details}</p>
+            </div>
+          )}
+
           {/* Post-event stats */}
           {isCompleted && event.event_stats && (
             <div className="rounded-xl border border-green-200 bg-green-50 p-5">

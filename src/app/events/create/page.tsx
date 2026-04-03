@@ -168,6 +168,22 @@ export default async function CreateEventPage({ searchParams }: Props) {
           </Field>
         </div>
 
+        {/* Organiser contact details */}
+        <Field
+          label="Organiser contact details"
+          htmlFor="organiser_contact_details"
+          hint="Optional — visible to all"
+        >
+          <textarea
+            id="organiser_contact_details"
+            name="organiser_contact_details"
+            rows={2}
+            maxLength={500}
+            placeholder="e.g. DM: facebook.com/username, Email: hello@example.com, or phone: 07123 456789"
+            className={inputCls}
+          />
+        </Field>
+
         {/* Max attendees */}
         <Field
           label="Max attendees"
