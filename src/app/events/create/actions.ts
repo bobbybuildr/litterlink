@@ -23,6 +23,8 @@ export async function createEvent(formData: FormData) {
     : null;
   const rawGroupId = (formData.get("group_id") as string | null) ?? null;
   const groupId = rawGroupId && rawGroupId !== "" ? rawGroupId : null;
+  const organiserContactDetails =
+    (formData.get("organiser_contact_details") as string)?.trim() || null;
 
   // Validate required fields
   if (!title || !postcode || !startsAt) {
@@ -67,6 +69,7 @@ export async function createEvent(formData: FormData) {
       starts_at: startsAt,
       ends_at: endsAt,
       max_attendees: maxAttendees,
+      organiser_contact_details: organiserContactDetails,
       status: "published",
     })
     .select("id")

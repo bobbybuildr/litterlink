@@ -64,6 +64,7 @@ export interface Database {
           ends_at: string | null;
           max_attendees: number | null;
           status: EventStatus;
+          organiser_contact_details: string | null;
           created_at: string;
         };
         Insert: {
@@ -80,6 +81,7 @@ export interface Database {
           ends_at?: string | null;
           max_attendees?: number | null;
           status?: EventStatus;
+          organiser_contact_details?: string | null;
           created_at?: string;
         };
         Update: {
@@ -96,6 +98,7 @@ export interface Database {
           ends_at?: string | null;
           max_attendees?: number | null;
           status?: EventStatus;
+          organiser_contact_details?: string | null;
           created_at?: string;
         };
         Relationships: [];
