@@ -3,6 +3,7 @@ import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { NavLinks } from "@/components/layout/NavLinks";
 import { AvatarDropdown } from "@/components/layout/AvatarDropdown";
+import { CalendarPlus } from "lucide-react";
 
 export async function Navbar() {
   const supabase = await createClient();
@@ -46,9 +47,10 @@ export async function Navbar() {
             <div className="flex items-center gap-3">
               <Link
                 href="/events/create"
-                className="hidden sm:inline-block rounded-lg bg-brand px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-dark transition-colors"
-              >
-                + Create event
+                className="hidden sm:inline-flex items-center gap-2 rounded-lg bg-brand px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-dark transition-colors"
+                >
+                <CalendarPlus className="h-4 w-4" />
+                Create event
               </Link>
               <AvatarDropdown
                 avatarUrl={profile?.avatar_url}

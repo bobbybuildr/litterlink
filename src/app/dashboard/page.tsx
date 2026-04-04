@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BadgeCheck, Calendar, CalendarPlus, ClipboardList, Trash, Users } from "lucide-react";
+import { BadgeCheck, Calendar, CalendarPlus, ClipboardList, Trash, UserPen, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { EventCard } from "@/components/events/EventCard";
 import type { EventWithCount, GroupRow } from "@/lib/events";
@@ -91,52 +91,69 @@ export default async function DashboardPage() {
   const organisedActive = organisedOverview.filter((e) => e.status !== "completed");
   const organisedCompleted = organisedOverview.filter((e) => e.status === "completed");
 
+  const subHeading = "Your litter picking activity";
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
       {/* Header */}
-      <div className="mb-8 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-2 sm:mb-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="inline-flex items-center gap-2 text-2xl font-bold text-gray-900">
-            Welcome back{profile?.display_name ? `, ${profile.display_name}` : ""}
-            {profile?.is_verified_organiser && (
-              <BadgeCheck className="h-6 w-6 text-brand" aria-label="Verified Organiser" />
+          <h1 className="text-2xl font-bold text-gray-900">
+            Welcome back{profile?.display_name && ", "}
+            {profile?.display_name ? (
+              <span className="whitespace-nowrap">
+                {profile.display_name}
+                {profile?.is_verified_organiser && (
+                  <BadgeCheck className="ml-1.5 inline-block h-6 w-6 align-middle text-brand" aria-label="Verified Organiser" />
+                )}
+              </span>
+            ) : (
+              profile?.is_verified_organiser && (
+                <BadgeCheck className="ml-1.5 inline-block h-6 w-6 align-middle text-brand" aria-label="Verified Organiser" />
+              )
             )}
           </h1>
-          <p className="mt-1 text-sm text-gray-500">Your litter-picking activity</p>
+          <p className="hidden sm:block mt-1 text-sm text-gray-500">{subHeading}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
           <Link
             href="/profile"
-            className="w-fit rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-accent bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
           >
+            <UserPen className="h-4 w-4" />
             Edit profile
           </Link>
-          <Link
-            href="/events/create"
-            className="w-fit rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-dark transition-colors"
-          >
-            + Create event
-          </Link>
-          {profile?.is_verified_organiser && (
-          <Link
-            href="/groups/create"
-            className="w-fit rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-dark transition-colors"
-          >
-            + Create group
-          </Link>)}
+          <div className="flex flex-1 gap-2">
+            <Link
+              href="/events/create"
+              className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-dark transition-colors"
+            >
+              <CalendarPlus className="h-4 w-4" />
+              Create event
+            </Link>
+            {profile?.is_verified_organiser && (
+              <Link
+          href="/groups/create"
+          className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-dark transition-colors"
+              >
+          <Users className="h-4 w-4" />
+          Create group
+              </Link>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Organiser status */}
       {profile?.is_verified_organiser ? (
-        <div className="mb-6 flex items-center gap-3 rounded-xl border border-brand/20 bg-brand/5 px-4 py-3">
+        <div className="mb-4 sm:mb-6 flex items-center gap-3 rounded-xl border border-brand/20 bg-brand/5 px-4 py-3">
           <BadgeCheck className="h-5 w-5 shrink-0 text-brand" />
           <p className="text-sm font-medium text-brand">
             You are a Verified Organiser — you can create verified events and groups.
           </p>
         </div>
       ) : (
-        <div className="mb-6 flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3">
+        <div className="mb-4 sm:mb-6 flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3">
           <p className="text-sm text-gray-500">
             Organising frequent litter pick events?
           </p>
@@ -148,6 +165,8 @@ export default async function DashboardPage() {
           </Link>
         </div>
       )}
+
+        <p className="block sm:hidden mb-4 text-lg font-semibold text-center text-gray-900">{subHeading}</p>
 
       {/* Impact summary */}
       <div className="mb-10 grid grid-cols-1 gap-4 sm:grid-cols-3">
