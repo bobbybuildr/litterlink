@@ -4,7 +4,7 @@ import { updateSession } from "@/lib/supabase/middleware";
 export async function proxy(request: NextRequest) {
   if (process.env.COMING_SOON === "true") {
     const { pathname } = request.nextUrl;
-    if (pathname === "/events" || pathname.startsWith("/events/")) {
+    if (pathname === "/" || pathname === "/events" || pathname.startsWith("/events/")) {
       return NextResponse.redirect(new URL("/coming-soon", request.url));
     }
   }

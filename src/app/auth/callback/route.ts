@@ -1,10 +1,25 @@
 import { redirect } from "next/navigation";
+import type { EmailOtpType } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
+  const tokenHash = searchParams.get("token_hash");
+  const type = searchParams.get("type") as EmailOtpType | null;
   const next = searchParams.get("next") ?? "/dashboard";
+
+  // Token-hash flow (used by password-reset and magic-link email templates)
+  if (tokenHash && type) {
+    const supabase = await createClient();
+    const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
+    if (!error) {
+      return redirect(`${origin}${next}`);
+    }
+    return redirect(
+      `${origin}/forgot-password?error=${encodeURIComponent("Your password reset link has expired. Please request a new one.")}`
+    );
+  }
 
   if (code) {
     const supabase = await createClient();
