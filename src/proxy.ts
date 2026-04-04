@@ -11,6 +11,8 @@ export async function proxy(request: NextRequest) {
       pathname === "/sign-in" ||
       pathname === "/dashboard" ||
       pathname === "/profile" ||
+      pathname === "/forgot-password" ||
+      pathname === "/reset-password" ||
       pathname === "/terms" ||
       pathname === "/privacy";
     if (!isExempt) {
