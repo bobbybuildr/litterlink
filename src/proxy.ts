@@ -4,18 +4,7 @@ import { updateSession } from "@/lib/supabase/middleware";
 export async function proxy(request: NextRequest) {
   if (process.env.COMING_SOON === "true") {
     const { pathname } = request.nextUrl;
-    const isExempt =
-      pathname === "/coming-soon" ||
-      pathname.startsWith("/auth/") ||
-      pathname === "/sign-up" ||
-      pathname === "/sign-in" ||
-      pathname === "/dashboard" ||
-      pathname === "/profile" ||
-      pathname === "/forgot-password" ||
-      pathname === "/reset-password" ||
-      pathname === "/terms" ||
-      pathname === "/privacy";
-    if (!isExempt) {
+    if (pathname === "/events" || pathname.startsWith("/events/")) {
       return NextResponse.redirect(new URL("/coming-soon", request.url));
     }
   }
