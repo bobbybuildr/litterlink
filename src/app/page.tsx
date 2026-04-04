@@ -1,4 +1,5 @@
 ﻿import Link from "next/link";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
 async function getImpactStats() {
@@ -21,7 +22,27 @@ async function getImpactStats() {
   return { eventCount: eventCount ?? 0, totalBags, volunteerCount: volunteerCount ?? 0 };
 }
 
-export default async function HomePage() {
+interface Props {
+  searchParams: Promise<{ error?: string; error_code?: string; error_description?: string }>;
+}
+
+export default async function HomePage({ searchParams }: Props) {
+  const { error_code, error_description } = await searchParams;
+
+  if (error_code === "otp_expired") {
+    redirect(
+      "/forgot-password?error=" +
+        encodeURIComponent("Your password reset link has expired. Please request a new one.")
+    );
+  }
+
+  if (error_code) {
+    const description = error_description
+      ? decodeURIComponent(error_description)
+      : "Something went wrong. Please try again.";
+    redirect("/sign-in?error=" + encodeURIComponent(description));
+  }
+
   const stats = await getImpactStats();
 
   return (
