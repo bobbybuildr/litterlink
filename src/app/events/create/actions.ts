@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { geocodePostcode } from "@/lib/geocode";
+import { sendEventCreatedEmail } from "@/lib/email";
 
 export async function createEvent(formData: FormData) {
   const supabase = await createClient();
@@ -87,6 +88,25 @@ export async function createEvent(formData: FormData) {
       event_id: event.id,
       user_id: user.id,
       status: "confirmed",
+    });
+  }
+
+  if (user.email) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("display_name")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    await sendEventCreatedEmail({
+      organiserEmail: user.email,
+      organiserName: profile?.display_name ?? null,
+      eventId: event.id,
+      title,
+      startsAt,
+      endsAt,
+      addressLabel,
+      postcode: geo.postcode,
     });
   }
 

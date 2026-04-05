@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createServiceClient } from "@supabase/supabase-js";
+import { sendEventJoinedEmail, sendEventLeftEmail, sendEventCancelledEmails } from "@/lib/email";
 export async function joinEvent(eventId: string) {
   const supabase = await createClient();
   const {
@@ -20,6 +22,34 @@ export async function joinEvent(eventId: string) {
     // 23505 = unique_violation — already joined
     if (error.code === "23505") return { error: "You are already joined." };
     return { error: error.message };
+  }
+
+  if (user.email) {
+    const { data: event } = await supabase
+      .from("events")
+      .select("title, starts_at, ends_at, address_label, location_postcode")
+      .eq("id", eventId)
+      .single();
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("display_name")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (event) {
+      await sendEventJoinedEmail({
+        userId: user.id,
+        userEmail: user.email,
+        userName: profile?.display_name ?? null,
+        eventId,
+        title: event.title,
+        startsAt: event.starts_at,
+        endsAt: event.ends_at,
+        addressLabel: event.address_label,
+        postcode: event.location_postcode,
+      });
+    }
   }
 
   revalidatePath(`/events/${eventId}`);
@@ -42,6 +72,31 @@ export async function leaveEvent(eventId: string) {
 
   if (error) return { error: error.message };
 
+  if (user.email) {
+    const { data: event } = await supabase
+      .from("events")
+      .select("title, starts_at")
+      .eq("id", eventId)
+      .single();
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("display_name")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (event) {
+      await sendEventLeftEmail({
+        userId: user.id,
+        userEmail: user.email,
+        userName: profile?.display_name ?? null,
+        eventId,
+        title: event.title,
+        startsAt: event.starts_at,
+      });
+    }
+  }
+
   revalidatePath(`/events/${eventId}`);
   return { error: null };
 }
@@ -57,7 +112,7 @@ export async function cancelEvent(eventId: string) {
   // Verify ownership before mutating — never trust the client
   const { data: event, error: fetchError } = await supabase
     .from("events")
-    .select("organiser_id, status")
+    .select("organiser_id, status, title, starts_at")
     .eq("id", eventId)
     .single();
 
@@ -72,6 +127,53 @@ export async function cancelEvent(eventId: string) {
     .eq("id", eventId);
 
   if (error) return { error: error.message };
+
+  // Notify all confirmed participants by email
+  const { data: participants } = await supabase
+    .from("event_participants")
+    .select("user_id")
+    .eq("event_id", eventId)
+    .eq("status", "confirmed")
+    .neq("user_id", user.id); // exclude the organiser
+
+  if (participants?.length) {
+    const participantIds = participants.map((p) => p.user_id);
+
+    const admin = createServiceClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SECRET_KEY!
+    );
+
+    const [profileResults, emailResults] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("id, display_name")
+        .in("id", participantIds),
+      Promise.all(
+        participantIds.map((id) => admin.auth.admin.getUserById(id))
+      ),
+    ]);
+
+    const profileMap = new Map(
+      (profileResults.data ?? []).map((p) => [p.id, p.display_name])
+    );
+
+    const recipients = emailResults
+      .map(({ data }) => {
+        const email = data?.user?.email;
+        const id = data?.user?.id;
+        if (!email || !id) return null;
+        return { email, name: profileMap.get(id) ?? null };
+      })
+      .filter((r): r is { email: string; name: string | null } => r !== null);
+
+    await sendEventCancelledEmails({
+      participants: recipients,
+      eventId,
+      title: event.title,
+      startsAt: event.starts_at,
+    });
+  }
 
   revalidatePath(`/events/${eventId}`);
   revalidatePath("/events");
