@@ -32,6 +32,24 @@ export async function createEvent(formData: FormData) {
     redirect("/events/create?error=Please+fill+in+all+required+fields.");
   }
 
+  // Server-side date validation (client min attribute can be bypassed)
+  const startsDate = new Date(startsAt);
+  if (isNaN(startsDate.getTime())) {
+    redirect(`/events/create?error=${encodeURIComponent("Invalid start date.")}`);
+  }
+  if (startsDate < new Date()) {
+    redirect(`/events/create?error=${encodeURIComponent("Start date must be in the future.")}`);
+  }
+  if (endsAt) {
+    const endsDate = new Date(endsAt);
+    if (isNaN(endsDate.getTime()) || endsDate <= startsDate) {
+      redirect(`/events/create?error=${encodeURIComponent("End time must be after the start time.")}`);
+    }
+  }
+  if (maxAttendees !== null && (isNaN(maxAttendees) || maxAttendees < 1)) {
+    redirect(`/events/create?error=${encodeURIComponent("Max attendees must be at least 1.")}`);
+  }
+
   // If a group_id was supplied, verify it belongs to the current user server-side
   if (groupId) {
     const { data: group } = await supabase

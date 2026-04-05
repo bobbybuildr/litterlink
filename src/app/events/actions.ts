@@ -12,6 +12,27 @@ export async function joinEvent(eventId: string) {
 
   if (!user) return { error: "You must be signed in to join an event." };
 
+  // Verify the event is still published and has capacity
+  const { data: eventMeta } = await supabase
+    .from("events")
+    .select("status, max_attendees")
+    .eq("id", eventId)
+    .single();
+
+  if (!eventMeta || eventMeta.status !== "published") {
+    return { error: "This event is no longer accepting participants." };
+  }
+  if (eventMeta.max_attendees !== null) {
+    const { count } = await supabase
+      .from("event_participants")
+      .select("*", { count: "exact", head: true })
+      .eq("event_id", eventId)
+      .eq("status", "confirmed");
+    if ((count ?? 0) >= eventMeta.max_attendees) {
+      return { error: "This event is full." };
+    }
+  }
+
   const { error } = await supabase.from("event_participants").insert({
     event_id: eventId,
     user_id: user.id,
@@ -21,6 +42,9 @@ export async function joinEvent(eventId: string) {
   if (error) {
     // 23505 = unique_violation — already joined
     if (error.code === "23505") return { error: "You are already joined." };
+    // P0001 = capacity trigger fired — event filled up between the pre-check and insert
+    if (error.code === "P0001" && error.message === "event_full")
+      return { error: "This event just filled up. You weren't able to join in time." };
     return { error: error.message };
   }
 
@@ -177,6 +201,7 @@ export async function cancelEvent(eventId: string) {
 
   revalidatePath(`/events/${eventId}`);
   revalidatePath("/events");
+  revalidatePath("/dashboard");
   return { error: null };
 }
 

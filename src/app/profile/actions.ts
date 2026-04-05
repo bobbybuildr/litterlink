@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
+import { geocodePostcode } from "@/lib/geocode";
 
 export type ProfileState = { error?: string; success?: boolean } | null;
 
@@ -23,6 +24,14 @@ export async function updateProfile(
 
   const displayName = (formData.get("display_name") as string)?.trim();
   const postcode = (formData.get("postcode") as string)?.trim().toUpperCase();
+
+  // Validate postcode if one was provided
+  if (postcode) {
+    const geo = await geocodePostcode(postcode);
+    if (!geo) {
+      return { error: `"${postcode}" isn't a recognised UK postcode. Please check and try again.` };
+    }
+  }
 
   // Handle optional avatar upload
   let avatarUrl: string | undefined;

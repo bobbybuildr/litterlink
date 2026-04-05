@@ -17,7 +17,14 @@ export async function signInWithEmail(formData: FormData) {
 
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
-  const redirectTo = (formData.get("redirectTo") as string) || "/dashboard";
+
+  // Validate redirectTo to prevent open-redirect attacks — must be a
+  // relative path starting with "/" but not protocol-relative ("//").
+  const rawRedirectTo = (formData.get("redirectTo") as string) || "/dashboard";
+  const redirectTo =
+    rawRedirectTo.startsWith("/") && !rawRedirectTo.startsWith("//")
+      ? rawRedirectTo
+      : "/dashboard";
 
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 

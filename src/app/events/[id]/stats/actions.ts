@@ -23,6 +23,11 @@ export async function submitStats(eventId: string, formData: FormData) {
     redirect(`/events/${eventId}?error=Not+authorised`);
   }
 
+  // Stats can only be submitted once — prevent re-submission on completed events
+  if (event.status === "completed") {
+    redirect(`/events/${eventId}`);
+  }
+
   const bags = formData.get("bags_collected")
     ? parseInt(formData.get("bags_collected") as string, 10)
     : null;

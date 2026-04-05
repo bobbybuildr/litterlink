@@ -14,10 +14,13 @@ export async function geocodePostcode(
 ): Promise<GeoResult | null> {
   const clean = postcode.trim().toUpperCase().replace(/\s+/g, "");
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5000);
+
   try {
     const res = await fetch(
       `https://api.postcodes.io/postcodes/${encodeURIComponent(clean)}`,
-      { next: { revalidate: 86400 } } // cache 24h — postcodes don't move
+      { signal: controller.signal, next: { revalidate: 86400 } } // cache 24h — postcodes don't move
     );
 
     if (!res.ok) return null;
@@ -32,5 +35,7 @@ export async function geocodePostcode(
     };
   } catch {
     return null;
+  } finally {
+    clearTimeout(timeoutId);
   }
 }

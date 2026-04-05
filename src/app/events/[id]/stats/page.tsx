@@ -35,6 +35,9 @@ export default async function StatsPage({ params, searchParams }: Props) {
   // Only the organiser can log stats
   if (event.organiser_id !== user.id) notFound();
 
+  // Stats already submitted — redirect back to event page
+  if (event.status === "completed") redirect(`/events/${id}`);
+
   const submitStatsForEvent = submitStats.bind(null, id);
 
   return (

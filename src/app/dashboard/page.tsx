@@ -62,10 +62,13 @@ export default async function DashboardPage() {
 
   const groups = (groupsRaw ?? []) as GroupRow[];
 
-  // Personal impact totals from completed events
-  const completedIds = joinedEvents
-    .filter((e) => e.status === "completed")
-    .map((e) => e.id);
+  // Personal impact totals from completed events (joined or organised)
+  const completedIds = Array.from(
+    new Set([
+      ...joinedEvents.filter((e) => e.status === "completed").map((e) => e.id),
+      ...organisedEvents.filter((e) => e.status === "completed").map((e) => e.id),
+    ])
+  );
 
   const { data: statsRows } = completedIds.length
     ? await supabase
