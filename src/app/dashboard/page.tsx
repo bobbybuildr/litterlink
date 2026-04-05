@@ -80,13 +80,13 @@ export default async function DashboardPage() {
     (e) => new Date(e.starts_at) >= new Date() && e.status === "published"
   );
   const pastJoined = joinedEvents.filter(
-    (e) => new Date(e.starts_at) < new Date() || e.status === "completed"
+    (e) => e.status !== "cancelled" && (new Date(e.starts_at) < new Date() || e.status === "completed")
   );
   const needsWrapUp = organisedEvents.filter(
     (e) => e.status === "published" && new Date(e.starts_at) < new Date()
   );
   const organisedOverview = organisedEvents.filter(
-    (e) => !(e.status === "published" && new Date(e.starts_at) < new Date())
+    (e) => e.status !== "cancelled" && !(e.status === "published" && new Date(e.starts_at) < new Date())
   );
   const organisedActive = organisedOverview.filter((e) => e.status !== "completed");
   const organisedCompleted = organisedOverview.filter((e) => e.status === "completed");
