@@ -99,7 +99,7 @@ export default async function DashboardPage() {
       <div className="mb-2 sm:mb-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
-            Welcome back{profile?.display_name && ", "}
+            Welcome{profile?.display_name && ", "}
             {profile?.display_name ? (
               <span className="whitespace-nowrap">
                 {profile.display_name}
