@@ -16,6 +16,8 @@ interface EventsMapProps {
 export function EventsMap({ events, centerLat, centerLng }: EventsMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<import("leaflet").Map | null>(null);
+  const hintRef = useRef<HTMLDivElement>(null);
+  const touchCleanupRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -74,12 +76,55 @@ export function EventsMap({ events, centerLat, centerLng }: EventsMapProps) {
             </div>`
           );
       });
+
+      // Mobile gesture handling: single-finger disables map drag (allows page scroll)
+      // and shows a hint; two fingers enable map drag.
+      let hintTimeout: ReturnType<typeof setTimeout> | null = null;
+
+      const showHint = () => {
+        if (hintRef.current) hintRef.current.style.opacity = "1";
+        if (hintTimeout) clearTimeout(hintTimeout);
+        hintTimeout = setTimeout(() => {
+          if (hintRef.current) hintRef.current.style.opacity = "0";
+        }, 1500);
+      };
+
+      const hideHint = () => {
+        if (hintRef.current) hintRef.current.style.opacity = "0";
+        if (hintTimeout) { clearTimeout(hintTimeout); hintTimeout = null; }
+      };
+
+      const onTouchStart = (e: TouchEvent) => {
+        if (e.touches.length >= 2) {
+          map.dragging.enable();
+          hideHint();
+        } else {
+          map.dragging.disable();
+          showHint();
+        }
+      };
+
+      const onTouchEnd = () => {
+        map.dragging.enable();
+      };
+
+      const el = containerRef.current!;
+      el.addEventListener("touchstart", onTouchStart, { passive: true });
+      el.addEventListener("touchend", onTouchEnd, { passive: true });
+
+      touchCleanupRef.current = () => {
+        el.removeEventListener("touchstart", onTouchStart);
+        el.removeEventListener("touchend", onTouchEnd);
+        if (hintTimeout) clearTimeout(hintTimeout);
+      };
     }
 
     initMap();
 
     return () => {
       cleanedUp = true;
+      touchCleanupRef.current?.();
+      touchCleanupRef.current = null;
       mapRef.current?.remove();
       mapRef.current = null;
     };
@@ -131,10 +176,23 @@ export function EventsMap({ events, centerLat, centerLng }: EventsMapProps) {
   }, [events, centerLat, centerLng]);
 
   return (
-    <div
-      ref={containerRef}
-      className="h-full w-full rounded-xl"
-      aria-label="Map of litter-picking events"
-    />
+    <div className="relative h-full w-full">
+      <div
+        ref={containerRef}
+        className="h-full w-full rounded-xl"
+        aria-label="Map of litter-picking events"
+      />
+      {/* Gesture hint shown on single-finger touch; hidden by default */}
+      <div
+        ref={hintRef}
+        style={{ opacity: 0, transition: "opacity 0.3s ease" }}
+        className="pointer-events-none absolute inset-0 z-1000 flex items-center justify-center rounded-xl bg-black/40"
+        aria-hidden="true"
+      >
+        <p className="rounded-lg bg-white/90 px-4 py-2 text-sm font-medium text-gray-700">
+          Use two fingers to move the map
+        </p>
+      </div>
+    </div>
   );
 }
