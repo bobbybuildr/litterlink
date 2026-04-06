@@ -16,13 +16,20 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://litterlink.co.uk";
+const defaultDescription =
+  "Find and join local litter-picking events near you. Track your impact and help keep communities clean.";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: { default: "LitterLink", template: "%s | LitterLink" },
-  description:
-    "Find and join local litter-picking events near you. Track your impact and help keep communities clean.",
+  description: defaultDescription,
   openGraph: {
     siteName: "LitterLink",
     type: "website",
+    url: "/",
+    title: "LitterLink — Find Local Litter Picks",
+    description: defaultDescription,
   },
 };
 

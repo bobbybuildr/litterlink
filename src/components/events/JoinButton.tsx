@@ -4,7 +4,7 @@ import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { joinEvent, leaveEvent } from "@/app/events/actions";
-import { Users, UserPlus, LogOut, Loader2, CalendarPlus } from "lucide-react";
+import { Users, UserPlus, LogOut, Loader2, CalendarPlus, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface JoinButtonProps {
@@ -13,6 +13,8 @@ interface JoinButtonProps {
   initialStatus: "confirmed" | "waitlisted" | "cancelled" | null;
   isAuthenticated: boolean;
   isPast: boolean;
+  isCancelled?: boolean;
+  isFull?: boolean;
   eventTitle: string;
   startsAt: string;
   endsAt: string | null;
@@ -63,6 +65,8 @@ export function JoinButton({
   initialStatus,
   isAuthenticated,
   isPast,
+  isCancelled = false,
+  isFull = false,
   eventTitle,
   startsAt,
   endsAt,
@@ -139,6 +143,15 @@ export function JoinButton({
     });
   }
 
+  if (isCancelled) {
+    return (
+      <div className="flex items-center gap-2 text-sm text-red-500">
+        <XCircle className="h-4 w-4 shrink-0" />
+        Registrations closed — event cancelled
+      </div>
+    );
+  }
+
   if (isPast) {
     return (
       <div className="flex items-center gap-2 text-sm text-gray-500">
@@ -151,31 +164,41 @@ export function JoinButton({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-col items-center gap-3">
-        {joined && (
+        {joined && !isPending && (
           <span className="flex items-center gap-1.5 text-sm text-gray-500">
             You have joined this event
           </span>
         )}
         <button
           onClick={handleClick}
-          disabled={isPending}
+          disabled={isPending || (isFull && !joined)}
           className={cn(
             "flex w-full items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold transition-all",
-            joined
+            isPending
+              ? joined
+                ? "bg-brand text-white shadow-sm opacity-60 cursor-not-allowed"
+                : "border border-red-200 bg-red-50 text-red-700 opacity-60 cursor-not-allowed"
+              : joined
               ? "border border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
-              : "bg-brand text-white hover:bg-brand-dark shadow-sm",
-            isPending && "opacity-60 cursor-not-allowed"
+              : isFull
+              ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+              : "bg-brand text-white hover:bg-brand-dark shadow-sm"
           )}
         >
           {isPending ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
-              {joined ? " " : "Leaving…"}
+              {joined ? "Joining…" : "Leaving…"}
             </>
           ) : joined ? (
             <>
               <LogOut className="h-4 w-4" />
               Leave event
+            </>
+          ) : isFull ? (
+            <>
+              <Users className="h-4 w-4" />
+              Event full
             </>
           ) : (
             <>
@@ -185,7 +208,7 @@ export function JoinButton({
           )}
         </button>
 
-        {joined && (
+        {joined && !isPending && (
           <button
             onClick={handleAddToCalendar}
             className="flex items-center justify-center gap-2 rounded-xl border border-brand px-6 py-2.5 text-sm font-medium text-brand hover:bg-green-50 transition-colors w-full"

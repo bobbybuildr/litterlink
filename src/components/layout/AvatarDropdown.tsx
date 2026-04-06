@@ -41,7 +41,7 @@ export function AvatarDropdown({
         aria-expanded={open}
         aria-haspopup="true"
         onClick={() => setOpen((prev) => !prev)}
-        className="flex-shrink-0 rounded-full ring-2 ring-transparent transition-all hover:ring-brand/40 focus-visible:outline-none focus-visible:ring-brand/60"
+        className="shrink-0 rounded-full ring-2 ring-transparent transition-all hover:ring-brand/40 focus-visible:outline-none focus-visible:ring-brand/60"
       >
         {avatarUrl ? (
           <Image

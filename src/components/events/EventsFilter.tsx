@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
-import { Search } from "lucide-react";
+import { Search, X } from "lucide-react";
 
 const RADIUS_OPTIONS = [
   { label: "5 mi", value: "8" },
@@ -112,13 +112,15 @@ export function EventsFilter({ defaultFrom, defaultTo }: EventsFilterProps = {})
         {isPending ? "Searching…" : "Search"}
       </button>
 
-      {(params.get("postcode") || params.get("from") || params.get("to")) && (
+      {(params.get("postcode") || params.get("radius") || params.get("from") || params.get("to")) && (
         <button
           type="button"
-          onClick={() => router.push("/events")}
-          className="text-sm text-gray-500 hover:text-gray-800 transition-colors"
+          onClick={() => startTransition(() => router.push("/events"))}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-500 hover:border-gray-300 hover:text-gray-800 transition-colors"
+          title="Reset all filters"
         >
-          Clear
+          <X className="h-3.5 w-3.5" />
+          Reset
         </button>
       )}
     </form>

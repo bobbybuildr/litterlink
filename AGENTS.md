@@ -26,6 +26,8 @@ No test suite is configured yet.
 - **Icons**: `lucide-react`
 - **Map**: `react-leaflet` + `leaflet` (must be `"use client"`, use dynamic import to avoid SSR)
 - **Geocoding**: UK postcodes via `postcodes.io` — server-side only (`@/lib/geocode`)
+- **Email**: `resend` v6.9 — all sending logic in `@/lib/email`
+- **Image compression**: `browser-image-compression` v2 — client-side, used before uploads
 
 ### Key directories
 
@@ -34,12 +36,29 @@ No test suite is configured yet.
 | `src/app/` | App Router pages and layouts |
 | `src/app/(auth)/actions.ts` | Sign-in / sign-up / sign-out Server Actions |
 | `src/app/events/` | Events listing, detail, create, stats |
+| `src/app/groups/` | Groups listing (placeholder), group detail, create group |
+| `src/app/become-a-verified-organiser/` | Organiser application form + actions |
+| `src/app/admin/` | Admin panel — organiser applications |
 | `src/components/` | Shared UI components |
 | `src/lib/events.ts` | Data-fetching helpers (typed query wrappers) |
+| `src/lib/email.ts` | Resend email helpers |
+| `src/lib/ratelimit.ts` | DB-backed rate limiting (event creation, joins) |
+| `src/lib/sanitize.ts` | `sanitizeText()` — strips HTML from user input |
 | `src/lib/supabase/` | Supabase client factories |
 | `src/types/database.ts` | Hand-written DB types — update when schema changes |
 | `supabase/migrations/` | SQL migration files |
 | `src/proxy.ts` | Auth session refresh proxy (replaces `middleware.ts`) |
+
+### Key tables
+
+| Table | Notes |
+|-------|-------|
+| `profiles` | `is_verified_organiser` BOOLEAN, `is_admin` BOOLEAN |
+| `events` | `group_id` (nullable FK), `organiser_contact_details` (nullable text); `organiser_id` is nullable (SET NULL on account deletion) |
+| `groups` | `group_type` enum-like text, `created_by` nullable |
+| `organiser_applications` | status: `pending \| approved \| rejected` |
+| `email_preferences` | per-user opt-in/out, auto-created on profile creation |
+| `events_with_counts` | view — adds `organiser_is_verified`, `group_name`, `group_slug`, `confirmed_count` |
 
 ## Next.js 16 Breaking Changes
 
@@ -73,6 +92,8 @@ if (!user) redirect("/sign-in");
 **Environment variables**:
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY` ← NOT `ANON_KEY`
+- `SUPABASE_SECRET_KEY` ← service-role key, server-side only
+- `RESEND_API_KEY`, `RESEND_FROM`, `ADMIN_EMAIL`, `NEXT_PUBLIC_SITE_URL`
 
 **Types** — derive from the `Database` type in `@/types/database.ts`:
 ```ts

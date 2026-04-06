@@ -32,9 +32,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const event = await getEventById(id);
   if (!event) return { title: "Event not found" };
+  const description =
+    event.description ?? `Join the litter pick at ${event.address_label ?? event.location_postcode}`;
   return {
     title: event.title,
-    description: event.description ?? `Join the litter pick at ${event.address_label ?? event.location_postcode}`,
+    description,
+    openGraph: {
+      title: event.title,
+      description,
+      url: `/events/${id}`,
+      type: "website",
+      siteName: "LitterLink",
+    },
   };
 }
 
@@ -50,6 +59,9 @@ export default async function EventDetailPage({ params }: Props) {
 
   const isCompleted = event.status === "completed";
   const isCancelled = event.status === "cancelled";
+  const isFull =
+    event.max_attendees != null &&
+    event.confirmed_count >= event.max_attendees;
 
   const [{ data: { user } }, photos, participants] = await Promise.all([
     supabase.auth.getUser(),
@@ -87,6 +99,12 @@ export default async function EventDetailPage({ params }: Props) {
           {/* Title + status */}
           <div>
             <div className="mb-2 flex flex-wrap gap-2">
+              {!isCancelled && !isCompleted && !isPast && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
+                  <Calendar className="h-3 w-3" />
+                  Upcoming
+                </span>
+              )}
               {isCancelled && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-700">
                   <XCircle className="h-3 w-3" />
@@ -311,6 +329,8 @@ export default async function EventDetailPage({ params }: Props) {
               initialStatus={participationStatus}
               isAuthenticated={!!user}
               isPast={isPast || isCompleted}
+              isCancelled={isCancelled}
+              isFull={isFull}
               eventTitle={event.title}
               startsAt={event.starts_at}
               endsAt={event.ends_at ?? null}
@@ -318,7 +338,9 @@ export default async function EventDetailPage({ params }: Props) {
             />
             {event.max_attendees != null && (
               <p className="mt-2 text-xs text-gray-400 text-center">
-                {event.max_attendees - event.confirmed_count} spots remaining
+                {isFull
+                  ? "No spots remaining"
+                  : `${event.max_attendees - event.confirmed_count} spot${event.max_attendees - event.confirmed_count !== 1 ? "s" : ""} remaining`}
               </p>
             )}
           </div>
@@ -334,8 +356,8 @@ export default async function EventDetailPage({ params }: Props) {
 
           {/* Share */}
           <div className="rounded-xl border border-gray-200 bg-white p-4">
-            <p className="text-xs font-medium text-gray-500 mb-2">Share this event</p>
-            <ShareUrl />
+            <p className="text-xs font-medium text-gray-500 mb-2">Invite others to join</p>
+            <ShareUrl title={event.title} />
           </div>
         </div>
       </div>

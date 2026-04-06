@@ -113,6 +113,7 @@ export default async function CreateEventPage({ searchParams }: Props) {
             id="description"
             name="description"
             rows={4}
+            maxLength={2000}
             placeholder="What to bring, where to meet exactly, etc."
             className={inputCls}
           />
@@ -139,6 +140,7 @@ export default async function CreateEventPage({ searchParams }: Props) {
               id="address_label"
               name="address_label"
               type="text"
+              maxLength={200}
               placeholder="Outside the old library"
               className={inputCls}
             />

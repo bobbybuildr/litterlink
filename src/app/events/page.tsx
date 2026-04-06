@@ -126,7 +126,7 @@ export default async function EventsPage({ searchParams }: Props) {
 
       {/* Filter */}
       <div className="mb-6 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-        <Suspense>
+        <Suspense fallback={<FilterSkeleton />}>
           <EventsFilter defaultFrom={fromDate} defaultTo={toDate} />
         </Suspense>
       </div>
@@ -260,15 +260,38 @@ function EmptyState({ postcode }: { postcode?: string }) {
       <p className="mt-2 font-semibold text-gray-700">No events found</p>
       <p className="mt-1 text-sm text-gray-500">
         {postcode
-          ? `No picks within this distance of ${postcode}.`
-          : " "}
+          ? `No picks found near ${postcode} in the selected date range.`
+          : "No events found in the selected date range."}
       </p>
+      {postcode && (
+        <p className="mt-0.5 text-sm text-gray-400">
+          Try a wider radius or adjusting the dates.
+        </p>
+      )}
       <Link
         href="/events/create"
         className="mt-4 inline-block rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-dark transition-colors"
       >
         Be the first — create one
       </Link>
+    </div>
+  );
+}
+
+function FilterSkeleton() {
+  return (
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-end animate-pulse">
+      <div className="flex-1 space-y-1.5">
+        <div className="h-4 w-16 rounded bg-gray-200" />
+        <div className="h-9 rounded-lg bg-gray-100" />
+      </div>
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="space-y-1.5">
+          <div className="h-4 w-12 rounded bg-gray-200" />
+          <div className="h-9 w-28 rounded-lg bg-gray-100" />
+        </div>
+      ))}
+      <div className="h-9 w-20 rounded-lg bg-gray-100" />
     </div>
   );
 }

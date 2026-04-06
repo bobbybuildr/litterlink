@@ -32,7 +32,12 @@ import { createClient } from "@/lib/supabase/client";  // Client Components only
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY` — note: NOT `ANON_KEY`
-- `COMING_SOON` — set to `"true"` to enable the pre-launch gate
+- `SUPABASE_SECRET_KEY` — service-role key, used server-side only (admin user lookups)
+- `COMING_SOON` — set to `"true"` to enable the pre-launch gate (scoped to `/`, `/events`, `/events/*`)
+- `RESEND_API_KEY` — Resend email API key
+- `RESEND_FROM` — sender address, e.g. `"LitterLink <noreply@litterlink.co.uk>"` (optional — defaults to that value)
+- `ADMIN_EMAIL` — email address for admin notifications (organiser application alerts)
+- `NEXT_PUBLIC_SITE_URL` — canonical site URL, e.g. `"https://litterlink.co.uk"` (used in emails and OG meta)
 
 ## Styling
 
@@ -55,14 +60,35 @@ import { createClient } from "@/lib/supabase/client";  // Client Components only
 - Uses `next: { revalidate: 86400 }` — responses cached for 24 hours via Next.js fetch cache
 - Returns `{ latitude, longitude, postcode }` or `null` on failure
 
+## Email
+
+- **`resend` v6.9** — transactional email via the Resend API
+- All email logic lives in `src/lib/email.ts`
+- Plain-text emails only (no HTML templates)
+- Sends: join/leave/cancel confirmations, organiser application submission + outcome emails
+- In-process rate limiting (60-second cooldown per key) to prevent burst sends
+- Errors are swallowed — a mail failure never blocks a user action
+
 ## Icons
 
 - **`lucide-react` v1** — tree-shakeable SVG icons as React components
+
+## Image Compression
+
+- **`browser-image-compression` v2** — client-side image compression before upload (used in photo and avatar upload flows)
 
 ## Analytics
 
 - **`@vercel/analytics` v2** — page view tracking
 - **`@vercel/speed-insights` v2** — Core Web Vitals monitoring
+
+## Security & Validation
+
+- **`src/lib/sanitize.ts`** — `sanitizeText()` strips HTML tags from all user-supplied text before DB writes (XSS defence-in-depth)
+- **`src/lib/ratelimit.ts`** — DB-backed rate limiting helpers:
+  - `isEventCreationRateLimited()` — 5 events per user per 24 hours
+  - `isJoinRateLimited()` — 20 joins per user per hour
+- `redirectTo` open-redirect protection in `signInWithEmail` — only relative paths accepted
 
 ## Next.js 16 Breaking Changes
 
@@ -128,9 +154,15 @@ Mutation actions return `{ error: string | null }`. On success, they call `reval
 | `src/app/` | App Router pages and layouts |
 | `src/app/(auth)/actions.ts` | Sign-in / sign-up / sign-out Server Actions |
 | `src/app/events/` | Events listing, detail, create, stats pages + actions |
+| `src/app/groups/` | Groups listing (placeholder), group detail, create group |
+| `src/app/become-a-verified-organiser/` | Organiser application form + actions |
+| `src/app/admin/` | Admin panel (applications review) |
 | `src/components/` | Shared UI components |
 | `src/lib/events.ts` | Data-fetching helpers (typed Supabase query wrappers) |
 | `src/lib/geocode.ts` | `postcodes.io` geocoding helper |
+| `src/lib/email.ts` | Resend email sending helpers |
+| `src/lib/ratelimit.ts` | DB-backed rate limiting for event creation and joining |
+| `src/lib/sanitize.ts` | HTML-strip sanitizer for user input |
 | `src/lib/supabase/` | Supabase client factories (server, client, middleware) |
 | `src/types/database.ts` | Hand-written DB types — update when schema changes |
 | `src/proxy.ts` | Auth session refresh + route protection (replaces middleware.ts) |

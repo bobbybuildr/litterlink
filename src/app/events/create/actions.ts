@@ -4,6 +4,13 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { geocodePostcode } from "@/lib/geocode";
 import { sendEventCreatedEmail } from "@/lib/email";
+import { sanitizeText } from "@/lib/sanitize";
+import { isEventCreationRateLimited } from "@/lib/ratelimit";
+
+const TITLE_MAX = 120;
+const DESC_MAX = 2000;
+const ADDRESS_MAX = 200;
+const CONTACT_MAX = 500;
 
 export async function createEvent(formData: FormData) {
   const supabase = await createClient();
@@ -13,10 +20,16 @@ export async function createEvent(formData: FormData) {
 
   if (!user) redirect("/sign-in");
 
-  const postcode = (formData.get("postcode") as string).trim().toUpperCase();
-  const title = (formData.get("title") as string).trim();
-  const description = (formData.get("description") as string).trim() || null;
-  const addressLabel = (formData.get("address_label") as string).trim() || null;
+  if (await isEventCreationRateLimited(user.id, supabase)) {
+    redirect(
+      `/events/create?error=${encodeURIComponent("You've created too many events recently. Please wait before creating another.")}`
+    );
+  }
+
+  const postcode = sanitizeText((formData.get("postcode") as string) ?? "").toUpperCase();
+  const title = sanitizeText((formData.get("title") as string) ?? "");
+  const description = sanitizeText((formData.get("description") as string) ?? "") || null;
+  const addressLabel = sanitizeText((formData.get("address_label") as string) ?? "") || null;
   const startsAt = formData.get("starts_at") as string;
   const endsAt = (formData.get("ends_at") as string) || null;
   const maxAttendees = formData.get("max_attendees")
@@ -25,7 +38,21 @@ export async function createEvent(formData: FormData) {
   const rawGroupId = (formData.get("group_id") as string | null) ?? null;
   const groupId = rawGroupId && rawGroupId !== "" ? rawGroupId : null;
   const organiserContactDetails =
-    (formData.get("organiser_contact_details") as string)?.trim() || null;
+    sanitizeText((formData.get("organiser_contact_details") as string) ?? "") || null;
+
+  // Length validation
+  if (title.length > TITLE_MAX) {
+    redirect(`/events/create?error=${encodeURIComponent(`Event title must be ${TITLE_MAX} characters or fewer.`)}`);
+  }
+  if (description && description.length > DESC_MAX) {
+    redirect(`/events/create?error=${encodeURIComponent(`Description must be ${DESC_MAX} characters or fewer.`)}`);
+  }
+  if (addressLabel && addressLabel.length > ADDRESS_MAX) {
+    redirect(`/events/create?error=${encodeURIComponent(`Meeting point must be ${ADDRESS_MAX} characters or fewer.`)}`);
+  }
+  if (organiserContactDetails && organiserContactDetails.length > CONTACT_MAX) {
+    redirect(`/events/create?error=${encodeURIComponent(`Contact details must be ${CONTACT_MAX} characters or fewer.`)}`);
+  }
 
   // Validate required fields
   if (!title || !postcode || !startsAt) {

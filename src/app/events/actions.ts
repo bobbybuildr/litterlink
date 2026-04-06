@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { sendEventJoinedEmail, sendEventLeftEmail, sendEventCancelledEmails } from "@/lib/email";
+import { isJoinRateLimited } from "@/lib/ratelimit";
 export async function joinEvent(eventId: string) {
   const supabase = await createClient();
   const {
@@ -11,6 +12,10 @@ export async function joinEvent(eventId: string) {
   } = await supabase.auth.getUser();
 
   if (!user) return { error: "You must be signed in to join an event." };
+
+  if (await isJoinRateLimited(user.id, supabase)) {
+    return { error: "You've joined too many events recently. Please try again later." };
+  }
 
   // Verify the event is still published and has capacity
   const { data: eventMeta } = await supabase
