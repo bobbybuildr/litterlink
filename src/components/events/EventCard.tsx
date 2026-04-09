@@ -147,6 +147,7 @@ function EventMeta({
 function formatEventDate(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleDateString("en-GB", {
+    timeZone: "Europe/London",
     weekday: "short",
     day: "numeric",
     month: "short",
