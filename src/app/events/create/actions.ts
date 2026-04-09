@@ -12,7 +12,27 @@ const DESC_MAX = 2000;
 const ADDRESS_MAX = 200;
 const CONTACT_MAX = 500;
 
-export async function createEvent(formData: FormData) {
+export type CreateEventState = {
+  error: string | null;
+  fields?: Record<string, string>;
+};
+
+function extractFields(formData: FormData): Record<string, string> {
+  const fields: Record<string, string> = {};
+  formData.forEach((value, key) => {
+    if (typeof value === "string") fields[key] = value;
+  });
+  return fields;
+}
+
+function fail(error: string, formData: FormData): CreateEventState {
+  return { error, fields: extractFields(formData) };
+}
+
+export async function createEvent(
+  _prevState: CreateEventState,
+  formData: FormData,
+): Promise<CreateEventState> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -21,9 +41,7 @@ export async function createEvent(formData: FormData) {
   if (!user) redirect("/sign-in");
 
   if (await isEventCreationRateLimited(user.id, supabase)) {
-    redirect(
-      `/events/create?error=${encodeURIComponent("You've created too many events recently. Please wait before creating another.")}`
-    );
+    return fail("You've created too many events recently. Please wait before creating another.", formData);
   }
 
   const postcode = sanitizeText((formData.get("postcode") as string) ?? "").toUpperCase();
@@ -42,39 +60,39 @@ export async function createEvent(formData: FormData) {
 
   // Length validation
   if (title.length > TITLE_MAX) {
-    redirect(`/events/create?error=${encodeURIComponent(`Event title must be ${TITLE_MAX} characters or fewer.`)}`);
+    return fail(`Event title must be ${TITLE_MAX} characters or fewer.`, formData);
   }
   if (description && description.length > DESC_MAX) {
-    redirect(`/events/create?error=${encodeURIComponent(`Description must be ${DESC_MAX} characters or fewer.`)}`);
+    return fail(`Description must be ${DESC_MAX} characters or fewer.`, formData);
   }
   if (addressLabel && addressLabel.length > ADDRESS_MAX) {
-    redirect(`/events/create?error=${encodeURIComponent(`Meeting point must be ${ADDRESS_MAX} characters or fewer.`)}`);
+    return fail(`Meeting point must be ${ADDRESS_MAX} characters or fewer.`, formData);
   }
   if (organiserContactDetails && organiserContactDetails.length > CONTACT_MAX) {
-    redirect(`/events/create?error=${encodeURIComponent(`Contact details must be ${CONTACT_MAX} characters or fewer.`)}`);
+    return fail(`Contact details must be ${CONTACT_MAX} characters or fewer.`, formData);
   }
 
   // Validate required fields
   if (!title || !postcode || !startsAt) {
-    redirect("/events/create?error=Please+fill+in+all+required+fields.");
+    return fail("Please fill in all required fields.", formData);
   }
 
   // Server-side date validation (client min attribute can be bypassed)
   const startsDate = new Date(startsAt);
   if (isNaN(startsDate.getTime())) {
-    redirect(`/events/create?error=${encodeURIComponent("Invalid start date.")}`);
+    return fail("Invalid start date.", formData);
   }
   if (startsDate < new Date()) {
-    redirect(`/events/create?error=${encodeURIComponent("Start date must be in the future.")}`);
+    return fail("Start date must be in the future.", formData);
   }
   if (endsAt) {
     const endsDate = new Date(endsAt);
     if (isNaN(endsDate.getTime()) || endsDate <= startsDate) {
-      redirect(`/events/create?error=${encodeURIComponent("End time must be after the start time.")}`);
+      return fail("End time must be after the start time.", formData);
     }
   }
   if (maxAttendees !== null && (isNaN(maxAttendees) || maxAttendees < 1)) {
-    redirect(`/events/create?error=${encodeURIComponent("Max attendees must be at least 1.")}`);
+    return fail("Max attendees must be at least 1.", formData);
   }
 
   // If a group_id was supplied, verify it belongs to the current user server-side
@@ -87,18 +105,14 @@ export async function createEvent(formData: FormData) {
       .maybeSingle();
 
     if (!group) {
-      redirect(
-        `/events/create?error=${encodeURIComponent("Selected group is invalid or not owned by you.")}`
-      );
+      return fail("Selected group is invalid or not owned by you.", formData);
     }
   }
 
   // Geocode the postcode
   const geo = await geocodePostcode(postcode);
   if (!geo) {
-    redirect(
-      `/events/create?error=${encodeURIComponent(`Postcode "${postcode}" wasn't recognised. Please enter a valid UK postcode.`)}`
-    );
+    return fail(`Postcode "${postcode}" wasn't recognised. Please enter a valid UK postcode.`, formData);
   }
 
   const { data: event, error } = await supabase
@@ -122,9 +136,7 @@ export async function createEvent(formData: FormData) {
     .single();
 
   if (error || !event) {
-    redirect(
-      `/events/create?error=${encodeURIComponent("Failed to create event. Please try again.")}`
-    );
+    return fail("Failed to create event. Please try again.", formData);
   }
 
   const joinEvent = formData.get("join_event") === "1";
