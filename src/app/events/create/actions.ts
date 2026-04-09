@@ -88,7 +88,7 @@ export async function createEvent(
   if (endsAt) {
     const endsDate = new Date(endsAt);
     if (isNaN(endsDate.getTime()) || endsDate <= startsDate) {
-      return fail("End time must be after the start time.", formData);
+      return fail("The end date can not be before the start date.", formData);
     }
   }
   if (maxAttendees !== null && (isNaN(maxAttendees) || maxAttendees < 1)) {
