@@ -25,20 +25,20 @@ export function BetaBanner({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        "sticky top-0 z-50 flex items-center justify-center gap-x-3 bg-green-50 border-b border-green-200 px-4 py-2 text-sm text-green-900",
+        "sticky top-0 z-50 flex items-center justify-center gap-x-3 bg-blue-50 border-b border-blue-200 px-4 py-2 text-sm text-blue-900",
         className
       )}
     >
-      <span className="flex min-w-0 items-center gap-x-2">
-        <span aria-hidden="true">🚧</span>
-        <span className="truncate">
-          LitterLink is in beta — we&apos;re building this with the community.
+      <span className="flex-1 flex flex-col sm:flex-row min-w-0 items-center justify-center gap-x-2">
+        <span>
+          <span aria-hidden="true">🚧</span>
+          LitterLink is currently in beta<span className="hidden sm:inline"> — we&apos;re building this with the community.&nbsp;</span>
         </span>
         <a
           href="https://forms.gle/qBKyW1zy6vuXr3bD7"
           target="_blank"
           rel="noopener noreferrer"
-          className="shrink-0 font-medium underline underline-offset-2 hover:text-green-700 transition-colors"
+          className="block sm:inline-block shrink-0 font-medium underline underline-offset-2 hover:text-green-700 transition-colors"
         >
           Share your feedback →
         </a>

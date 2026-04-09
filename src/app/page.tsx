@@ -1,6 +1,9 @@
 ﻿import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Calendar, Trash, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { LucideIcon } from "lucide-react";
+import { PostcodeSearch } from "@/components/PostcodeSearch";
 
 async function getImpactStats() {
   const supabase = await createClient();
@@ -51,75 +54,88 @@ export default async function HomePage({ searchParams }: Props) {
       <section className="bg-linear-to-br from-green-50 to-emerald-100 px-4 py-20 sm:py-28">
         <div className="mx-auto max-w-3xl text-center">
           <h1 className="text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl">
-            <span className="text-accent">Pick up litter.</span>{" "}
-            <span className="text-brand">Make a difference.</span>
+            <span className="text-accent">Find local litter picks.</span>{" "}
+            <span className="text-brand">Make a real difference.</span>
           </h1>
           <p className="mx-auto mt-4 max-w-xl text-lg text-gray-600">
-            LitterLink connects you with local litter-picking events across the
-            UK. Join a pick, track your impact, or organise your own.
+            LitterLink makes it easy to discover litter-picking events near you, connect with local volunteers, and track the impact you’re making across the UK.
           </p>
-          <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-            <Link
-              href="/events"
-              className="rounded-xl bg-brand px-6 py-3 text-base font-semibold text-white shadow-sm hover:bg-brand-dark transition-colors"
-            >
-              Find events near you
-            </Link>
-            <Link
-              href="/events/create"
-              className="rounded-xl border border-gray-300 bg-white px-6 py-3 text-base font-semibold text-gray-700 shadow-sm hover:bg-gray-50 transition-colors"
-            >
-              Organise a litter pick
-            </Link>
+          <div className="mt-8 flex flex-col items-center gap-4">
+            <PostcodeSearch />
+            <p className="text-base font-medium text-gray-500">
+              Running a cleanup?&nbsp;
+              <Link
+                href="/events/create"
+                className="underline-offset-2 hover:text-gray-700 underline transition-colors"
+              >
+                Create an event
+              </Link>
+            </p>
           </div>
+          <p className="mx-auto text-base mt-10 tracking-tight max-w-xl text-gray-600">
+            Used by community groups, schools and volunteers across the UK.
+          </p>
         </div>
       </section>
 
       {/* Impact stats */}
       <section className="border-y border-gray-200 bg-white px-4 py-12">
         <div className="mx-auto max-w-7xl">
-          <h2 className="mb-8 text-center text-sm font-semibold uppercase tracking-widest text-gray-400">
-            Community impact so far
+          <h2 className="mb-8 text-center text-sm font-semibold uppercase tracking-widest text-gray-500">
+            Real impact. Measured.
           </h2>
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
-            <StatCard value={stats.eventCount} label="Events completed" />
-            <StatCard value={stats.totalBags.toLocaleString()} label="Bags of litter collected" />
-            <StatCard value={stats.volunteerCount.toLocaleString()} label="Volunteers taken part" />
+            <StatCard value={stats.eventCount} label="Events completed" Icon={Calendar} />
+            <StatCard value={stats.totalBags.toLocaleString()} label="Bags of litter collected" Icon={Trash} />
+            <StatCard value={stats.volunteerCount.toLocaleString()} label="Volunteers involved" Icon={Users} />
           </div>
+          <h2 className="mb-2 mt-8 text-center text-sm font-normal text-gray-500">
+            Every bag collected helps create cleaner streets, parks and beaches across the UK.
+          </h2>
         </div>
       </section>
 
       {/* How it works */}
-      <section className="px-4 py-16">
+      <section className="px-4 pt-16 pb-1">
         <div className="mx-auto max-w-5xl">
           <h2 className="mb-10 text-center text-2xl font-bold text-gray-900">
-            How it works
+            Getting involved is simple
           </h2>
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-3">
             <Step
               number="1"
-              title="Find an event"
-              description="Browse upcoming litter picks on the map or by postcode. Filter by date and distance."
+              title="📍 Find an event"
+              description="Browse upcoming litter picks by postcode, date or map view."
             />
             <Step
               number="2"
-              title="Join up"
-              description="RSVP in one click. Get the meeting point details and show up ready to help."
+              title="🤝 Join up"
+              description="RSVP in one click and get all the details instantly."
             />
             <Step
               number="3"
-              title="Track your impact"
-              description="Organisers log bags collected, event stats, and photos after each pick. Your contribution adds to the total."
+              title="📊 Track your impact"
+              description="Show up, help clean up, and see your contribution added to the collective total."
             />
           </div>
         </div>
       </section>
 
+      {/* Secondary CTA */}
+      <section className="px-4 pb-16 pt-8 text-center">
+        <Link
+          href="/events"
+          className="inline-block rounded-xl border border-brand px-6 py-3 text-sm font-semibold text-brand transition-colors hover:bg-green-50"
+        >
+          Browse upcoming events
+        </Link>
+      </section>
+
       {/* CTA */}
       <section className="bg-brand px-4 py-14 text-center text-white">
-        <h2 className="text-2xl font-bold">Ready to make your community cleaner?</h2>
+        <h2 className="text-2xl font-bold">Ready to help make your community cleaner?</h2>
         <p className="mt-2 text-green-100">
-          Join hundreds of volunteers across the UK.
+          Join volunteers across the UK who are turning small actions into real change.
         </p>
         <Link
           href="/sign-up"
@@ -135,14 +151,19 @@ export default async function HomePage({ searchParams }: Props) {
 function StatCard({
   value,
   label,
+  Icon
 }: {
   value: string | number;
   label: string;
+  Icon: LucideIcon;
 }) {
   return (
     <div className="rounded-xl border border-gray-100 bg-gray-50 p-6 text-center">
       <p className="text-3xl font-extrabold text-brand">{value}</p>
-      <p className="mt-1 text-sm text-gray-500">{label}</p>
+      <p className="mt-1 flex items-center justify-center gap-1 text-sm text-gray-500">
+        <Icon className="w-4 h-4 shrink-0" />
+        {label}
+      </p>
     </div>
   );
 }

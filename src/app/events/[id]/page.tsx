@@ -21,6 +21,7 @@ import { ShareUrl } from "@/components/events/ShareUrl";
 import { EventsMap } from "@/components/map/EventsMap";
 import { cancelEvent } from "@/app/events/actions";
 import { FormSubmitButton } from "@/components/FormSubmitButton";
+import { CancelEventButton } from "@/components/events/CancelEventButton";
 import { EventPhotosGallery } from "@/components/events/EventPhotosGallery";
 import { PhotoUpload } from "@/components/events/PhotoUpload";
 
@@ -278,19 +279,7 @@ export default async function EventDetailPage({ params }: Props) {
 
           {/* Organiser: cancel event */}
           {isOrganiser && !isCompleted && !isCancelled && !isPast && (
-            <form
-              action={async () => {
-                "use server";
-                await cancelEvent(id);
-              }}
-            >
-              <FormSubmitButton
-                pendingText="Cancelling…"
-                className="text-sm font-medium text-red-600 hover:text-red-700 hover:underline transition-colors"
-              >
-                Cancel this event
-              </FormSubmitButton>
-            </form>
+            <CancelEventButton action={async () => { "use server"; await cancelEvent(id); }} />
           )}
 
           {/* Cancelled banner */}

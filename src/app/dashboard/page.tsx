@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BadgeCheck, Calendar, CalendarPlus, ClipboardList, Trash, UserPen, Users } from "lucide-react";
+import { BadgeCheck, Calendar, CalendarPlus, ClipboardList, Clock, Trash, UserPen, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { EventCard } from "@/components/events/EventCard";
 import type { EventWithCount, GroupRow } from "@/lib/events";
@@ -73,7 +73,7 @@ export default async function DashboardPage() {
   const { data: statsRows } = completedIds.length
     ? await supabase
         .from("event_stats")
-        .select("bags_collected, actual_attendees")
+        .select("bags_collected, actual_attendees, duration_hours")
         .in("event_id", completedIds)
     : { data: [] };
 
@@ -93,7 +93,8 @@ export default async function DashboardPage() {
   );
   const organisedActive = organisedOverview.filter((e) => e.status !== "completed");
   const organisedCompleted = organisedOverview.filter((e) => e.status === "completed");
-
+  const totalCleanups = joinedEvents.length + organisedEvents.length;
+  const totalHours = statsRows?.reduce((sum, s) => sum + (s.duration_hours ?? 0), 0) ?? 0;
   const subHeading = "Your litter picking activity";
 
   return (
@@ -171,24 +172,44 @@ export default async function DashboardPage() {
 
         <p className="block sm:hidden mb-4 text-lg font-semibold text-center text-gray-900">{subHeading}</p>
 
-      {/* Impact summary */}
-      <div className="mb-10 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <ImpactCard
-          icon={<Calendar className="h-5 w-5 text-brand" />}
-          value={joinedEvents.length}
-          label="Events joined"
-        />
-        <ImpactCard
-          icon={<CalendarPlus className="h-5 w-5 text-brand" />}
-          value={organisedEvents.length}
-          label="Events organised"
-        />
-        <ImpactCard
-          icon={<Trash className="h-5 w-5 text-brand" />}
-          value={totalBags}
-          label="Bags collected from events you've attended"
-        />
-      </div>
+{/* Impact summary */}
+<section className="mb-12">
+  <h2 className="mb-4 text-lg font-semibold text-gray-900">
+    Your impact so far 🌱
+  </h2>
+
+  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    {/* Total cleanups */}
+    <ImpactCard
+      icon={<Calendar className="h-5 w-5 text-brand" />}
+      value={totalCleanups.toLocaleString()}
+      label="Total cleanups"
+      subLabel={`${joinedEvents.length} joined • ${organisedEvents.length} organised`}
+    />
+
+    {/* Events organised */}
+    <ImpactCard
+      icon={<CalendarPlus className="h-5 w-5 text-brand" />}
+      value={organisedEvents.length.toLocaleString()}
+      label="Events organised"
+    />
+
+    {/* Bags collected */}
+    <ImpactCard
+      icon={<Trash className="h-5 w-5 text-brand" />}
+      value={totalBags.toLocaleString()}
+      label="Bags collected"
+      subLabel="From events you attended"
+    />
+
+    {/* Hours volunteered */}
+    <ImpactCard
+      icon={<Clock className="h-5 w-5 text-brand" />}
+      value={totalHours.toFixed(1)}
+      label="Hours volunteered"
+    />
+  </div>
+</section>
 
       {/* Your groups */}
       {profile?.is_verified_organiser && <div className="mb-10">
@@ -343,10 +364,12 @@ function ImpactCard({
   icon,
   value,
   label,
+  subLabel
 }: {
   icon: React.ReactNode;
   value: string | number;
   label: string;
+  subLabel?: string;
 }) {
   return (
     <div className="flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
@@ -356,6 +379,7 @@ function ImpactCard({
       <div>
         <p className="text-xl font-bold text-gray-900">{value}</p>
         <p className="text-xs text-gray-500">{label}</p>
+        <p className="text-xs text-gray-400">{subLabel}</p>
       </div>
     </div>
   );
