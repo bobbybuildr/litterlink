@@ -110,7 +110,7 @@ export default async function EventsPage({ searchParams }: Props) {
           <h1 className="text-2xl font-bold text-gray-900">Litter picks near you</h1>
           <p className="mt-1 text-sm text-gray-500">
             {upcomingEvents.length} upcoming event{upcomingEvents.length !== 1 ? "s" : ""}
-            {postcode ? ` near ${postcode}` : " across the UK"}
+            {postcode ? ` near ${postcode} for your chosen date range` : " across the UK for your chosen date range"}
             {pastEvents.length > 0 && (
               <span className="text-gray-400"> · {pastEvents.length} past</span>
             )}
