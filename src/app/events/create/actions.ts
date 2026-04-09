@@ -29,6 +29,28 @@ function fail(error: string, formData: FormData): CreateEventState {
   return { error, fields: extractFields(formData) };
 }
 
+/**
+ * Interprets a naive datetime string ("YYYY-MM-DDTHH:MM") as Europe/London
+ * local time and returns a UTC ISO string. Handles BST/GMT automatically.
+ */
+function londonToUTC(naive: string): string {
+  const asUTC = new Date(naive + "Z");
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(asUTC);
+  const p: Record<string, string> = {};
+  parts.forEach(({ type, value }) => { p[type] = value; });
+  const londonAsUTC = new Date(`${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}Z`);
+  const diff = londonAsUTC.getTime() - asUTC.getTime();
+  return new Date(asUTC.getTime() - diff).toISOString();
+}
+
 export async function createEvent(
   _prevState: CreateEventState,
   formData: FormData,
@@ -78,16 +100,21 @@ export async function createEvent(
   }
 
   // Server-side date validation (client min attribute can be bypassed)
-  const startsDate = new Date(startsAt);
-  if (isNaN(startsDate.getTime())) {
+  if (isNaN(new Date(startsAt).getTime())) {
     return fail("Invalid start date.", formData);
   }
+  const startsAtUTC = londonToUTC(startsAt);
+  const startsDate = new Date(startsAtUTC);
   if (startsDate < new Date()) {
     return fail("Start date must be in the future.", formData);
   }
+  let endsAtUTC: string | null = null;
   if (endsAt) {
-    const endsDate = new Date(endsAt);
-    if (isNaN(endsDate.getTime()) || endsDate <= startsDate) {
+    if (isNaN(new Date(endsAt).getTime())) {
+      return fail("The end date can not be before the start date.", formData);
+    }
+    endsAtUTC = londonToUTC(endsAt);
+    if (new Date(endsAtUTC) <= startsDate) {
       return fail("The end date can not be before the start date.", formData);
     }
   }
@@ -126,8 +153,8 @@ export async function createEvent(
       latitude: geo.latitude,
       longitude: geo.longitude,
       address_label: addressLabel,
-      starts_at: startsAt,
-      ends_at: endsAt,
+      starts_at: startsAtUTC,
+      ends_at: endsAtUTC,
       max_attendees: maxAttendees,
       organiser_contact_details: organiserContactDetails,
       status: "published",

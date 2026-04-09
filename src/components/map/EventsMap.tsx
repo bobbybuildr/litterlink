@@ -56,7 +56,7 @@ export function EventsMap({ events, centerLat, centerLng }: EventsMapProps) {
 
       events.forEach((event) => {
         const date = new Date(event.starts_at).toLocaleDateString("en-GB", {
-          timeZone: "UTC",
+          timeZone: "Europe/London",
           day: "numeric",
           month: "short",
           hour: "2-digit",
@@ -146,6 +146,7 @@ export function EventsMap({ events, centerLat, centerLng }: EventsMapProps) {
 
       events.forEach((event) => {
         const date = new Date(event.starts_at).toLocaleDateString("en-GB", {
+          timeZone: "Europe/London",
           day: "numeric",
           month: "short",
           hour: "2-digit",

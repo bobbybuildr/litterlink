@@ -381,6 +381,7 @@ function StatTile({ icon, value, label }: { icon: React.ReactNode; value: string
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-GB", {
+    timeZone: "Europe/London",
     weekday: "long",
     day: "numeric",
     month: "long",
@@ -392,6 +393,7 @@ function formatDate(iso: string) {
 
 function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString("en-GB", {
+    timeZone: "Europe/London",
     hour: "2-digit",
     minute: "2-digit",
   });
