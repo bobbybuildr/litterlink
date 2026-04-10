@@ -8,21 +8,18 @@ import { PostcodeSearch } from "@/components/PostcodeSearch";
 async function getImpactStats() {
   const supabase = await createClient();
 
-  const [{ count: eventCount }, { data: statsData }, { count: volunteerCount }] = await Promise.all([
+  const [{ count: eventCount }, { data: statsData }] = await Promise.all([
     supabase
       .from("events")
       .select("*", { count: "exact", head: true })
       .eq("status", "completed"),
-    supabase.from("event_stats").select("bags_collected"),
-    supabase
-      .from("event_participants")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "confirmed"),
+    supabase.from("event_stats").select("bags_collected, actual_attendees"),
   ]);
 
   const totalBags = statsData?.reduce((sum, s) => sum + (s.bags_collected ?? 0), 0) ?? 0;
+  const volunteerCount = statsData?.reduce((sum, s) => sum + (s.actual_attendees ?? 0), 0) ?? 0;
 
-  return { eventCount: eventCount ?? 0, totalBags, volunteerCount: volunteerCount ?? 0 };
+  return { eventCount: eventCount ?? 0, totalBags, volunteerCount };
 }
 
 interface Props {
