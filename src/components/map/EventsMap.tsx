@@ -7,13 +7,22 @@ interface EventsMapProps {
   events: EventWithCount[];
   centerLat?: number;
   centerLng?: number;
+  radiusKm?: number;
+}
+
+function radiusToZoom(radiusKm?: number): number {
+  if (!radiusKm) return 11;
+  if (radiusKm <= 10) return 12;
+  if (radiusKm <= 20) return 11;
+  if (radiusKm <= 50) return 9;
+  return 8;
 }
 
 /**
  * Leaflet map rendered client-side.
  * Lazy-imports Leaflet to avoid SSR issues with window/document.
  */
-export function EventsMap({ events, centerLat, centerLng }: EventsMapProps) {
+export function EventsMap({ events, centerLat, centerLng, radiusKm }: EventsMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<import("leaflet").Map | null>(null);
   // const hintRef = useRef<HTMLDivElement>(null);
@@ -38,9 +47,9 @@ export function EventsMap({ events, centerLat, centerLng }: EventsMapProps) {
         shadowUrl: "/images/marker-shadow.png",
       });
 
-      const defaultLat = centerLat ?? 51.505;
-      const defaultLng = centerLng ?? -0.09;
-      const defaultZoom = centerLat != null ? 11 : 7;
+      const defaultLat = centerLat ?? 53.15;
+      const defaultLng = centerLng ?? -3.6;
+      const defaultZoom = centerLat != null ? radiusToZoom(radiusKm) : 6;
 
       const map = L.map(containerRef.current!).setView(
         [defaultLat, defaultLng],
@@ -168,12 +177,12 @@ export function EventsMap({ events, centerLat, centerLng }: EventsMapProps) {
       });
 
       if (centerLat != null && centerLng != null) {
-        map.setView([centerLat, centerLng], 11);
+        map.setView([centerLat, centerLng], radiusToZoom(radiusKm));
       }
     }
 
     updateMarkers();
-  }, [events, centerLat, centerLng]);
+  }, [events, centerLat, centerLng, radiusKm]);
 
   return (
     <div className="relative h-full w-full">

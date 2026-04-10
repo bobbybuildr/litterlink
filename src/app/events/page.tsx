@@ -8,7 +8,6 @@ import { EventsFilter } from "@/components/events/EventsFilter";
 import { EventsMap } from "@/components/map/EventsMap";
 import { getPublishedEvents } from "@/lib/events";
 import { geocodePostcode } from "@/lib/geocode";
-import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Browse Events",
@@ -32,23 +31,6 @@ export default async function EventsPage({ searchParams }: Props) {
   let geo: { latitude: number; longitude: number } | null = null;
   if (postcode) {
     geo = await geocodePostcode(postcode);
-  }
-
-  // If no search postcode, try to center the map on the user's profile postcode
-  let profileGeo: { latitude: number; longitude: number } | null = null;
-  if (!geo) {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("postcode")
-        .eq("id", user.id)
-        .single();
-      if (profile?.postcode) {
-        profileGeo = await geocodePostcode(profile.postcode);
-      }
-    }
   }
 
   const now = new Date();
@@ -142,8 +124,9 @@ export default async function EventsPage({ searchParams }: Props) {
         <div className="order-1 lg:order-2 h-105 overflow-hidden rounded-xl border border-gray-200 shadow-sm">
           <EventsMap
             events={events}
-            centerLat={geo?.latitude ?? profileGeo?.latitude}
-            centerLng={geo?.longitude ?? profileGeo?.longitude}
+            centerLat={geo?.latitude}
+            centerLng={geo?.longitude}
+            radiusKm={geo ? radiusKm : undefined}
           />
         </div>
 

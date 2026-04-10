@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useTransition } from "react";
+import { useRef, useTransition } from "react";
 import { Search, X } from "lucide-react";
 
 const RADIUS_OPTIONS = [
@@ -20,6 +20,7 @@ export function EventsFilter({ defaultFrom, defaultTo }: EventsFilterProps = {})
   const router = useRouter();
   const params = useSearchParams();
   const [isPending, startTransition] = useTransition();
+  const formRef = useRef<HTMLFormElement>(null);
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -40,6 +41,7 @@ export function EventsFilter({ defaultFrom, defaultTo }: EventsFilterProps = {})
 
   return (
     <form
+      ref={formRef}
       onSubmit={handleSubmit}
       className="flex flex-col gap-3 sm:flex-row sm:items-end"
     >
@@ -115,7 +117,7 @@ export function EventsFilter({ defaultFrom, defaultTo }: EventsFilterProps = {})
       {(params.get("postcode") || params.get("radius") || params.get("from") || params.get("to")) && (
         <button
           type="button"
-          onClick={() => startTransition(() => router.push("/events"))}
+          onClick={() => { formRef.current?.reset(); startTransition(() => router.push("/events")); }}
           className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-500 hover:border-gray-300 hover:text-gray-800 transition-colors"
           title="Reset all filters"
         >
