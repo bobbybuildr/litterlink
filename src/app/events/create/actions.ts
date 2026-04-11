@@ -187,8 +187,8 @@ export async function createEvent(
       organiserName: profile?.display_name ?? null,
       eventId: event.id,
       title,
-      startsAt,
-      endsAt,
+      startsAt: startsAtUTC,
+      endsAt: endsAtUTC,
       addressLabel,
       postcode: geo.postcode,
     });
