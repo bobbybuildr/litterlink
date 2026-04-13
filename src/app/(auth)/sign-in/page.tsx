@@ -1,13 +1,14 @@
 import Link from "next/link";
-import { signInWithEmail, signInWithGoogle } from "@/app/(auth)/actions";
+import { signInWithEmail, signInWithGoogle, resendConfirmationEmail } from "@/app/(auth)/actions";
 import { FormSubmitButton } from "@/components/FormSubmitButton";
 
 interface Props {
-  searchParams: Promise<{ error?: string; message?: string; redirectTo?: string }>;
+  searchParams: Promise<{ error?: string; message?: string; redirectTo?: string; email?: string }>;
 }
 
 export default async function SignInPage({ searchParams }: Props) {
-  const { error, message, redirectTo } = await searchParams;
+  const { error, message, redirectTo, email } = await searchParams;
+  const isUnconfirmed = error === "Email not confirmed";
 
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-12">
@@ -19,11 +20,30 @@ export default async function SignInPage({ searchParams }: Props) {
           </p>
         </div>
 
-        {error && (
+        {isUnconfirmed ? (
+          <div className="rounded-md bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+            <p className="font-medium mb-1">Account not yet activated</p>
+            <p>
+              Your email address hasn&apos;t been confirmed yet. Please check your inbox for a
+              confirmation email and click the link inside to activate your account.
+            </p>
+            {email && (
+              <form action={resendConfirmationEmail} className="mt-3">
+                <input type="hidden" name="email" value={email} />
+                <FormSubmitButton
+                  pendingText="Sending…"
+                  className="text-xs font-medium px-2.5 py-1.5 rounded border border-amber-300 bg-amber-100 hover:bg-amber-200 text-amber-800 transition-colors"
+                >
+                  Resend confirmation email
+                </FormSubmitButton>
+              </form>
+            )}
+          </div>
+        ) : error ? (
           <div className="rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
             {error}
           </div>
-        )}
+        ) : null}
         {message && (
           <div className="rounded-md bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700">
             {message}

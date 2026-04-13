@@ -16,8 +16,14 @@ export async function GET(request: Request) {
     if (!error) {
       return redirect(`${origin}${next}`);
     }
+    if (type === "recovery") {
+      return redirect(
+        `${origin}/forgot-password?error=${encodeURIComponent("Your password reset link has expired. Please request a new one.")}`
+      );
+    }
+    // signup / email_change / etc. — send to sign-in with a clear message
     return redirect(
-      `${origin}/forgot-password?error=${encodeURIComponent("Your password reset link has expired. Please request a new one.")}`
+      `${origin}/sign-in?error=${encodeURIComponent("Your confirmation link has expired. Enter your email and password below to receive a new one.")}`
     );
   }
 

@@ -29,6 +29,9 @@ export async function signInWithEmail(formData: FormData) {
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
+    if (error.message === "Email not confirmed") {
+      redirect(`/sign-in?error=${encodeURIComponent(error.message)}&email=${encodeURIComponent(email)}`);
+    }
     redirect(`/sign-in?error=${encodeURIComponent(error.message)}`);
   }
 
@@ -49,7 +52,7 @@ export async function signUpWithEmail(formData: FormData) {
   const newNearbyEvents = formData.get("new_nearby_events") === "on";
   const newsletter = formData.get("newsletter") === "on";
 
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
@@ -69,7 +72,13 @@ export async function signUpWithEmail(formData: FormData) {
     redirect(`/sign-up?error=${encodeURIComponent(error.message)}`);
   }
 
-  redirect("/sign-up?message=Check your email to confirm your account.");
+  // Supabase returns a fake success (no error) when the email is already registered,
+  // but the user object will have an empty identities array.
+  if (data.user && data.user.identities?.length === 0) {
+    redirect(`/sign-in?message=${encodeURIComponent("An account with that email address already exists. Please sign in below.")}`);
+  }
+
+  redirect(`/sign-up?message=${encodeURIComponent("We've sent a confirmation link to your email address. Please click it to activate your account \u2014 you won't be able to sign in until you've confirmed it.")}`);
 }
 
 export async function signInWithGoogle() {
@@ -90,6 +99,27 @@ export async function signInWithGoogle() {
   if (data.url) {
     redirect(data.url);
   }
+}
+
+export async function resendConfirmationEmail(formData: FormData) {
+  const supabase = await createClient();
+  const siteUrl = await getSiteUrl();
+
+  const email = formData.get("email") as string;
+
+  const { error } = await supabase.auth.resend({
+    type: "signup",
+    email,
+    options: {
+      emailRedirectTo: `${siteUrl}/auth/callback`,
+    },
+  });
+
+  if (error) {
+    redirect(`/sign-in?error=${encodeURIComponent(error.message)}&email=${encodeURIComponent(email)}`);
+  }
+
+  redirect(`/sign-in?message=${encodeURIComponent("Confirmation email resent — please check your inbox and click the link to activate your account.")}`);
 }
 
 export async function signOut() {
