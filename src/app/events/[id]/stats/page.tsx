@@ -171,14 +171,22 @@ export default async function StatsPage({ params, searchParams }: Props) {
 }
 
 const LITTER_TYPES = [
-  "Plastic bottles & packaging",
+  "Plastic bottles",
+  "Plastic packaging / film",
+  "Plastic carrier bags",
   "Cans & tins",
+  "Coffee cups",
   "Glass",
   "Cigarette butts",
-  "Food waste & wrappers",
+  "Takeaway packaging",
+  "Vapes / e-cigarettes",
+  "Nitrous oxide canisters",
   "Dog waste bags",
-  "Fly-tipping",
-  "Other",
+  "PPE / masks / gloves",
+  "Wet wipes / sanitary products",
+  "Batteries / small e-waste",
+  "Bulky / Fly-tipped waste",
+  "other",
 ];
 
 const SEVERITY_LABELS = [

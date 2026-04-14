@@ -7,7 +7,7 @@ import {
   User,
   Users,
   ArrowLeft,
-  Package,
+  Trash,
   Weight,
   Clock,
   CheckCircle,
@@ -194,7 +194,7 @@ export default async function EventDetailPage({ params }: Props) {
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                 {event.event_stats.bags_collected != null && (
                   <StatTile
-                    icon={<Package className="h-5 w-5 text-green-600" />}
+                    icon={<Trash className="h-5 w-5 text-green-600" />}
                     value={event.event_stats.bags_collected}
                     label="Bags"
                   />
@@ -208,7 +208,7 @@ export default async function EventDetailPage({ params }: Props) {
                 )}
                 {event.event_stats.actual_attendees != null && (
                   <StatTile
-                    icon={<span className="text-lg">👥</span>}
+                    icon={<Users className="h-5 w-5 text-purple-600" />}
                     value={event.event_stats.actual_attendees}
                     label="Attended"
                   />
@@ -221,8 +221,54 @@ export default async function EventDetailPage({ params }: Props) {
                   />
                 )}
               </div>
-              {event.event_stats.notes && (
+              {event.event_stats.notes != null && (
                 <p className="mt-3 text-sm text-green-800">Organiser message:&nbsp;<span className="italic">&ldquo;{event.event_stats.notes}&rdquo;</span></p>
+              )}
+              {/* Hotspot severity */}
+              {event.event_stats.hotspot_severity != null && (
+                <div className="mt-4">
+                  <p className="text-xs font-medium text-green-800 mb-1.5">Hotspot severity</p>
+                  <div className="flex items-center gap-1.5">
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <div
+                        key={n}
+                        className={`h-2 flex-1 rounded-full ${
+                          n <= event.event_stats!.hotspot_severity!
+                            ? "bg-green-500"
+                            : "bg-green-200"
+                        }`}
+                      />
+                    ))}
+                    <span className="ml-2 text-xs text-green-700 whitespace-nowrap">
+                      {["Light", "Mild", "Moderate", "Heavy", "Very heavy"][event.event_stats.hotspot_severity - 1]}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Litter types */}
+              {event.event_stats.litter_types && event.event_stats.litter_types.length > 0 && (
+                <div className="mt-4">
+                  <p className="text-xs font-medium text-green-800 mb-1.5">Litter found</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {event.event_stats.litter_types.map((type) => (
+                      <span
+                        key={type}
+                        className="inline-block rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-green-800"
+                      >
+                        {type}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Notable brands */}
+              {event.event_stats.notable_brands != null && (
+                <div className="mt-4">
+                  <p className="text-xs font-medium text-green-800 mb-1">Notable brands</p>
+                  <p className="text-sm text-green-700">{event.event_stats.notable_brands}</p>
+                </div>
               )}
             </div>
           )}
