@@ -282,7 +282,10 @@ export default async function DashboardPage() {
       {/* Organised events */}
       <Section
         title="Events you've organised"
-        count={organisedCompleted.length}
+        count={[
+          organisedActive.length > 0 ? `${organisedActive.length} upcoming` : null,
+          organisedCompleted.length > 0 ? `${organisedCompleted.length} completed` : null,
+        ].filter(Boolean).join(", ") || "0"}
         totalForEmpty={organisedEvents.length}
         emptyMessage="You haven't organised any events yet."
         emptyAction={{ href: "/events/create", label: "Create an event" }}
@@ -434,7 +437,7 @@ function Section({
   collapsibleChildren,
 }: {
   title: string;
-  count: number;
+  count: number | string;
   totalForEmpty?: number;
   children?: React.ReactNode;
   emptyMessage?: string;
@@ -443,7 +446,7 @@ function Section({
   collapsibleLabel?: string;
   collapsibleChildren?: React.ReactNode;
 }) {
-  const isEmpty = (totalForEmpty ?? count) === 0;
+  const isEmpty = (totalForEmpty ?? (typeof count === "number" ? count : 0)) === 0;
   return (
     <div className="mb-10">
       <h2 className="mb-4 text-lg font-semibold text-gray-900">

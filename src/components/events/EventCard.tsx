@@ -112,7 +112,8 @@ export function EventCard({ event, className }: EventCardProps) {
           {formatEventDate(event.starts_at)}
         </EventMeta>
         <EventMeta icon={<MapPin className="h-3.5 w-3.5" />}>
-          {event.address_label ?? event.location_postcode}
+          {event.address_label && `${event.address_label}, `}
+          {event.location_postcode}
         </EventMeta>
         <EventMeta icon={<Users className="h-3.5 w-3.5" />}>
           {event.confirmed_count} joined

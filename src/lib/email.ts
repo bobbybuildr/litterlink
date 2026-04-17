@@ -403,7 +403,7 @@ export async function sendEventUpdatedEmails({
             ...(endsAt ? [`Ends:      ${formatDate(endsAt)}`] : []),
           ]
         : []),
-      ...(locationChanged ? [`Location:  ${location}`] : []),
+      ...(locationChanged ? [`New location:  ${location}`] : []),
       "",
       "View the updated event details here:",
       "",

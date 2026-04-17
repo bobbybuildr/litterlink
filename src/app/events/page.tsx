@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { EventCard } from "@/components/events/EventCard";
 import { EventsFilter } from "@/components/events/EventsFilter";
 import { EventsMap } from "@/components/map/EventsMap";
-import { getPublishedEvents } from "@/lib/events";
+import { getPublishedEvents, haversineKm } from "@/lib/events";
 import { geocodePostcode } from "@/lib/geocode";
 
 export const metadata: Metadata = {
@@ -42,11 +42,12 @@ export default async function EventsPage({ searchParams }: Props) {
   const fromDate = from ?? today;
   const toDate = to ?? defaultTo;
 
-  const events = await getPublishedEvents(
-    geo
-      ? { lat: geo.latitude, lng: geo.longitude, radiusKm, from: fromDate, to: toDate }
-      : { from: fromDate, to: toDate }
-  );
+  const allEvents = await getPublishedEvents({ from: fromDate, to: toDate });
+
+  // Filter the list by radius (haversine) — map always shows all pins
+  const events = geo
+    ? allEvents.filter((e) => haversineKm(geo.latitude, geo.longitude, e.latitude, e.longitude) <= radiusKm)
+    : allEvents;
 
   const upcomingEvents = events.filter(
     (e) => new Date(e.starts_at) >= now && e.status !== "completed"
@@ -97,6 +98,14 @@ export default async function EventsPage({ searchParams }: Props) {
               <span className="text-gray-400"> · {pastEvents.length} past</span>
             )}
           </p>
+          {postcode && (
+            <Link
+              href={buildUrl({ postcode: undefined, radius: undefined, page: "1", pastPage: "1" })}
+              className="mt-0.5 text-xs text-brand hover:underline"
+            >
+              Show all events across the UK
+            </Link>
+          )}
         </div>
         <Link
           href="/events/create"
@@ -123,7 +132,7 @@ export default async function EventsPage({ searchParams }: Props) {
         {/* Map */}
         <div className="order-1 lg:order-2 h-105 overflow-hidden rounded-xl border border-gray-200 shadow-sm">
           <EventsMap
-            events={events}
+            events={allEvents}
             centerLat={geo?.latitude}
             centerLng={geo?.longitude}
             radiusKm={geo ? radiusKm : undefined}

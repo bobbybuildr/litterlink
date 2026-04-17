@@ -23,13 +23,11 @@ export type EventPhotoRow =
   Database["public"]["Tables"]["event_photos"]["Row"];
 
 /**
- * Fetch upcoming published events for the list/map view.
- * Optionally filter by radius (km) around a lat/lng.
+ * Fetch published events for the list/map view, optionally filtered by date range.
+ * Radius filtering is intentionally left to the caller so the map can show all pins
+ * while the list is filtered by proximity.
  */
 export async function getPublishedEvents(options?: {
-  lat?: number;
-  lng?: number;
-  radiusKm?: number;
   limit?: number;
   from?: string;
   to?: string;
@@ -49,18 +47,6 @@ export async function getPublishedEvents(options?: {
   const { data, error } = await query;
 
   if (error || !data) return [];
-
-  // Apply haversine filter in JS — avoids needing PostGIS on free tier
-  if (
-    options?.lat != null &&
-    options?.lng != null &&
-    options?.radiusKm != null
-  ) {
-    return (data as EventWithCount[]).filter((e) => {
-      const dist = haversineKm(options.lat!, options.lng!, e.latitude, e.longitude);
-      return dist <= options.radiusKm!;
-    });
-  }
 
   return data as EventWithCount[];
 }
@@ -191,7 +177,7 @@ export async function getEventPhotos(eventId: string): Promise<EventPhotoRow[]> 
 }
 
 // Haversine distance in km
-function haversineKm(
+export function haversineKm(
   lat1: number,
   lon1: number,
   lat2: number,
