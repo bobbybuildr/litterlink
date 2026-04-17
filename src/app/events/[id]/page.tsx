@@ -27,6 +27,7 @@ import { PhotoUpload } from "@/components/events/PhotoUpload";
 
 interface Props {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ updated?: string }>;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -35,21 +36,23 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!event) return { title: "Event not found" };
   const description =
     event.description ?? `Join the litter pick at ${event.address_label ?? event.location_postcode}`;
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://litterlink.co.uk";
   return {
     title: event.title,
     description,
     openGraph: {
       title: event.title,
       description,
-      url: `/events/${id}`,
+      url: `${siteUrl}/events/${id}`,
       type: "website",
       siteName: "LitterLink",
     },
   };
 }
 
-export default async function EventDetailPage({ params }: Props) {
+export default async function EventDetailPage({ params, searchParams }: Props) {
   const { id } = await params;
+  const { updated } = await searchParams;
 
   const [event, supabase] = await Promise.all([
     getEventById(id),
@@ -93,6 +96,13 @@ export default async function EventDetailPage({ params }: Props) {
         <ArrowLeft className="h-4 w-4" />
         All events
       </Link>
+
+      {updated === "1" && (
+        <div className="mb-6 flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-800">
+          <CheckCircle className="h-4 w-4 shrink-0" />
+          Event updated successfully.
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         {/* Main content */}
@@ -170,6 +180,21 @@ export default async function EventDetailPage({ params }: Props) {
               )}
               <span className="text-gray-500 ml-1">{event.location_postcode}</span>
             </InfoRow>
+            {event.updated_at &&
+              new Date(event.updated_at).getTime() !==
+                new Date(event.created_at).getTime() && (
+                <p className="pt-1 text-xs text-gray-400">
+                  Last updated:{" "}
+                  {new Date(event.updated_at).toLocaleString("en-GB", {
+                    timeZone: "Europe/London",
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </p>
+              )}
           </div>
 
           {/* Description */}
@@ -323,6 +348,13 @@ export default async function EventDetailPage({ params }: Props) {
             </div>
           )}
 
+          {/* Organiser: edit event */}
+          {isOrganiser && !isCompleted && !isCancelled && !isPast && (
+            <Link href={`/events/${id}/edit`} className="me-4 text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline transition-colors">
+              Edit this event
+            </Link>
+          )}
+
           {/* Organiser: cancel event */}
           {isOrganiser && !isCompleted && !isCancelled && !isPast && (
             <CancelEventButton action={async () => { "use server"; await cancelEvent(id); }} />
@@ -375,7 +407,10 @@ export default async function EventDetailPage({ params }: Props) {
               <p className="mt-2 text-xs text-gray-400 text-center">
                 {isFull
                   ? "No spots remaining"
-                  : `${event.max_attendees - event.confirmed_count} spot${event.max_attendees - event.confirmed_count !== 1 ? "s" : ""} remaining`}
+                  : (() => {
+                      const remaining = Math.max(0, event.max_attendees - event.confirmed_count);
+                      return `${remaining} spot${remaining !== 1 ? "s" : ""} remaining`;
+                    })()}
               </p>
             )}
           </div>

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { CreateEventForm } from "./CreateEventForm";
 import type { GroupRow } from "@/lib/events";
+import { utcToLondonDatetimeLocal } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Create a Litter Pick",
@@ -36,10 +37,11 @@ export default async function CreateEventPage() {
 
   const groups = (groupsRaw ?? []) as Pick<GroupRow, "id" | "name" | "slug">[];
 
-  // Set min datetime to now (rounded up to next 15 min)
+  // Set min datetime to now (rounded up to next minute) expressed in London local time
   const now = new Date();
-  now.setMinutes(Math.ceil(now.getMinutes() / 15) * 15, 0, 0);
-  const minDatetime = now.toISOString().slice(0, 16);
+  now.setSeconds(0, 0);
+  now.setMinutes(now.getMinutes() + 1);
+  const minDatetime = utcToLondonDatetimeLocal(now.toISOString());
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6">

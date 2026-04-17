@@ -335,6 +335,100 @@ export async function sendEventCancelledEmails({
 }
 
 /**
+ * Notify confirmed participants that an event's date or time has changed.
+ * Sent in parallel; errors are swallowed so a mail failure never blocks the action.
+ */
+export async function sendEventUpdatedEmails({
+  participants,
+  eventId,
+  title,
+  startsAt,
+  endsAt,
+  addressLabel,
+  postcode,
+  dateTimeChanged,
+  locationChanged,
+}: {
+  participants: { email: string; name: string | null }[];
+  eventId: string;
+  title: string;
+  startsAt: string;
+  endsAt: string | null;
+  addressLabel: string | null;
+  postcode: string;
+  dateTimeChanged: boolean;
+  locationChanged: boolean;
+}) {
+  if (!participants.length) return;
+
+  // In-process guard — catches same-instance burst spam cheaply.
+  // The DB-backed cooldown in the action is the authoritative cross-instance check.
+  if (isEmailRateLimited(`event_reschedule:${eventId}`)) return;
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://litterlink.co.uk";
+  const eventUrl = `${siteUrl}/events/${eventId}`;
+
+  const formatDate = (iso: string) =>
+    new Date(iso).toLocaleString("en-GB", {
+      dateStyle: "full",
+      timeStyle: "short",
+      timeZone: "Europe/London",
+    });
+
+  const location = addressLabel ? `${addressLabel} (${postcode})` : postcode;
+
+  const whatChanged =
+    dateTimeChanged && locationChanged
+      ? "date, time, and location"
+      : dateTimeChanged
+      ? "date or time"
+      : "location";
+
+  const subject =
+    dateTimeChanged && locationChanged
+      ? `"${title}" has been rescheduled and moved — LitterLink`
+      : dateTimeChanged
+      ? `"${title}" has been rescheduled — LitterLink`
+      : `"${title}" has a new location — LitterLink`;
+
+  const sends = participants.map(({ email, name }) => {
+    const lines = [
+      `Hi${name ? ` ${name}` : ""},`,
+      "",
+      `The ${whatChanged} for the litter pick "${title}" has been updated by the organiser.`,
+      "",
+      ...(dateTimeChanged
+        ? [
+            `New date:  ${formatDate(startsAt)}`,
+            ...(endsAt ? [`Ends:      ${formatDate(endsAt)}`] : []),
+          ]
+        : []),
+      ...(locationChanged ? [`Location:  ${location}`] : []),
+      "",
+      "View the updated event details here:",
+      "",
+      eventUrl,
+      "",
+      "Thanks,",
+      "The LitterLink team",
+    ];
+
+    return resend.emails.send({
+      from,
+      to: email,
+      subject,
+      text: lines.join("\n"),
+    });
+  });
+
+  try {
+    await Promise.all(sends);
+  } catch {
+    console.error("[resend] Failed to send one or more event updated emails");
+  }
+}
+
+/**
  * Send an approval or rejection outcome email to an applicant.
  * Errors are swallowed so a mail failure never blocks the admin action.
  */

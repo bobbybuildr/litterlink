@@ -9,6 +9,24 @@ const CREATE_WINDOW_MS = 24 * 60 * 60 * 1000;
 const JOIN_LIMIT = 20;
 const JOIN_WINDOW_MS = 60 * 60 * 1000;
 
+/**
+ * 15-minute cooldown between reschedule notification emails per event.
+ * Prevents an organiser from spamming participants by repeatedly toggling
+ * the event datetime. Checked server-side against the DB so it holds across
+ * all serverless instances.
+ */
+const RESCHEDULE_NOTIFY_COOLDOWN_MS = 15 * 60 * 1000;
+
+export function isRescheduleNotificationRateLimited(
+  lastNotifiedAt: string | null
+): boolean {
+  if (!lastNotifiedAt) return false;
+  return (
+    Date.now() - new Date(lastNotifiedAt).getTime() <
+    RESCHEDULE_NOTIFY_COOLDOWN_MS
+  );
+}
+
 export async function isEventCreationRateLimited(
   userId: string,
   supabase: SupabaseClient<Database>
