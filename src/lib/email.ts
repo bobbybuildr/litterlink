@@ -429,6 +429,64 @@ export async function sendEventUpdatedEmails({
 }
 
 /**
+ * Send a reminder to an event organiser to enter post-event stats.
+ * Currently redundant as this is facilitated through a Supabase Edge Function cron job
+ */
+export async function sendStatsReminderEmail({
+  organiserEmail,
+  organiserName,
+  eventId,
+  title,
+  startsAt,
+}: {
+  organiserEmail: string;
+  organiserName: string | null;
+  eventId: string;
+  title: string;
+  startsAt: string;
+}) {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://litterlink.co.uk";
+  const eventUrl = `${siteUrl}/events/${eventId}`;
+
+  const formatDate = (iso: string) =>
+    new Date(iso).toLocaleString("en-GB", {
+      dateStyle: "full",
+      timeStyle: "short",
+      timeZone: "Europe/London",
+    });
+
+  const lines = [
+    `Hi${organiserName ? ` ${organiserName}` : ""},`,
+    "",
+    `We hope your litter-picking event "${title}" on ${formatDate(startsAt)} went well.`,
+    "",
+    "Please take a moment to enter your post-event stats. This includes: bags collected,",
+    "number of people in attendance, litter types found, brand details, and more.",
+    "Every stat helps show the collective impact happening across the UK and inspires more people to get involved.",
+    "",
+    "Enter stats here:",
+    "",
+    eventUrl,
+    "",
+    "Thank you for organising and making a difference in your community.",
+    "The LitterLink team",
+    "",
+    siteUrl,
+  ];
+
+  try {
+    await resend.emails.send({
+      from,
+      to: organiserEmail,
+      subject: `Time to log your stats for "${title}" — LitterLink`,
+      text: lines.join("\n"),
+    });
+  } catch {
+    console.error("[resend] Failed to send stats reminder email");
+  }
+}
+
+/**
  * Send an approval or rejection outcome email to an applicant.
  * Errors are swallowed so a mail failure never blocks the admin action.
  */
