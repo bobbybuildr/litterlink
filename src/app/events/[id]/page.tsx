@@ -180,21 +180,6 @@ export default async function EventDetailPage({ params, searchParams }: Props) {
               )}
               <span className="text-gray-500 ml-1">{event.location_postcode}</span>
             </InfoRow>
-            {event.updated_at &&
-              new Date(event.updated_at).getTime() !==
-                new Date(event.created_at).getTime() && (
-                <p className="pt-1 text-xs text-gray-400">
-                  Last updated:{" "}
-                  {new Date(event.updated_at).toLocaleString("en-GB", {
-                    timeZone: "Europe/London",
-                    day: "numeric",
-                    month: "short",
-                    year: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </p>
-              )}
           </div>
 
           {/* Description */}
@@ -339,11 +324,7 @@ export default async function EventDetailPage({ params, searchParams }: Props) {
           {isOrganiser && !isCompleted && !isPast && (
             <div className="mb-6 flex items-center gap-3 rounded-xl border border-brand/20 bg-brand/5 px-4 py-3">
             <p className="text-sm text-gray-500">
-              💡 After the event, come back here to{" "}
-              <Link href={`/events/${id}/stats`} className="text-brand hover:underline font-medium">
-                log your impact stats
-              </Link>
-              &nbsp;and add photos.
+              💡 After the event, come back here to log your impact stats and add photos.
             </p>
             </div>
           )}
@@ -384,6 +365,21 @@ export default async function EventDetailPage({ params, searchParams }: Props) {
               <p className="mt-1 text-sm text-gray-500">Check back later for impact updates from the organiser.</p>
             </div>
           )}
+          {event.updated_at &&
+              new Date(event.updated_at).getTime() !==
+                new Date(event.created_at).getTime() && (
+                <p className="pt-1 text-xs text-gray-400">
+                  Last updated:{" "}
+                  {new Date(event.updated_at).toLocaleString("en-GB", {
+                    timeZone: "Europe/London",
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </p>
+              )}
         </div>
 
         {/* Sidebar */}

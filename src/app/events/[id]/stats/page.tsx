@@ -26,7 +26,7 @@ export default async function StatsPage({ params, searchParams }: Props) {
 
   const { data: event } = await supabase
     .from("events")
-    .select("id, title, organiser_id, status")
+    .select("id, title, organiser_id, status, starts_at")
     .eq("id", id)
     .single();
 
@@ -37,6 +37,9 @@ export default async function StatsPage({ params, searchParams }: Props) {
 
   // Stats already submitted — redirect back to event page
   if (event.status === "completed") redirect(`/events/${id}`);
+
+  // Can only log stats after the event has started
+  if (new Date(event.starts_at) > new Date()) redirect(`/events/${id}`);
 
   const submitStatsForEvent = submitStats.bind(null, id);
 

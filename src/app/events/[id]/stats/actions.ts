@@ -15,7 +15,7 @@ export async function submitStats(eventId: string, formData: FormData) {
   // Verify organiser owns this event
   const { data: event } = await supabase
     .from("events")
-    .select("organiser_id, status")
+    .select("organiser_id, status, starts_at")
     .eq("id", eventId)
     .single();
 
@@ -26,6 +26,11 @@ export async function submitStats(eventId: string, formData: FormData) {
   // Stats can only be submitted once — prevent re-submission on completed events
   if (event.status === "completed") {
     redirect(`/events/${eventId}`);
+  }
+
+  // Reject if the event hasn't started yet
+  if (new Date(event.starts_at) > new Date()) {
+    redirect(`/events/${eventId}/stats?error=${encodeURIComponent("Stats can only be submitted after the event has started.")}`);
   }
 
   const bags = formData.get("bags_collected")
