@@ -13,6 +13,7 @@ import {
   CheckCircle,
   XCircle,
   BadgeCheck,
+  Sparkles
 } from "lucide-react";
 import { getEventById, getUserParticipation, getEventPhotos, getEventParticipants } from "@/lib/events";
 import { createClient } from "@/lib/supabase/server";
@@ -83,6 +84,7 @@ export default async function EventDetailPage({ params, searchParams }: Props) {
   }));
 
   const isPast = new Date(event.starts_at) < new Date();
+  const isNew = Date.now() - new Date(event.created_at).getTime() < 48 * 60 * 60 * 1000;
   const isOrganiser = user?.id === event.organiser_id;
   const needsWrapUp = isOrganiser && isPast && !isCompleted && !isCancelled;
 
@@ -110,6 +112,12 @@ export default async function EventDetailPage({ params, searchParams }: Props) {
           {/* Title + status */}
           <div>
             <div className="mb-2 flex flex-wrap gap-2">
+              {!isCancelled && !isCompleted && !isPast && isNew && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700">
+                  <Sparkles className="h-3 w-3" />
+                  Newly created
+                </span>
+              )}
               {!isCancelled && !isCompleted && !isPast && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
                   <Calendar className="h-3 w-3" />
@@ -365,6 +373,19 @@ export default async function EventDetailPage({ params, searchParams }: Props) {
               <p className="mt-1 text-sm text-gray-500">Check back later for impact updates from the organiser.</p>
             </div>
           )}
+          {event.created_at && (
+                <p className="pt-1 text-xs text-gray-400">
+                  Event created:{" "}
+                  {new Date(event.created_at).toLocaleString("en-GB", {
+                    timeZone: "Europe/London",
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </p>
+              )}
           {event.content_updated_at && (
                 <p className="pt-1 text-xs text-gray-400">
                   Last updated:{" "}

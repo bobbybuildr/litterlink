@@ -121,11 +121,18 @@ export function EventCard({ event, className }: EventCardProps) {
         </EventMeta>
       </div>
 
-      {state === "joinable" && (
-        <span className="mt-4 inline-flex w-fit items-center rounded-lg bg-brand/10 px-3 py-1 text-xs font-medium text-brand">
-          Join this pick →
-        </span>
-      )}
+      <div className="mt-4 flex flex-wrap gap-2">
+        {Date.now() - new Date(event.created_at).getTime() < 48 * 60 * 60 * 1000 && (
+          <span className="inline-flex w-fit items-center rounded-lg bg-accent/10 px-3 py-1 text-xs font-medium text-accent">
+            New
+          </span>
+        )}
+        {state === "joinable" && (
+          <span className="inline-flex w-fit items-center rounded-lg bg-brand/10 px-3 py-1 text-xs font-medium text-brand">
+            Upcoming
+          </span>
+        )}
+      </div>
     </Link>
   );
 }

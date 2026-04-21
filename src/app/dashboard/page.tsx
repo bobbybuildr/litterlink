@@ -44,11 +44,12 @@ export default async function DashboardPage() {
 
   const joinedEvents = (joinedEventsRaw ?? []) as EventWithCount[];
 
-  // Fetch events the user has organised
+  // Fetch events the user has organised (published or completed only)
   const { data: organisedEventsRaw } = await supabase
     .from("events_with_counts")
     .select("*")
     .eq("organiser_id", user.id)
+    .in("status", ["published", "completed"])
     .order("starts_at", { ascending: false });
 
   const organisedEvents = (organisedEventsRaw ?? []) as EventWithCount[];
@@ -260,47 +261,74 @@ export default async function DashboardPage() {
         ))}
       </Section>
 
-      {needsWrapUp.length > 0 && (
-        <Section
-          title="Needs wrap-up"
-          count={needsWrapUp.length}
-          emptyMessage="No completed events are waiting for stats."
-        >
-          {needsWrapUp.map((e) => (
-        <ActionCard
-          key={e.id}
-          event={e}
-          title="Log your impact"
-          body="This event has passed. Add attendance and clean-up totals to mark it complete."
-          actionHref={`/events/${e.id}/stats`}
-          actionLabel="Open stats"
-        />
-          ))}
-        </Section>
-      )}
-
       {/* Organised events */}
-      <Section
-        title="Events you've organised"
-        count={[
-          organisedActive.length > 0 ? `${organisedActive.length} upcoming` : null,
-          organisedCompleted.length > 0 ? `${organisedCompleted.length} completed` : null,
-        ].filter(Boolean).join(", ") || "0"}
-        totalForEmpty={organisedEvents.length}
-        emptyMessage="You haven't organised any events yet."
-        emptyAction={{ href: "/events/create", label: "Create an event" }}
-        collapsibleCount={organisedCompleted.length}
-        collapsibleLabel="completed event"
-        collapsibleChildren={
-          organisedCompleted.map((e) => (
-            <EventCard key={e.id} event={e} />
-          ))
-        }
-      >
-        {organisedActive.map((e) => (
-          <EventCard key={e.id} event={e} />
-        ))}
-      </Section>
+      <div className="mb-10">
+        <h2 className="mb-4 text-lg font-semibold text-gray-900">
+          Events you&apos;ve organised
+          <span className="ml-2 text-sm font-normal text-gray-400">
+            {[
+              needsWrapUp.length > 0 ? `${needsWrapUp.length} needs wrap-up` : null,
+              organisedActive.length > 0 ? `${organisedActive.length} upcoming` : null,
+              organisedCompleted.length > 0 ? `${organisedCompleted.length} completed` : null,
+            ].filter(Boolean).join(", ") || "0"}
+          </span>
+        </h2>
+        {organisedEvents.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-gray-300 bg-white p-8 text-center">
+            <p className="text-sm text-gray-500">You haven&apos;t organised any events yet.</p>
+            <Link
+              href="/events/create"
+              className="mt-3 inline-block text-sm font-medium text-brand hover:underline"
+            >
+              Create an event
+            </Link>
+          </div>
+        ) : (
+          <>
+            {needsWrapUp.length > 0 && (
+              <div className="mb-4 grid grid-cols-1 gap-4">
+                {needsWrapUp.map((e) => (
+                  <ActionCard
+                    key={e.id}
+                    event={e}
+                    title="Log your impact"
+                    body="This event has passed. Add attendance and clean-up totals to mark it complete."
+                    actionHref={`/events/${e.id}/stats`}
+                    actionLabel="Open stats"
+                  />
+                ))}
+              </div>
+            )}
+            {organisedActive.length > 0 && (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {organisedActive.map((e) => (
+                  <EventCard key={e.id} event={e} />
+                ))}
+              </div>
+            )}
+            {organisedCompleted.length > 0 && (
+              <details className="group mt-4">
+                <summary className="flex cursor-pointer list-none items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors">
+                  <svg
+                    className="h-4 w-4 shrink-0 rotate-0 transition-transform group-open:rotate-90"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                  Show {organisedCompleted.length} completed event{organisedCompleted.length !== 1 ? "s" : ""}
+                </summary>
+                <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  {organisedCompleted.map((e) => (
+                    <EventCard key={e.id} event={e} />
+                  ))}
+                </div>
+              </details>
+            )}
+          </>
+        )}
+      </div>
 
       {/* Past events */}
       <Section
