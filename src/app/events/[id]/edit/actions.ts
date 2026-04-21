@@ -200,6 +200,7 @@ export async function updateEvent(
       latitude: lat,
       longitude: lng,
       organiser_contact_details: organiserContactDetails,
+      content_updated_at: new Date().toISOString(),
     })
     .eq("id", eventId);
 

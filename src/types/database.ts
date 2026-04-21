@@ -67,6 +67,7 @@ export interface Database {
           organiser_contact_details: string | null;
           created_at: string;
           updated_at: string | null;
+          content_updated_at: string | null;
           reschedule_notified_at: string | null;
           stats_reminder_sent_at: string | null;
         };
@@ -87,6 +88,7 @@ export interface Database {
           organiser_contact_details?: string | null;
           created_at?: string;
           updated_at?: string | null;
+          content_updated_at?: string | null;
           reschedule_notified_at?: string | null;
           stats_reminder_sent_at?: string | null;
         };
@@ -107,6 +109,7 @@ export interface Database {
           organiser_contact_details?: string | null;
           created_at?: string;
           updated_at?: string | null;
+          content_updated_at?: string | null;
           reschedule_notified_at?: string | null;
           stats_reminder_sent_at?: string | null;
         };

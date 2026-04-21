@@ -365,12 +365,10 @@ export default async function EventDetailPage({ params, searchParams }: Props) {
               <p className="mt-1 text-sm text-gray-500">Check back later for impact updates from the organiser.</p>
             </div>
           )}
-          {event.updated_at &&
-              new Date(event.updated_at).getTime() !==
-                new Date(event.created_at).getTime() && (
+          {event.content_updated_at && (
                 <p className="pt-1 text-xs text-gray-400">
                   Last updated:{" "}
-                  {new Date(event.updated_at).toLocaleString("en-GB", {
+                  {new Date(event.content_updated_at).toLocaleString("en-GB", {
                     timeZone: "Europe/London",
                     day: "numeric",
                     month: "short",
