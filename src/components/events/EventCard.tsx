@@ -94,7 +94,8 @@ export function EventCard({ event, className }: EventCardProps) {
         <h3
           className={cn(
             "font-semibold transition-colors line-clamp-2",
-            isMuted ? "text-gray-600" : "text-gray-900 group-hover:text-brand"
+            isMuted ? "text-gray-600" : "text-gray-900 group-hover:text-brand",
+            isVerifiedOrganiser && "pr-8"
           )}
         >
           {event.title}
