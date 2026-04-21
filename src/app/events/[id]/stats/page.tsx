@@ -53,7 +53,7 @@ export default async function StatsPage({ params, searchParams }: Props) {
         Back to event
       </Link>
 
-      <div className="mb-8">
+      <div className="mb-4">
         <h1 className="text-2xl font-bold text-gray-900">Log impact stats</h1>
         <p className="mt-1 text-sm text-gray-500">{event.title}</p>
       </div>
@@ -63,6 +63,10 @@ export default async function StatsPage({ params, searchParams }: Props) {
           {error}
         </div>
       )}
+
+      <div className="mb-8">
+        <p className="mt-1 text-sm text-gray-500">LitterLink relies on honest reporting. Impact data helps communities and potential sponsors understand real-world change.</p>
+      </div>
 
       <form action={submitStatsForEvent} className="space-y-5">
         <div className="grid grid-cols-2 gap-4">

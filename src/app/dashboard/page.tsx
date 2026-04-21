@@ -33,12 +33,13 @@ export default async function DashboardPage() {
 
   const participatedEventIds = participations?.map((p) => p.event_id) ?? [];
 
-  // Fetch the actual event data for those IDs
+  // Fetch the actual event data for those IDs (exclude cancelled events)
   const { data: joinedEventsRaw } = participatedEventIds.length
     ? await supabase
         .from("events_with_counts")
         .select("*")
         .in("id", participatedEventIds)
+        .neq("status", "cancelled")
         .order("starts_at", { ascending: false })
     : { data: [] };
 
@@ -94,7 +95,7 @@ export default async function DashboardPage() {
   );
   const organisedActive = organisedOverview.filter((e) => e.status !== "completed");
   const organisedCompleted = organisedOverview.filter((e) => e.status === "completed");
-  const totalCleanups = joinedEvents.length + organisedEvents.length;
+  const totalCleanups = joinedEvents.filter((e) => e.status === "completed").length + organisedCompleted.length;
   const totalHours = statsRows?.reduce((sum, s) => sum + (s.duration_hours ?? 0), 0) ?? 0;
   const subHeading = "Your litter picking activity";
 
@@ -184,15 +185,16 @@ export default async function DashboardPage() {
     <ImpactCard
       icon={<Calendar className="h-5 w-5 text-brand" />}
       value={totalCleanups.toLocaleString()}
-      label="Total cleanups"
-      subLabel={`${joinedEvents.length} joined • ${organisedEvents.length} organised`}
+      label="Events completed"
+      subLabel={`${joinedEvents.filter((e) => e.status === "completed").length} joined • ${organisedCompleted.length} organised`}
     />
 
     {/* Events organised */}
     <ImpactCard
       icon={<CalendarPlus className="h-5 w-5 text-brand" />}
-      value={organisedEvents.length.toLocaleString()}
+      value={organisedCompleted.length.toLocaleString()}
       label="Events organised"
+      subLabel={`${organisedActive.length} upcoming • ${organisedCompleted.length} completed`}
     />
 
     {/* Bags collected */}
@@ -210,6 +212,21 @@ export default async function DashboardPage() {
       label="Hours volunteered"
     />
   </div>
+
+  {needsWrapUp.length > 0 && (
+    <div className="mt-4 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+      <ClipboardList className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+      <p className="text-sm text-amber-800">
+        You have{" "}
+        <span className="font-semibold">{needsWrapUp.length} event{needsWrapUp.length !== 1 ? "s" : ""}</span>{" "}
+        that {needsWrapUp.length !== 1 ? "have" : "has"} passed without stats logged. Head to{" "}
+        <a href="#organised" className="font-medium underline underline-offset-2 hover:text-amber-900">
+          Events you&apos;ve organised
+        </a>{" "}
+        to wrap {needsWrapUp.length !== 1 ? "them" : "it"} up.
+      </p>
+    </div>
+  )}
 </section>
 
       {/* Your groups */}
@@ -262,7 +279,7 @@ export default async function DashboardPage() {
       </Section>
 
       {/* Organised events */}
-      <div className="mb-10">
+      <div id="organised" className="mb-10">
         <h2 className="mb-4 text-lg font-semibold text-gray-900">
           Events you&apos;ve organised
           <span className="ml-2 text-sm font-normal text-gray-400">
