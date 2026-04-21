@@ -374,7 +374,7 @@ export default async function EventDetailPage({ params, searchParams }: Props) {
             </div>
           )}
           {event.created_at && (
-                <p className="pt-1 text-xs text-gray-400">
+                <p className="pt-1 -mb-1 text-xs text-gray-400">
                   Event created:{" "}
                   {new Date(event.created_at).toLocaleString("en-GB", {
                     timeZone: "Europe/London",

@@ -208,6 +208,12 @@ export function JoinButton({
           )}
         </button>
 
+        {!isAuthenticated && (
+          <p className="text-xs text-gray-500">
+            You&apos;ll be asked to sign in first.
+          </p>
+        )}
+        
         {joined && !isPending && (
           <button
             onClick={handleAddToCalendar}
@@ -227,12 +233,6 @@ export function JoinButton({
 
       {errorMsg && (
         <p className="text-sm text-red-600">{errorMsg}</p>
-      )}
-
-      {!isAuthenticated && (
-        <p className="text-xs text-gray-500">
-          You&apos;ll be asked to sign in first.
-        </p>
       )}
     </div>
   );
