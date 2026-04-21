@@ -43,6 +43,7 @@ import { createClient } from "@/lib/supabase/client";  // Client Components only
 
 - **Tailwind CSS v4** with PostCSS plugin (`@tailwindcss/postcss`)
 - `cn()` helper from `@/lib/utils` — wraps `clsx` + `tailwind-merge` for conditional class merging
+- `utcToLondonDatetimeLocal(iso)` helper from `@/lib/utils` — converts a UTC ISO string to a `datetime-local` input value in Europe/London time (handles BST/GMT automatically); used in event create and edit forms
 - Always use `cn()` for conditional classes, never string concatenation
 
 ## Map
@@ -65,7 +66,8 @@ import { createClient } from "@/lib/supabase/client";  // Client Components only
 - **`resend` v6.9** — transactional email via the Resend API
 - All email logic lives in `src/lib/email.ts`
 - Plain-text emails only (no HTML templates)
-- Sends: join/leave/cancel confirmations, organiser application submission + outcome emails
+- Sends: join/leave/cancel confirmations, organiser application submission + outcome emails, event created confirmation, event updated (date/time/location changed) participant notifications
+- Stats-reminder emails are sent by the `send-event-reminders` Edge Function (not via this module)
 - In-process rate limiting (60-second cooldown per key) to prevent burst sends
 - Errors are swallowed — a mail failure never blocks a user action
 
@@ -88,6 +90,7 @@ import { createClient } from "@/lib/supabase/client";  // Client Components only
 - **`src/lib/ratelimit.ts`** — DB-backed rate limiting helpers:
   - `isEventCreationRateLimited()` — 5 events per user per 24 hours
   - `isJoinRateLimited()` — 20 joins per user per hour
+  - `isRescheduleNotificationRateLimited()` — 15-minute per-event cooldown; prevents organisers from spamming participants by toggling the datetime repeatedly (checked against `events.reschedule_notified_at`)
 - `redirectTo` open-redirect protection in `signInWithEmail` — only relative paths accepted
 
 ## Next.js 16 Breaking Changes
@@ -153,7 +156,8 @@ Mutation actions return `{ error: string | null }`. On success, they call `reval
 |---|---|
 | `src/app/` | App Router pages and layouts |
 | `src/app/(auth)/actions.ts` | Sign-in / sign-up / sign-out Server Actions |
-| `src/app/events/` | Events listing, detail, create, stats pages + actions |
+| `src/app/events/` | Events listing, detail, create, edit, stats pages + actions |
+| `src/app/events/[id]/edit/` | Event editing page + `updateEvent` action |
 | `src/app/groups/` | Groups listing (placeholder), group detail, create group |
 | `src/app/become-a-verified-organiser/` | Organiser application form + actions |
 | `src/app/admin/` | Admin panel (applications review) |
@@ -167,3 +171,4 @@ Mutation actions return `{ error: string | null }`. On success, they call `reval
 | `src/types/database.ts` | Hand-written DB types — update when schema changes |
 | `src/proxy.ts` | Auth session refresh + route protection (replaces middleware.ts) |
 | `supabase/migrations/` | SQL migration files |
+| `supabase/functions/send-event-reminders/` | Deno Edge Function — cron stats-reminder emails |

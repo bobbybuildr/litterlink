@@ -35,14 +35,18 @@ No test suite is configured yet.
 |------|---------|
 | `src/app/` | App Router pages and layouts |
 | `src/app/(auth)/actions.ts` | Sign-in / sign-up / sign-out Server Actions |
-| `src/app/events/` | Events listing, detail, create, stats |
+| `src/app/events/actions.ts` | `joinEvent`, `leaveEvent`, `cancelEvent` |
+| `src/app/events/[id]/edit/actions.ts` | `updateEvent` — edit an existing event |
+| `src/app/events/create/actions.ts` | `createEvent` |
+| `src/app/events/` | Events listing, detail, create, edit, stats |
+| `src/app/events/[id]/edit/` | Event editing page + `updateEvent` action |
 | `src/app/groups/` | Groups listing (placeholder), group detail, create group |
 | `src/app/become-a-verified-organiser/` | Organiser application form + actions |
 | `src/app/admin/` | Admin panel — organiser applications |
 | `src/components/` | Shared UI components |
 | `src/lib/events.ts` | Data-fetching helpers (typed query wrappers) |
 | `src/lib/email.ts` | Resend email helpers |
-| `src/lib/ratelimit.ts` | DB-backed rate limiting (event creation, joins) |
+| `src/lib/ratelimit.ts` | DB-backed rate limiting (event creation, joins, reschedule notifications) |
 | `src/lib/sanitize.ts` | `sanitizeText()` — strips HTML from user input |
 | `src/lib/supabase/` | Supabase client factories |
 | `src/types/database.ts` | Hand-written DB types — update when schema changes |
@@ -54,7 +58,7 @@ No test suite is configured yet.
 | Table | Notes |
 |-------|-------|
 | `profiles` | `is_verified_organiser` BOOLEAN, `is_admin` BOOLEAN |
-| `events` | `group_id` (nullable FK), `organiser_contact_details` (nullable text); `organiser_id` is nullable (SET NULL on account deletion) |
+| `events` | `group_id` (nullable FK), `organiser_contact_details` (nullable text), `updated_at` (auto-maintained by trigger), `reschedule_notified_at` (nullable), `stats_reminder_sent_at` (nullable); `organiser_id` is nullable (SET NULL on account deletion) |
 | `groups` | `group_type` enum-like text, `created_by` nullable |
 | `organiser_applications` | status: `pending \| approved \| rejected` |
 | `email_preferences` | per-user opt-in/out, auto-created on profile creation |

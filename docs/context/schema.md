@@ -43,6 +43,9 @@ Auto-created on sign-up via a `on_auth_user_created` trigger (reads `raw_user_me
 | `status` | `event_status` | Default `'published'` |
 | `organiser_contact_details` | TEXT \| null | Free-text contact info provided by organiser |
 | `created_at` | TIMESTAMPTZ | |
+| `updated_at` | TIMESTAMPTZ | Auto-updated by trigger on every UPDATE |
+| `reschedule_notified_at` | TIMESTAMPTZ \| null | Last time participants were emailed about a datetime/location change |
+| `stats_reminder_sent_at` | TIMESTAMPTZ \| null | Set to `now()` when the stats-reminder cron email is dispatched; NULL means not yet sent |
 
 **Indexes:** `organiser_id`, `group_id`, `(status, starts_at)`, `(latitude, longitude)`
 
@@ -154,6 +157,7 @@ Extends `events` with joined profile, group, and participant count data.
 | `group_name` | TEXT | From joined `groups.name` |
 | `group_slug` | TEXT | From joined `groups.slug` |
 | `organiser_contact_details` | TEXT | Passed through from `events` |
+| `updated_at` | TIMESTAMPTZ | Passed through from `events` |
 | `confirmed_count` | BIGINT | COUNT of `event_participants` where `status = 'confirmed'` |
 
 All data-fetching helpers in `src/lib/events.ts` query this view, not the raw `events` table.
@@ -174,6 +178,7 @@ Returns distance in kilometres using the Haversine formula. IMMUTABLE. Used for 
 | `on_profile_created_email_preferences` | `profiles` | Auto-creates an `email_preferences` row with defaults |
 | `on_email_preferences_updated` | `email_preferences` | Keeps `updated_at` current |
 | `enforce_event_capacity` | `event_participants` | BEFORE INSERT — raises `P0001/event_full` if `confirmed_count >= max_attendees` |
+| `events_set_updated_at` | `events` | BEFORE UPDATE — sets `updated_at = now()` |
 
 ## Storage Buckets
 

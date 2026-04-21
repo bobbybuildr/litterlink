@@ -36,6 +36,7 @@ All routes use the Next.js 16 App Router. There is no Pages Router.
 | `/dashboard` | `src/app/dashboard/page.tsx` | Personal dashboard — upcoming/past joined events, organised events, groups, verified-organiser badge |
 | `/profile` | `src/app/profile/page.tsx` | Edit display name, postcode, avatar, email preferences; delete account |
 | `/events/create` | `src/app/events/create/page.tsx` | Create a new litter-pick event (requires auth; verified organisers can link a group) |
+| `/events/[id]/edit` | `src/app/events/[id]/edit/page.tsx` | Edit a published event — title, description, date/time, location, capacity, contact details (organiser only; redirects to event detail if started/completed/cancelled) |
 | `/events/[id]/stats` | `src/app/events/[id]/stats/page.tsx` | Log post-event impact data (organiser only — returns 404 for other users) |
 | `/become-a-verified-organiser` | `src/app/become-a-verified-organiser/page.tsx` | Apply for verified-organiser status; shows existing application status |
 | `/groups/create` | `src/app/groups/create/page.tsx` | Create a new group (verified organisers only) |
@@ -53,6 +54,7 @@ All routes use the Next.js 16 App Router. There is no Pages Router.
 |---|---|---|
 | `src/app/(auth)/actions.ts` | `signInWithEmail`, `signUpWithEmail`, `signInWithGoogle`, `signOut` | Sign-in / sign-up pages, `SignOutButton` |
 | `src/app/events/actions.ts` | `joinEvent`, `leaveEvent`, `cancelEvent` | `JoinButton` component, event detail page |
+| `src/app/events/[id]/edit/actions.ts` | `updateEvent` | Edit event page |
 | `src/app/events/create/actions.ts` | `createEvent` | Create event page |
 | `src/app/events/[id]/stats/actions.ts` | `submitStats` | Stats page |
 | `src/app/profile/actions.ts` | `updateProfile`, `deleteAccount` | `ProfileForm`, `DeleteAccountSection` |
@@ -65,7 +67,7 @@ All routes use the Next.js 16 App Router. There is no Pages Router.
 Enforced in `src/proxy.ts` (Next.js 16 middleware replacement):
 
 - `COMING_SOON=true` → only `/`, `/events`, and `/events/*` redirect to `/coming-soon`; all other routes (auth, admin, etc.) remain accessible
-- Unauthenticated users visiting `/dashboard`, `/events/create`, or `/profile` → redirect to `/sign-in?redirectTo=…`
+- Unauthenticated users visiting `/dashboard`, `/events/create`, `/events/[id]/edit`, or `/profile` → redirect to `/sign-in?redirectTo=…`
 - Authenticated users visiting `/sign-in` or `/sign-up` → redirect to `/dashboard`
 - Admin gate for `/admin/*` is enforced in `src/app/admin/layout.tsx` (checks `profiles.is_admin`)
 
@@ -181,9 +183,11 @@ Organiser-only form at `/events/[id]/stats`:
 #### Email Notifications (via Resend, `src/lib/email.ts`)
 - Organiser application submitted → admin notification + applicant confirmation
 - Application approved/rejected → outcome email to applicant
+- Event created → confirmation email to organiser (`sendEventCreatedEmail`)
 - Event joined → confirmation email to participant
 - Event left → notification email
 - Event cancelled → notification to all confirmed participants
+- Event date/time or location changed → notification to all confirmed participants (`sendEventUpdatedEmails`); rate-limited to once per 15 minutes per event (tracked via `events.reschedule_notified_at`)
 - In-process rate limiting (60-second cooldown per key) to prevent burst sends
 
 #### Admin Panel
@@ -198,6 +202,7 @@ Organiser-only form at `/events/[id]/stats`:
 - PWA manifest (`src/app/manifest.ts`)
 - Open Graph meta in root layout and event detail pages
 - `sitemap.ts` and `robots.ts` present
+- Supabase Edge Function `send-event-reminders` (`supabase/functions/send-event-reminders/`) — Deno function scheduled every 4 hours via pg_cron + pg_net. Finds published events that ended > 12 hours ago with no stats and emails the organiser a reminder to log impact. Sets `events.stats_reminder_sent_at` after sending so the reminder is never repeated.
 - Rate limiting for event creation and join actions
 
 ---
