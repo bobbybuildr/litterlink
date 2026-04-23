@@ -193,7 +193,7 @@ const LITTER_TYPES = [
   "Wet wipes / sanitary products",
   "Batteries / small e-waste",
   "Bulky / Fly-tipped waste",
-  "other",
+  "Other",
 ];
 
 const SEVERITY_LABELS = [
