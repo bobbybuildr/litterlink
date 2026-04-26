@@ -2,7 +2,7 @@
 import { redirect } from "next/navigation";
 import { Calendar, Trash, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { LucideIcon } from "lucide-react";
+import { LucideIcon, ArrowRight } from "lucide-react";
 import { PostcodeSearch } from "@/components/PostcodeSearch";
 
 async function getImpactStats() {
@@ -89,6 +89,14 @@ export default async function HomePage({ searchParams }: Props) {
           <h2 className="mb-2 mt-8 text-center text-sm font-normal text-gray-500">
             Every bag collected helps create cleaner streets, parks and beaches across the UK.
           </h2>
+          <div className="mt-4 text-center">
+            <Link
+              href="/impact"
+              className="text-sm font-medium text-brand underline underline-offset-2 hover:text-green-700 transition-colors"
+            >
+              See our full impact <ArrowRight className="inline w-4 h-4" />
+            </Link>
+          </div>
         </div>
       </section>
 

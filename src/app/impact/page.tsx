@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Trash2, Users, Calendar, Clock, ShieldCheck, Building2 } from "lucide-react";
+import { Trash2, Users, Calendar, Clock, BadgeCheck, Building2 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
+import { ShareImpactButton } from "@/components/ShareImpactButton";
 
 export const metadata: Metadata = {
   title: "Impact",
@@ -253,12 +254,12 @@ export default async function ImpactPage() {
       {/* Hero */}
       <section className="bg-linear-to-br from-green-50 to-emerald-100 px-4 py-16 text-center sm:py-24">
         <div className="mx-auto max-w-2xl">
-          <h1 className="text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl">
+          <h1 className="text-4xl font-extrabold tracking-tight text-accent sm:text-5xl">
             Real people.{" "}
             <span className="text-brand">Real impact.</span>
           </h1>
           <p className="mx-auto mt-4 max-w-xl text-lg text-gray-600">
-            Every event logged, every bag collected — here&apos;s the difference
+            Every event logged, every bag collected - here&apos;s the difference
             LitterLink volunteers are making across the UK.
           </p>
         </div>
@@ -350,7 +351,7 @@ export default async function ImpactPage() {
               description="Community, school, charity and council groups organising cleanups across the UK."
             />
             <CommunityCard
-              icon={ShieldCheck}
+              icon={BadgeCheck}
               value={data.verifiedOrgCount.toLocaleString()}
               label="Verified organisers"
               description="Trusted organisers approved to run events on LitterLink."
@@ -403,7 +404,7 @@ export default async function ImpactPage() {
         <section className="px-4 pb-14 pt-1">
           <div className="mx-auto max-w-2xl">
             <p className="mb-8 text-center text-sm text-gray-500">
-              Postcode districts leading the way on litter-picking
+              Postcode districts leading the way on litter-picking in the last 30 days
             </p>
             <div className="overflow-hidden rounded-xl border border-gray-100">
               <table className="w-full text-sm">
@@ -412,7 +413,6 @@ export default async function ImpactPage() {
                     <th className="px-4 py-3">District</th>
                     <th className="px-4 py-3 text-right">Bags</th>
                     <th className="px-4 py-3 text-right">Events</th>
-                    <th className="px-4 py-3 text-right">Volunteers</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 bg-white">
@@ -431,9 +431,6 @@ export default async function ImpactPage() {
                       </td>
                       <td className="px-4 py-3 text-right text-gray-600">
                         {area.eventCount.toLocaleString()}
-                      </td>
-                      <td className="px-4 py-3 text-right text-gray-600">
-                        {area.volunteerTurnout.toLocaleString()}
                       </td>
                     </tr>
                   ))}
@@ -481,7 +478,7 @@ export default async function ImpactPage() {
                         {org.display_name}
                       </span>
                       {org.is_verified_organiser && (
-                        <ShieldCheck className="h-4 w-4 shrink-0 text-brand" aria-label="Verified organiser" />
+                        <BadgeCheck className="h-4 w-4 shrink-0 text-brand" aria-label="Verified organiser" />
                       )}
                     </div>
                     <p className="text-xs text-gray-400">
@@ -553,17 +550,34 @@ export default async function ImpactPage() {
       )} */}
 
       {/* CTA */}
-      <section className="bg-brand px-4 py-14 text-center text-white">
-        <h2 className="text-2xl font-bold">Add your effort to the total</h2>
-        <p className="mt-2 text-green-100">
-          Find a litter pick near you and help build a cleaner UK.
-        </p>
-        <Link
-          href="/events"
-          className="mt-6 inline-block rounded-xl bg-white px-6 py-3 text-sm font-semibold text-brand shadow transition-colors hover:bg-green-50"
-        >
-          Browse upcoming events
-        </Link>
+      <section className="bg-brand px-4 py-16 text-center text-white">
+        <div className="mx-auto max-w-2xl">
+          <h2 className="text-2xl font-bold">Add your effort to the total</h2>
+          <p className="mt-2 text-green-100">
+            Every action counts. Here&apos;s how you can get involved.
+          </p>
+          <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Link
+              href="/events"
+              className="flex items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-semibold text-brand shadow transition-colors hover:bg-green-50"
+            >
+              Join an upcoming cleanup
+            </Link>
+            <Link
+              href="/events/create"
+              className="flex items-center justify-center gap-2 rounded-xl border border-white/40 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-white/20"
+            >
+              Start your own litter pick
+            </Link>
+            <Link
+              href="/become-a-verified-organiser"
+              className="flex items-center justify-center gap-2 rounded-xl border border-white/40 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-white/20"
+            >
+              Become a verified organiser
+            </Link>
+            <ShareImpactButton />
+          </div>
+        </div>
       </section>
     </div>
   );
