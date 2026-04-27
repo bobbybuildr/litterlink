@@ -10,19 +10,21 @@ interface CreateEventFormProps {
   isVerifiedOrganiser: boolean;
   groups: Pick<GroupRow, "id" | "name" | "slug">[];
   minDatetime: string;
+  initialFields?: Record<string, string>;
 }
 
 export function CreateEventForm({
   isVerifiedOrganiser,
   groups,
   minDatetime,
+  initialFields,
 }: CreateEventFormProps) {
   const [state, formAction] = useActionState<CreateEventState, FormData>(
     createEvent,
     { error: null },
   );
 
-  const f = state.fields;
+  const f = state.fields ?? initialFields;
 
   const errorRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -203,7 +205,7 @@ export function CreateEventForm({
           type="checkbox"
           name="join_event"
           value="1"
-          defaultChecked={f ? f.join_event === "1" : true}
+          defaultChecked={state.fields ? state.fields.join_event === "1" : true}
           className="h-4 w-4 rounded border-gray-300 accent-brand"
         />
         <span className="text-sm text-gray-700">

@@ -344,6 +344,13 @@ export default async function EventDetailPage({ params, searchParams }: Props) {
             </Link>
           )}
 
+          {/* Organiser: duplicate event */}
+          {isOrganiser && (
+            <Link href={`/events/create?origId=${id}`} className="me-4 text-sm font-medium text-green-600 hover:text-green-700 hover:underline transition-colors">
+              Duplicate this event
+            </Link>
+          )}
+
           {/* Organiser: cancel event */}
           {isOrganiser && !isCompleted && !isCancelled && !isPast && (
             <CancelEventButton action={async () => { "use server"; await cancelEvent(id); }} />

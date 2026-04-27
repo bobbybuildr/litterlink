@@ -9,7 +9,13 @@ export const metadata: Metadata = {
   title: "Create a Litter Pick",
 };
 
-export default async function CreateEventPage() {
+interface Props {
+  searchParams: Promise<{ origId?: string }>;
+}
+
+export default async function CreateEventPage({ searchParams }: Props) {
+  const { origId } = await searchParams;
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -37,6 +43,37 @@ export default async function CreateEventPage() {
 
   const groups = (groupsRaw ?? []) as Pick<GroupRow, "id" | "name" | "slug">[];
 
+  let initialFields: Record<string, string> | undefined;
+
+  if (origId) {
+    const { data: originalEvent } = await supabase
+      .from("events")
+      .select(
+        "title, description, location_postcode, address_label, max_attendees, group_id, organiser_contact_details",
+      )
+      .eq("id", origId)
+      .eq("organiser_id", user.id)
+      .maybeSingle();
+
+    if (originalEvent) {
+      const validGroupId =
+        originalEvent.group_id && groups.some((group) => group.id === originalEvent.group_id)
+          ? originalEvent.group_id
+          : null;
+
+      initialFields = {
+        group_id: validGroupId ?? "",
+        title: originalEvent.title,
+        description: originalEvent.description ?? "",
+        postcode: originalEvent.location_postcode,
+        address_label: originalEvent.address_label ?? "",
+        organiser_contact_details: originalEvent.organiser_contact_details ?? "",
+        max_attendees:
+          originalEvent.max_attendees != null ? String(originalEvent.max_attendees) : "",
+      };
+    }
+  }
+
   // Set min datetime to now (rounded up to next minute) expressed in London local time
   const now = new Date();
   now.setSeconds(0, 0);
@@ -52,10 +89,17 @@ export default async function CreateEventPage() {
         </p>
       </div>
 
+      {initialFields && (
+        <div className="mb-6 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+          This form has been prefilled from your existing event. Please choose a new start and end date/time before publishing.
+        </div>
+      )}
+
       <CreateEventForm
         isVerifiedOrganiser={isVerifiedOrganiser}
         groups={groups}
         minDatetime={minDatetime}
+        initialFields={initialFields}
       />
     </div>
   );
