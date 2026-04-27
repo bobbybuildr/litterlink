@@ -4,6 +4,7 @@ import Link from "next/link";
 import {
   MapPin,
   Calendar,
+  Calendars,
   User,
   Users,
   ArrowLeft,
@@ -337,25 +338,6 @@ export default async function EventDetailPage({ params, searchParams }: Props) {
             </div>
           )}
 
-          {/* Organiser: edit event */}
-          {isOrganiser && !isCompleted && !isCancelled && !isPast && (
-            <Link href={`/events/${id}/edit`} className="me-4 text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline transition-colors">
-              Edit this event
-            </Link>
-          )}
-
-          {/* Organiser: duplicate event */}
-          {isOrganiser && (
-            <Link href={`/events/create?origId=${id}`} className="me-4 text-sm font-medium text-green-600 hover:text-green-700 hover:underline transition-colors">
-              Duplicate this event
-            </Link>
-          )}
-
-          {/* Organiser: cancel event */}
-          {isOrganiser && !isCompleted && !isCancelled && !isPast && (
-            <CancelEventButton action={async () => { "use server"; await cancelEvent(id); }} />
-          )}
-
           {/* Cancelled banner */}
           {isCancelled && (
             <div className="rounded-xl border border-red-200 bg-red-50 p-4">
@@ -375,6 +357,31 @@ export default async function EventDetailPage({ params, searchParams }: Props) {
               <CancelEventButton action={async () => { "use server"; await cancelEvent(id); }} />
             </div>
           )}
+
+          {/* Organiser: edit event */}
+          {isOrganiser && !isCompleted && !isCancelled && !isPast && (
+            <Link href={`/events/${id}/edit`} className="me-4 text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline transition-colors">
+              Edit this event
+            </Link>
+          )}
+
+          {/* Organiser: duplicate event */}
+          {isOrganiser && !isCompleted && !isCancelled && !isPast && (
+            <Link href={`/events/create?origId=${id}`} className="me-4 text-sm font-medium text-green-600 hover:text-green-700 hover:underline transition-colors">
+              Duplicate this event
+            </Link>
+          )}
+          {isOrganiser && (isCompleted || isCancelled || isPast) && (
+            <Link href={`/events/create?origId=${id}`} className="inline-flex gap-2 rounded-lg bg-brand px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-dark transition-colors">
+              <Calendars className="inline w-4 h-4" /> Duplicate this event
+            </Link>
+          )}
+
+          {/* Organiser: cancel event */}
+          {isOrganiser && !isCompleted && !isCancelled && !isPast && (
+            <CancelEventButton action={async () => { "use server"; await cancelEvent(id); }} />
+          )}
+
           {isPast && !isCompleted && !isCancelled && !isOrganiser && (
             <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
               <p className="text-sm font-medium text-gray-700">This event has finished.</p>
