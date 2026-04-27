@@ -116,7 +116,7 @@ export default async function EventsPage({ searchParams }: Props) {
       </div>
 
       {/* Filter */}
-      <div className="mb-6 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+      <div className="mb-6 rounded-xl border border-gray-200 bg-white p-3 sm:p-4 shadow-sm">
         <Suspense fallback={<FilterSkeleton />}>
           <EventsFilter defaultFrom={fromDate} defaultTo={toDate} />
         </Suspense>

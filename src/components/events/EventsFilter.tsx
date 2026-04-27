@@ -43,73 +43,77 @@ export function EventsFilter({ defaultFrom, defaultTo }: EventsFilterProps = {})
     <form
       ref={formRef}
       onSubmit={handleSubmit}
-      className="flex flex-col gap-3 sm:flex-row sm:items-end"
+      className="flex flex-col gap-2 md:gap-3 sm:flex-row sm:items-end"
     >
-      <div className="flex-1">
-        <label htmlFor="postcode" className="block text-sm font-medium text-gray-700 mb-1">
-          Postcode
-        </label>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-          <input
-            id="postcode"
-            name="postcode"
-            type="text"
-            placeholder="e.g. SW1A 1AA"
-            defaultValue={params.get("postcode") ?? ""}
-            className="w-full rounded-lg border border-gray-300 bg-white pl-9 pr-3 py-2 text-sm uppercase placeholder-gray-400 outline-none focus:border-brand focus:ring-1 focus:ring-brand"
-          />
+      <div className="flex gap-2 md:gap-3 sm:contents">
+        <div className="flex-1">
+          <label htmlFor="postcode" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+            Postcode
+          </label>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+            <input
+              id="postcode"
+              name="postcode"
+              type="text"
+              placeholder="e.g. SW1A 1AA"
+              defaultValue={params.get("postcode") ?? ""}
+              className="w-full rounded-lg border border-gray-300 bg-white pl-9 pr-3 py-2 text-xs sm:text-sm uppercase placeholder-gray-400 outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label htmlFor="radius" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+            Radius
+          </label>
+          <select
+            id="radius"
+            name="radius"
+            defaultValue={params.get("radius") ?? "16"}
+            className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs sm:text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+          >
+            {RADIUS_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
-      <div>
-        <label htmlFor="radius" className="block text-sm font-medium text-gray-700 mb-1">
-          Radius
-        </label>
-        <select
-          id="radius"
-          name="radius"
-          defaultValue={params.get("radius") ?? "16"}
-          className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
-        >
-          {RADIUS_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-      </div>
+      <div className="flex gap-2 md:gap-3 sm:contents">
+        <div className="flex-1">
+          <label htmlFor="from" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+            From
+          </label>
+          <input
+            id="from"
+            name="from"
+            type="date"
+            defaultValue={params.get("from") ?? defaultFrom ?? ""}
+            className="w-full rounded-lg border border-gray-300 bg-white px-2 sm:px-3 py-2 text-xs sm:text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+          />
+        </div>
 
-      <div>
-        <label htmlFor="from" className="block text-sm font-medium text-gray-700 mb-1">
-          From
-        </label>
-        <input
-          id="from"
-          name="from"
-          type="date"
-          defaultValue={params.get("from") ?? defaultFrom ?? ""}
-          className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
-        />
-      </div>
-
-      <div>
-        <label htmlFor="to" className="block text-sm font-medium text-gray-700 mb-1">
-          To
-        </label>
-        <input
-          id="to"
-          name="to"
-          type="date"
-          defaultValue={params.get("to") ?? defaultTo ?? ""}
-          className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
-        />
+        <div className="flex-1">
+          <label htmlFor="to" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+            To
+          </label>
+          <input
+            id="to"
+            name="to"
+            type="date"
+            defaultValue={params.get("to") ?? defaultTo ?? ""}
+            className="w-full rounded-lg border border-gray-300 bg-white px-2 sm:px-3 py-2 text-xs sm:text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+          />
+        </div>
       </div>
 
       <button
         type="submit"
         disabled={isPending}
-        className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-dark disabled:opacity-60 transition-colors"
+        className="rounded-lg bg-accent px-4 py-2 mt-2 sm:mt-0 text-sm font-medium text-white hover:bg-accent-dark disabled:opacity-60 transition-colors"
       >
         {isPending ? "Searching…" : "Search"}
       </button>
