@@ -76,6 +76,7 @@ export default async function StatsPage({ params, searchParams }: Props) {
               name="bags_collected"
               type="number"
               min={0}
+              max={MAX_BAGS_COLLECTED}
               placeholder="0"
               className={inputCls}
             />
@@ -86,6 +87,7 @@ export default async function StatsPage({ params, searchParams }: Props) {
               name="actual_attendees"
               type="number"
               min={0}
+              max={MAX_ACTUAL_ATTENDEES}
               placeholder="0"
               className={inputCls}
             />
@@ -95,7 +97,8 @@ export default async function StatsPage({ params, searchParams }: Props) {
               id="duration_hours"
               name="duration_hours"
               type="number"
-              min={0.5}
+              min={MIN_DURATION_HOURS}
+              max={MAX_DURATION_HOURS}
               step={0.5}
               placeholder="1.5"
               className={inputCls}
@@ -136,22 +139,32 @@ export default async function StatsPage({ params, searchParams }: Props) {
           </div>
         </Field>
 
-        <Field label="Notable brands" htmlFor="notable_brands" hint="optional">
+        <Field
+          label="Notable brands"
+          htmlFor="notable_brands"
+          hint="optional"
+        >
           <textarea
             id="notable_brands"
             name="notable_brands"
             rows={2}
             placeholder="e.g. Coca-Cola, McDonald's, Walkers…"
+            maxLength={MAX_NOTABLE_BRANDS_LENGTH}
             className={inputCls}
           />
         </Field>
 
-        <Field label="Notes" htmlFor="notes" hint="optional">
+        <Field
+          label="Notes"
+          htmlFor="notes"
+          hint="optional"
+        >
           <textarea
             id="notes"
             name="notes"
             rows={3}
             placeholder="Any highlights, challenges, or thank-yous…"
+            maxLength={MAX_NOTES_LENGTH}
             className={inputCls}
           />
         </Field>
@@ -203,6 +216,13 @@ const SEVERITY_LABELS = [
   { value: 4, label: "Heavy" },
   { value: 5, label: "Very heavy" },
 ];
+
+const MAX_BAGS_COLLECTED = 300;
+const MAX_ACTUAL_ATTENDEES = 500;
+const MIN_DURATION_HOURS = 0.5;
+const MAX_DURATION_HOURS = 24;
+const MAX_NOTABLE_BRANDS_LENGTH = 500;
+const MAX_NOTES_LENGTH = 1000;
 
 const inputCls =
   "w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand";

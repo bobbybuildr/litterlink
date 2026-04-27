@@ -4,6 +4,15 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
+const MAX_BAGS_COLLECTED = 300;
+const MAX_ACTUAL_ATTENDEES = 500;
+const MIN_DURATION_HOURS = 0.5;
+const MAX_DURATION_HOURS = 24;
+const MIN_SEVERITY = 1;
+const MAX_SEVERITY = 5;
+const MAX_NOTABLE_BRANDS_LENGTH = 500;
+const MAX_NOTES_LENGTH = 1000;
+
 export async function submitStats(eventId: string, formData: FormData) {
   const supabase = await createClient();
   const {
@@ -48,6 +57,61 @@ export async function submitStats(eventId: string, formData: FormData) {
     : null;
   const notableBrands = (formData.get("notable_brands") as string | null)?.trim() || null;
   const notes = (formData.get("notes") as string | null)?.trim() || null;
+
+  if (bags !== null && (!Number.isInteger(bags) || bags < 0 || bags > MAX_BAGS_COLLECTED)) {
+    redirect(
+      `/events/${eventId}/stats?error=${encodeURIComponent(
+        `Bags collected must be between 0 and ${MAX_BAGS_COLLECTED}.`
+      )}`
+    );
+  }
+
+  if (
+    attendees !== null &&
+    (!Number.isInteger(attendees) || attendees < 0 || attendees > MAX_ACTUAL_ATTENDEES)
+  ) {
+    redirect(
+      `/events/${eventId}/stats?error=${encodeURIComponent(
+        `Actual attendees must be between 0 and ${MAX_ACTUAL_ATTENDEES}.`
+      )}`
+    );
+  }
+
+  if (
+    duration !== null &&
+    (!Number.isFinite(duration) || duration < MIN_DURATION_HOURS || duration > MAX_DURATION_HOURS)
+  ) {
+    redirect(
+      `/events/${eventId}/stats?error=${encodeURIComponent(
+        `Duration must be between ${MIN_DURATION_HOURS} and ${MAX_DURATION_HOURS} hours.`
+      )}`
+    );
+  }
+
+  if (
+    severity !== null &&
+    (!Number.isInteger(severity) || severity < MIN_SEVERITY || severity > MAX_SEVERITY)
+  ) {
+    redirect(
+      `/events/${eventId}/stats?error=${encodeURIComponent("Hotspot severity must be between 1 and 5.")}`
+    );
+  }
+
+  if (notableBrands !== null && notableBrands.length > MAX_NOTABLE_BRANDS_LENGTH) {
+    redirect(
+      `/events/${eventId}/stats?error=${encodeURIComponent(
+        `Notable brands must be ${MAX_NOTABLE_BRANDS_LENGTH} characters or fewer.`
+      )}`
+    );
+  }
+
+  if (notes !== null && notes.length > MAX_NOTES_LENGTH) {
+    redirect(
+      `/events/${eventId}/stats?error=${encodeURIComponent(
+        `Notes must be ${MAX_NOTES_LENGTH} characters or fewer.`
+      )}`
+    );
+  }
 
   // Upsert stats + mark event as completed in a single round-trip
   const [statsResult] = await Promise.all([

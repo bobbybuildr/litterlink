@@ -24,6 +24,9 @@ export function Footer() {
               <Link href="/events/create" className="hover:text-gray-900 transition-colors">
                 Host an event
               </Link>
+              <Link href="/impact" className="hover:text-gray-900 transition-colors">
+                Impact stats
+              </Link>
               <Link href="/privacy" className="hover:text-gray-900 transition-colors">
                 Privacy Policy
               </Link>

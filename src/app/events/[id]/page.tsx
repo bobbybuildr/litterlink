@@ -361,10 +361,11 @@ export default async function EventDetailPage({ params, searchParams }: Props) {
               <p className="mt-1 text-sm text-amber-700">This event has passed. Add bags collected, duration, attendance, and litter information to mark it complete.</p>
               <Link
                 href={`/events/${id}/stats`}
-                className="mt-3 inline-block rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 transition-colors"
+                className="mt-3 me-3 inline-block rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 transition-colors"
               >
                 Log stats →
               </Link>
+              <CancelEventButton action={async () => { "use server"; await cancelEvent(id); }} />
             </div>
           )}
           {isPast && !isCompleted && !isCancelled && !isOrganiser && (
