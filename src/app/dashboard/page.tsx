@@ -192,7 +192,7 @@ export default async function DashboardPage() {
     {/* Events organised */}
     <ImpactCard
       icon={<CalendarPlus className="h-5 w-5 text-brand" />}
-      value={organisedCompleted.length.toLocaleString()}
+      value={(organisedActive.length + organisedCompleted.length).toLocaleString()}
       label="Events organised"
       subLabel={`${organisedActive.length} upcoming • ${organisedCompleted.length} completed`}
     />
