@@ -42,6 +42,9 @@ export async function updateSession(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = "/sign-in";
     url.searchParams.set("redirectTo", request.nextUrl.pathname);
+    if (request.nextUrl.pathname.startsWith("/profile/")) {
+      url.searchParams.set("message", "Sign in to view member profiles on LitterLink.");
+    }
     return NextResponse.redirect(url);
   }
 

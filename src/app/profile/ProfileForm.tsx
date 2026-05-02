@@ -18,6 +18,10 @@ interface Props {
   postcode: string | null;
   avatarUrl: string | null;
   email: string;
+  username: string | null;
+  bio: string | null;
+  socialUrl: string | null;
+  profileId: string;
   emailPrefs: {
     event_notifications: boolean;
     organiser_status_updates: boolean;
@@ -27,7 +31,7 @@ interface Props {
   };
 }
 
-export function ProfileForm({ displayName, postcode, avatarUrl, email, emailPrefs }: Props) {
+export function ProfileForm({ displayName, postcode, avatarUrl, email, username, bio, socialUrl, profileId, emailPrefs }: Props) {
   const [state, action, pending] = useActionState<ProfileState, FormData>(
     updateProfile,
     null,
@@ -36,7 +40,16 @@ export function ProfileForm({ displayName, postcode, avatarUrl, email, emailPref
   // Local preview of a newly-selected file before saving
   const [preview, setPreview] = useState<string | null>(null);
   const [isCompressing, setIsCompressing] = useState(false);
+  const [localUsername, setLocalUsername] = useState(username ?? "");
+  const [usernameError, setUsernameError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function validateUsername(value: string) {
+    if (value === "") return null;
+    if (value.length < 3) return "Username must be at least 3 characters.";
+    if (!/^[a-z0-9_]+$/.test(value)) return "Only lowercase letters, digits and underscores are allowed.";
+    return null;
+  }
 
   // Clear preview once the server confirms the save so the fresh DB URL shows
   useEffect(() => {
@@ -139,10 +152,100 @@ export function ProfileForm({ displayName, postcode, avatarUrl, email, emailPref
             className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm uppercase outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
           />
           <p className="mt-1.5 text-xs text-gray-400">
-            Used to suggest events near you.
+            Used to suggest events near you. This will not be shown publicly.
           </p>
         </div>
+
+        <div>
+          <label
+            htmlFor="username"
+            className="mb-1.5 block text-sm font-medium text-gray-700"
+          >
+            Username
+          </label>
+          <input
+            id="username"
+            name="username"
+            type="text"
+            value={localUsername}
+            onChange={(e) => {
+              setLocalUsername(e.target.value);
+              if (usernameError) setUsernameError(validateUsername(e.target.value));
+            }}
+            onBlur={(e) => setUsernameError(validateUsername(e.target.value))}
+            placeholder="e.g. litterpicker_jane"
+            maxLength={30}
+            aria-describedby={usernameError ? "username-error" : "username-hint"}
+            aria-invalid={usernameError ? true : undefined}
+            className={`w-full rounded-xl border px-4 py-2.5 text-sm outline-none transition focus:ring-2 ${
+              usernameError
+                ? "border-red-400 focus:border-red-400 focus:ring-red-200"
+                : "border-gray-300 focus:border-brand focus:ring-brand/20"
+            }`}
+          />
+          {usernameError ? (
+            <p id="username-error" className="mt-1.5 text-xs text-red-600">
+              {usernameError}
+            </p>
+          ) : (
+            <p id="username-hint" className="mt-1.5 text-xs text-gray-400">
+              Lowercase letters, digits and underscores only, 3–30 characters. Optional.
+            </p>
+          )}
+        </div>
+
+        <div>
+          <label
+            htmlFor="bio"
+            className="mb-1.5 block text-sm font-medium text-gray-700"
+          >
+            Bio
+          </label>
+          <textarea
+            id="bio"
+            name="bio"
+            rows={3}
+            defaultValue={bio ?? ""}
+            placeholder="Tell the community a little about yourself…"
+            maxLength={300}
+            className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20 resize-none"
+          />
+          <p className="mt-1.5 text-xs text-gray-400">Max 300 characters.</p>
+        </div>
+
+        <div>
+          <label
+            htmlFor="social_url"
+            className="mb-1.5 block text-sm font-medium text-gray-700"
+          >
+            Website or social link
+          </label>
+          <input
+            id="social_url"
+            name="social_url"
+            type="url"
+            defaultValue={socialUrl ?? ""}
+            placeholder="https://example.com"
+            className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
+          />
+        </div>
       </div>
+
+      {/* ── Public profile link ── */}
+      <p className="mt-6 text-xs text-gray-400">
+        Your public profile is visible at{" "}
+        <a
+          href={`/profile/${localUsername || profileId}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-brand hover:underline"
+        >
+          /profile/{localUsername.toLocaleLowerCase() || profileId}
+        </a>
+        {localUsername !== (username ?? "") && (
+          <span className="ml-1 text-amber-500">(unsaved)</span>
+        )}
+      </p>
 
       {/* ── Email Preferences ── */}
       <fieldset className="mt-8">

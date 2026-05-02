@@ -8,6 +8,7 @@ export type OrganiserApplicationRow =
 
 export type EventWithCount = EventRow & {
   organiser_name: string | null;
+  organiser_username: string | null;
   organiser_avatar: string | null;
   organiser_is_verified: boolean;
   confirmed_count: number;
@@ -119,7 +120,8 @@ export async function getUserParticipation(
 
 export type EventParticipant = {
   joined_at: string;
-  profiles: { display_name: string | null; avatar_url: string | null } | null;
+  user_id: string;
+  profiles: { username: string | null; display_name: string | null; avatar_url: string | null } | null;
 };
 
 /** Fetch confirmed participants for an event, joined with their profile. */
@@ -128,7 +130,7 @@ export async function getEventParticipants(eventId: string): Promise<EventPartic
 
   const { data } = await supabase
     .from("event_participants")
-    .select("joined_at, profiles(display_name, avatar_url)")
+    .select("joined_at, user_id, profiles(username, display_name, avatar_url)")
     .eq("event_id", eventId)
     .eq("status", "confirmed")
     .order("joined_at", { ascending: true });

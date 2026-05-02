@@ -19,7 +19,7 @@ export default async function DashboardPage() {
   // Fetch user profile
   const { data: profile } = await supabase
     .from("profiles")
-    .select("display_name, postcode, is_verified_organiser")
+    .select("display_name, username, postcode, is_verified_organiser")
     .eq("id", user.id)
     .single();
 
@@ -64,22 +64,35 @@ export default async function DashboardPage() {
 
   const groups = (groupsRaw ?? []) as GroupRow[];
 
-  // Personal impact totals from completed events (joined or organised)
-  const completedIds = Array.from(
-    new Set([
-      ...joinedEvents.filter((e) => e.status === "completed").map((e) => e.id),
-      ...organisedEvents.filter((e) => e.status === "completed").map((e) => e.id),
-    ])
+  // Personal impact totals from completed events
+  const completedJoinedIds = joinedEvents
+    .filter((e) => e.status === "completed")
+    .map((e) => e.id);
+  const completedOrganisedIdSet = new Set(
+    organisedEvents.filter((e) => e.status === "completed").map((e) => e.id)
   );
+  // Deduplicated union — used for hours and totalCleanups
+  const completedIds = Array.from(
+    new Set([...completedJoinedIds, ...completedOrganisedIdSet])
+  );
+  const [{ data: bagStatsRows }, { data: hoursStatsRows }] = await Promise.all([
+    // Bags: joined events only (consistent with public profile page)
+    completedJoinedIds.length
+      ? supabase
+          .from("event_stats")
+          .select("bags_collected")
+          .in("event_id", completedJoinedIds)
+      : Promise.resolve({ data: [] as { bags_collected: number | null }[], error: null }),
+    // Hours: all deduplicated completed events
+    completedIds.length
+      ? supabase
+          .from("event_stats")
+          .select("duration_hours")
+          .in("event_id", completedIds)
+      : Promise.resolve({ data: [] as { duration_hours: number | null }[], error: null }),
+  ]);
 
-  const { data: statsRows } = completedIds.length
-    ? await supabase
-        .from("event_stats")
-        .select("bags_collected, actual_attendees, duration_hours")
-        .in("event_id", completedIds)
-    : { data: [] };
-
-  const totalBags = statsRows?.reduce((s, r) => s + (r.bags_collected ?? 0), 0) ?? 0;
+  const totalBags = bagStatsRows?.reduce((s, r) => s + (r.bags_collected ?? 0), 0) ?? 0;
 
   const upcomingJoined = joinedEvents.filter(
     (e) => new Date(e.starts_at) >= new Date() && e.status === "published"
@@ -95,8 +108,7 @@ export default async function DashboardPage() {
   );
   const organisedActive = organisedOverview.filter((e) => e.status !== "completed");
   const organisedCompleted = organisedOverview.filter((e) => e.status === "completed");
-  const totalCleanups = joinedEvents.filter((e) => e.status === "completed").length + organisedCompleted.length;
-  const totalHours = statsRows?.reduce((sum, s) => sum + (s.duration_hours ?? 0), 0) ?? 0;
+  const totalHours = hoursStatsRows?.reduce((sum, s) => sum + (s.duration_hours ?? 0), 0) ?? 0;
   const subHeading = "Your litter picking activity";
 
   return (
@@ -108,14 +120,19 @@ export default async function DashboardPage() {
             Welcome{profile?.display_name && ", "}
             {profile?.display_name ? (
               <span className="whitespace-nowrap">
-                {profile.display_name}
+                <Link
+                  href={`/profile/${profile.username ?? user.id}`}
+                  className="text-brand hover:underline"
+                >
+                  {profile.display_name}
+                </Link>
                 {profile?.is_verified_organiser && (
-                  <BadgeCheck className="ml-1.5 inline-block h-6 w-6 align-middle text-brand" aria-label="Verified Organiser" />
+                  <BadgeCheck className="ml-1.5 inline-block h-5 w-5 align-middle text-brand" aria-label="Verified Organiser" />
                 )}
               </span>
             ) : (
               profile?.is_verified_organiser && (
-                <BadgeCheck className="ml-1.5 inline-block h-6 w-6 align-middle text-brand" aria-label="Verified Organiser" />
+                <BadgeCheck className="ml-1.5 inline-block h-5 w-5 align-middle text-brand" aria-label="Verified Organiser" />
               )
             )}
           </h1>
@@ -184,17 +201,17 @@ export default async function DashboardPage() {
     {/* Total cleanups */}
     <ImpactCard
       icon={<Calendar className="h-5 w-5 text-brand" />}
-      value={totalCleanups.toLocaleString()}
-      label="Events completed"
-      subLabel={`${joinedEvents.filter((e) => e.status === "completed").length} joined • ${organisedCompleted.length} organised`}
+      value={completedJoinedIds.length.toLocaleString()}
+      label="Events attended"
+      subLabel="with impact logged"
     />
 
     {/* Events organised */}
     <ImpactCard
       icon={<CalendarPlus className="h-5 w-5 text-brand" />}
-      value={(organisedActive.length + organisedCompleted.length).toLocaleString()}
+      value={organisedEvents.length.toLocaleString()}
       label="Events organised"
-      subLabel={`${organisedActive.length} upcoming • ${organisedCompleted.length} completed`}
+      subLabel={`${organisedActive.length + needsWrapUp.length} active · ${organisedCompleted.length} completed`}
     />
 
     {/* Bags collected */}

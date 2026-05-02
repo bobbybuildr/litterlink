@@ -27,6 +27,10 @@ export interface Database {
           avatar_url: string | null;
           is_verified_organiser: boolean;
           is_admin: boolean;
+          username: string | null;
+          bio: string | null;
+          social_url: string | null;
+          public_visibility: boolean;
           created_at: string;
         };
         Insert: {
@@ -36,6 +40,10 @@ export interface Database {
           avatar_url?: string | null;
           is_verified_organiser?: boolean;
           is_admin?: boolean;
+          username?: string | null;
+          bio?: string | null;
+          social_url?: string | null;
+          public_visibility?: boolean;
           created_at?: string;
         };
         Update: {
@@ -45,6 +53,10 @@ export interface Database {
           avatar_url?: string | null;
           is_verified_organiser?: boolean;
           is_admin?: boolean;
+          username?: string | null;
+          bio?: string | null;
+          social_url?: string | null;
+          public_visibility?: boolean;
           created_at?: string;
         };
         Relationships: [];

@@ -45,13 +45,14 @@ export default async function SignInPage({ searchParams }: Props) {
           </div>
         ) : null}
         {message && (
-          <div className="rounded-md bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700">
+          <div className="rounded-md bg-blue-50 border border-blue-200 px-4 py-3 text-sm text-blue-700">
             {message}
           </div>
         )}
 
         {/* Google OAuth */}
         <form action={signInWithGoogle}>
+          <input type="hidden" name="redirectTo" value={redirectTo ?? "/dashboard"} />
           <FormSubmitButton
             pendingText="Redirecting…"
             className="w-full flex items-center justify-center gap-3 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 transition-colors"

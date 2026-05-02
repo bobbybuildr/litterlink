@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { geocodePostcode } from "@/lib/geocode";
+import { sanitizeText } from "@/lib/sanitize";
 
 export type ProfileState = { error?: string; success?: boolean } | null;
 
@@ -22,8 +23,29 @@ export async function updateProfile(
 
   if (!user) return { error: "Not signed in." };
 
-  const displayName = (formData.get("display_name") as string)?.trim();
+  const displayName = sanitizeText((formData.get("display_name") as string) ?? "") || null;
   const postcode = (formData.get("postcode") as string)?.trim().toUpperCase();
+  const usernameRaw = (formData.get("username") as string)?.trim().toLowerCase();
+  const username = usernameRaw || null;
+  const bio = sanitizeText((formData.get("bio") as string) ?? "") || null;
+  const socialUrl = (formData.get("social_url") as string)?.trim() || null;
+
+  // Validate username format
+  if (username !== null) {
+    if (!/^[a-z0-9_]{3,30}$/.test(username)) {
+      return { error: "Username must be 3–30 characters and contain only lowercase letters, digits, and underscores." };
+    }
+  }
+
+  // Validate bio length
+  if (bio !== null && bio.length > 300) {
+    return { error: "Bio must be 300 characters or fewer." };
+  }
+
+  // Validate social URL
+  if (socialUrl !== null && !/^https?:\/\//.test(socialUrl)) {
+    return { error: "Website or social link must start with http:// or https://." };
+  }
 
   // Validate postcode if one was provided
   if (postcode) {
@@ -70,11 +92,19 @@ export async function updateProfile(
     .update({
       display_name: displayName || null,
       postcode: postcode || null,
+      username,
+      bio,
+      social_url: socialUrl,
       ...(avatarUrl !== undefined ? { avatar_url: avatarUrl } : {}),
     })
     .eq("id", user.id);
 
-  if (error) return { error: "Failed to save profile. Please try again." };
+  if (error) {
+    if (error.code === "23505") {
+      return { error: "That username is already taken. Please choose another." };
+    }
+    return { error: "Failed to save profile. Please try again." };
+  }
 
   // Save email preferences
   const { error: prefsError } = await supabase
@@ -94,6 +124,7 @@ export async function updateProfile(
   if (prefsError) return { error: "Failed to save email preferences. Please try again." };
 
   revalidatePath("/profile");
+  revalidatePath(`/profile/${user.id}`);
   revalidatePath("/dashboard");
   revalidatePath("/", "layout"); // refreshes the navbar avatar
 

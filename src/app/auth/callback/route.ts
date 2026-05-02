@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 
@@ -65,7 +66,15 @@ export async function GET(request: Request) {
         }
       }
 
-      return redirect(`${origin}${next}`);
+      const cookieStore = await cookies();
+      const oauthRedirect = cookieStore.get("oauth_redirect")?.value;
+      cookieStore.delete("oauth_redirect");
+      const destination =
+        oauthRedirect && oauthRedirect.startsWith("/") && !oauthRedirect.startsWith("//")
+          ? oauthRedirect
+          : next;
+
+      return redirect(`${origin}${destination}`);
     }
   }
 

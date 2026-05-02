@@ -128,6 +128,7 @@ async function getImpactData() {
   let topOrganisers: Array<{
     id: string;
     display_name: string | null;
+    username: string | null;
     avatar_url: string | null;
     is_verified_organiser: boolean;
     eventCount: number;
@@ -137,7 +138,7 @@ async function getImpactData() {
   if (topOrganiserIds.length > 0) {
     const { data: profiles } = await supabase
       .from("profiles")
-      .select("id, display_name, avatar_url, is_verified_organiser")
+      .select("id, display_name, username, avatar_url, is_verified_organiser")
       .in("id", topOrganiserIds);
     topOrganisers = topOrganiserIds
       .map((id) => {
@@ -146,6 +147,7 @@ async function getImpactData() {
         return {
           id,
           display_name: profile?.display_name ?? null,
+          username: profile?.username ?? null,
           avatar_url: profile?.avatar_url ?? null,
           is_verified_organiser: profile?.is_verified_organiser ?? false,
           ...stats,
@@ -474,9 +476,12 @@ export default async function ImpactPage() {
                   )}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
-                      <span className="truncate font-semibold text-gray-900">
+                      <Link
+                        href={`/profile/${org.username ?? org.id}`}
+                        className="truncate font-semibold text-brand hover:underline"
+                      >
                         {org.display_name}
-                      </span>
+                      </Link>
                       {org.is_verified_organiser && (
                         <BadgeCheck className="h-4 w-4 shrink-0 text-brand" aria-label="Verified organiser" />
                       )}

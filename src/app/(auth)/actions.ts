@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 
 async function getSiteUrl() {
@@ -81,9 +81,26 @@ export async function signUpWithEmail(formData: FormData) {
   redirect(`/sign-up?message=${encodeURIComponent("We've sent a confirmation link to your email address. Please click it to activate your account \u2014 you won't be able to sign in until you've confirmed it.")}`);
 }
 
-export async function signInWithGoogle() {
+export async function signInWithGoogle(formData: FormData) {
   const supabase = await createClient();
   const siteUrl = await getSiteUrl();
+
+  const rawRedirectTo = (formData.get("redirectTo") as string) || "/dashboard";
+  const redirectTo =
+    rawRedirectTo.startsWith("/") && !rawRedirectTo.startsWith("//")
+      ? rawRedirectTo
+      : "/dashboard";
+
+  // Store post-auth destination in a short-lived httpOnly cookie — more
+  // reliable than a query param which OAuth providers may strip.
+  const cookieStore = await cookies();
+  cookieStore.set("oauth_redirect", redirectTo, {
+    path: "/",
+    maxAge: 300,
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+  });
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",

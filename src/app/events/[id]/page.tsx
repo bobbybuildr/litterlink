@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
 import {
   MapPin,
   Calendar,
@@ -29,7 +30,7 @@ import { PhotoUpload } from "@/components/events/PhotoUpload";
 
 interface Props {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ updated?: string }>;
+  searchParams: Promise<{ updated?: string; back?: string }>;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -54,7 +55,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function EventDetailPage({ params, searchParams }: Props) {
   const { id } = await params;
-  const { updated } = await searchParams;
+  const { updated, back } = await searchParams;
+
+  // Validate back URL is a safe relative /events path to prevent open redirects
+  const backHref =
+    back && /^\/events(\?[^#]*)?$/.test(back) ? back : "/events";
 
   const [event, supabase] = await Promise.all([
     getEventById(id),
@@ -93,7 +98,7 @@ export default async function EventDetailPage({ params, searchParams }: Props) {
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
       {/* Back */}
       <Link
-        href="/events"
+        href={backHref}
         className="mb-6 flex w-fit items-center gap-1 text-sm text-gray-500 hover:text-gray-800 transition-colors"
       >
         <ArrowLeft className="h-4 w-4" />
@@ -146,18 +151,23 @@ export default async function EventDetailPage({ params, searchParams }: Props) {
             </div>
             <h1 className="text-2xl font-bold text-gray-900">{event.title}</h1>
             {event.organiser_name && (
-              <p className="mt-1 flex items-center gap-1.5 text-sm text-gray-500">
-                <User className="h-3.5 w-3.5" />
-                Organised by <span className="font-semibold">{event.organiser_name}</span>
-                {event.organiser_is_verified && (
-                  <BadgeCheck className="h-4 w-4 text-brand" aria-label="Verified Organiser" />
-                )}
+              <p className="mt-1 flex items-center gap-1 text-sm text-gray-500 min-w-0">
+                <User className="h-3.5 w-3.5 shrink-0" />
+                <span className="whitespace-nowrap">Organised by</span>
+                <span className="font-medium text-brand">
+                  <Link href={`/profile/${event.organiser_username ?? event.organiser_id}`} className="hover:underline">
+                    {event.organiser_name}
+                  </Link>
+                  {event.organiser_is_verified && (
+                    <BadgeCheck className="ml-1 inline h-4 w-4 align-text-bottom text-brand" aria-label="Verified Organiser" />
+                  )}
+                </span>
               </p>
             )}
             {event.group_name && event.group_slug && (
-              <p className="mt-0.5 flex items-center gap-1.5 text-sm text-gray-500">
-                <Users className="h-3.5 w-3.5" />
-                On behalf of{" "}
+              <p className="mt-0.5 flex items-center gap-1 text-sm text-gray-500 min-w-0">
+                <Users className="h-3.5 w-3.5 shrink-0" />
+                <span className="whitespace-nowrap">On behalf of</span>
                 <Link href={`/groups/${event.group_slug}`} className="font-medium text-brand hover:underline">
                   {event.group_name}
                 </Link>
@@ -309,18 +319,41 @@ export default async function EventDetailPage({ params, searchParams }: Props) {
               <ul className="divide-y divide-gray-100">
                 {participants.map((p, i) => (
                   <li key={i} className="flex items-center justify-between py-2 text-sm">
-                    <span className="font-medium text-gray-800">
-                      {p.profiles?.display_name ?? "Anonymous"}
-                      {p.profiles?.display_name === event.organiser_name && (
-                        <span className="ml-1 font-normal text-gray-400">(organiser)</span>
-                      )}
+                    <div className="flex items-center gap-2">
+                    {p.profiles?.avatar_url ? (
+                    <Image
+                      src={p.profiles.avatar_url}
+                      alt=""
+                      width={36}
+                      height={36}
+                      className="h-9 w-9 shrink-0 rounded-full object-cover"
+                    />
+                  ) : (
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-100 text-sm font-semibold text-gray-500">
+                      {(p.profiles?.display_name ?? "?")[0].toUpperCase()}
                     </span>
-                    <span className="text-xs text-gray-400">
-                      Joined {new Date(p.joined_at).toLocaleDateString("en-GB", {
+                  )}
+                    <span className="font-medium text-gray-800">
+                      {p.profiles?.display_name ? (
+                        <>
+                          <Link href={`/profile/${p.profiles.username ?? p.user_id}`} className="text-brand hover:underline">
+                            {p.profiles.display_name}
+                          </Link>
+                          {p.profiles.display_name === event.organiser_name && (
+                            <span className="font-normal text-gray-400"> (organiser)</span>
+                          )}
+                        </>
+                      ) : "Anonymous"}
+                    </span>
+                    </div>
+                    <span className="min-w-18 sm:min-w-32 text-xs text-left text-gray-400 font-medium flex flex-col sm:flex-row justify-end">
+                      <span>Joined</span>
+                      <span className="sm:ml-1 font-normal">{new Date(p.joined_at).toLocaleDateString("en-GB", {
                         day: "numeric",
                         month: "short",
                         year: "numeric",
                       })}
+                      </span>
                     </span>
                   </li>
                 ))}

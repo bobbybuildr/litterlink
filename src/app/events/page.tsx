@@ -86,6 +86,8 @@ export default async function EventsPage({ searchParams }: Props) {
     return qs ? `/events?${qs}` : "/events";
   }
 
+  const backHref = buildUrl({});
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -153,7 +155,7 @@ export default async function EventsPage({ searchParams }: Props) {
                 </div>
               )}
               {pagedUpcomingEvents.map((event) => (
-                <EventCard key={event.id} event={event} />
+                <EventCard key={event.id} event={event} backHref={backHref} />
               ))}
               {totalPages > 1 && (
                 <div className="flex items-center justify-between border-t border-gray-200 pt-4">
@@ -201,7 +203,7 @@ export default async function EventsPage({ searchParams }: Props) {
                   </summary>
                   <div className="mt-4 flex flex-col gap-4">
                     {pagedPastEvents.map((event) => (
-                      <EventCard key={event.id} event={event} />
+                      <EventCard key={event.id} event={event} backHref={backHref} />
                     ))}
                     {pastTotalPages > 1 && (
                       <div className="flex items-center justify-between border-t border-gray-200 pt-4">
