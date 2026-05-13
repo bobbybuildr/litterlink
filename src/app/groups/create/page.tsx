@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createGroup } from "./actions";
 import { GroupSubmitButton } from "./GroupSubmitButton";
 import { LogoUploadInput } from "./LogoUploadInput";
+import { UrlInput } from "@/components/UrlInput";
 import Link from "next/link";
 import { CheckCircle } from "lucide-react";
 
@@ -118,15 +119,12 @@ export default async function CreateGroupPage({ searchParams }: Props) {
           />
         </Field>
 
-        <Field label="Group logo" htmlFor="logo" hint="Optional · JPEG, PNG or WebP · max 5 MB">
-          <LogoUploadInput />
-        </Field>
+        <LogoUploadInput />
 
         <Field label="Website URL" htmlFor="website_url" hint="Optional">
-          <input
+          <UrlInput
             id="website_url"
             name="website_url"
-            type="url"
             maxLength={500}
             placeholder="https://example.com"
             className={inputCls}
@@ -134,10 +132,9 @@ export default async function CreateGroupPage({ searchParams }: Props) {
         </Field>
 
         <Field label="Primary social media page" htmlFor="social_url" hint="Optional">
-          <input
+          <UrlInput
             id="social_url"
             name="social_url"
-            type="url"
             maxLength={500}
             placeholder="https://facebook.com/your-group"
             className={inputCls}

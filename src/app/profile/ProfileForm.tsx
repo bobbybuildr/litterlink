@@ -5,6 +5,7 @@ import Image from "next/image";
 import imageCompression from "browser-image-compression";
 import { Camera } from "lucide-react";
 import { updateProfile, type ProfileState } from "./actions";
+import { UrlInput } from "@/components/UrlInput";
 
 const compressionOptions = {
   maxSizeMB: 0.25,
@@ -220,10 +221,9 @@ export function ProfileForm({ displayName, postcode, avatarUrl, email, username,
           >
             Website or social link
           </label>
-          <input
+          <UrlInput
             id="social_url"
             name="social_url"
-            type="url"
             defaultValue={socialUrl ?? ""}
             placeholder="https://example.com"
             className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"

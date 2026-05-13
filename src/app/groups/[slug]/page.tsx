@@ -2,9 +2,10 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, Globe, Share2, Mail, Users, Calendar } from "lucide-react";
+import { ArrowLeft, Globe, Share2, Mail, Users, Calendar, Pencil } from "lucide-react";
 import { getGroupBySlug, getEventsByGroupId } from "@/lib/events";
 import { EventCard } from "@/components/events/EventCard";
+import { createClient } from "@/lib/supabase/server";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -32,8 +33,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function GroupPage({ params }: Props) {
   const { slug } = await params;
 
-  const group = await getGroupBySlug(slug);
+  const [group, supabase] = await Promise.all([
+    getGroupBySlug(slug),
+    createClient(),
+  ]);
   if (!group) notFound();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const isOwner = !!user && user.id === group.created_by;
 
   const events = await getEventsByGroupId(group.id);
 
@@ -50,14 +60,25 @@ export default async function GroupPage({ params }: Props) {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
-      {/* Back */}
-      <Link
-        href="/events"
-        className="mb-6 flex w-fit items-center gap-1 text-sm text-gray-500 hover:text-gray-800 transition-colors"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        All events
-      </Link>
+      {/* Back + Edit */}
+      <div className="mb-6 flex items-center justify-between">
+        <Link
+          href="/events"
+          className="flex w-fit items-center gap-1 text-sm text-gray-500 hover:text-gray-800 transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          All events
+        </Link>
+        {isOwner && (
+          <Link
+            href={`/groups/${slug}/edit`}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            Edit group
+          </Link>
+        )}
+      </div>
 
       {/* Group header */}
       <div className="rounded-xl border border-gray-200 bg-white p-6 mb-8">
