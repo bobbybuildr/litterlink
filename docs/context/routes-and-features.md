@@ -15,7 +15,7 @@ All routes use the Next.js 16 App Router. There is no Pages Router.
 | `/events` | `src/app/events/page.tsx` | Browse all published events — postcode search, radius filter, date range, map + card list |
 | `/events/[id]` | `src/app/events/[id]/page.tsx` | Event detail — join/leave, share URL, map pin, photo gallery, participants, post-event stats |
 | `/groups` | `src/app/groups/page.tsx` | Groups landing — "under construction" placeholder page |
-| `/groups/[slug]` | `src/app/groups/[slug]/page.tsx` | Group profile page — logo, description, links, upcoming/past events |
+| `/groups/[slug]` | `src/app/groups/[slug]/page.tsx` | Group profile page — logo, description, links, member count, join/leave button, organisers section, members section, upcoming/past events |
 | `/privacy` | `src/app/privacy/page.tsx` | Privacy policy |
 | `/terms` | `src/app/terms/page.tsx` | Terms of service |
 
@@ -63,6 +63,7 @@ All routes use the Next.js 16 App Router. There is no Pages Router.
 | `src/app/admin/applications/actions.ts` | `approveApplication`, `rejectApplication` | `ApproveButton`, `RejectButton` |
 | `src/app/groups/create/actions.ts` | `createGroup` | Create group page |
 | `src/app/groups/[slug]/edit/actions.ts` | `updateGroup` | Edit group page |
+| `src/app/groups/actions.ts` | `joinGroup`, `leaveGroup` | `JoinGroupButton` component |
 
 ### Route Protection Logic
 
@@ -178,10 +179,16 @@ Organiser-only form at `/events/[id]/stats`:
 
 #### Groups
 - Verified organisers can create groups at `/groups/create` (name, description, type, logo, website, social, contact email)
-- Group profile page at `/groups/[slug]` — shows logo, type, description, links, upcoming/past events
+- Group profile page at `/groups/[slug]` — shows logo, type, description, links, member count, join/leave button, organisers section, members section (with avatar chips linking to profiles), and upcoming/past events
 - Group owners can edit groups at `/groups/[slug]/edit` — updates name, slug, description, type, website/social/contact details, and logo changes are published immediately
 - Groups can be affiliated with events at creation time
 - Group name and slug appear on `EventCard` and event detail
+- Groups are joinable — `group_members` table with `role` (`'member'` \| `'organiser'`)
+- `JoinGroupButton` (`src/components/groups/JoinGroupButton.tsx`) — optimistic join/leave toggle; unauthenticated users redirected to sign-in
+- Creator is automatically enrolled as `'organiser'` on group creation
+- Creators cannot leave their own group — enforced at application layer and by a DB trigger (`enforce_creator_cannot_leave`)
+- Self-insert RLS policy restricts `role` to `'member'` only — prevents API-level self-promotion to organiser
+- Rate-limited group joins (10 per user per hour — `isGroupJoinRateLimited` in `src/lib/ratelimit.ts`)
 
 #### Email Notifications (via Resend, `src/lib/email.ts`)
 - Organiser application submitted → admin notification + applicant confirmation
@@ -206,7 +213,7 @@ Organiser-only form at `/events/[id]/stats`:
 - Open Graph meta in root layout and event detail pages
 - `sitemap.ts` and `robots.ts` present
 - Supabase Edge Function `send-event-reminders` (`supabase/functions/send-event-reminders/`) — Deno function scheduled every 4 hours via pg_cron + pg_net. Finds published events that ended > 12 hours ago with no stats and emails the organiser a reminder to log impact. Sets `events.stats_reminder_sent_at` after sending so the reminder is never repeated.
-- Rate limiting for event creation and join actions
+- Rate limiting for event creation, event joins, and group joins
 
 ---
 
@@ -245,6 +252,9 @@ The following features are absent from the codebase. Do not assume these exist w
 
 #### Groups
 - `/groups` listing page shows an "under construction" placeholder — no browse/search yet
+- No delete group functionality — creators are locked as members until this is built
+- No group invitation system — membership is purely self-service (join/leave)
+- No group-level event creation flow — events are linked to groups at event creation time
 
 #### Admin / Moderation
 - No event flagging or reporting mechanism
