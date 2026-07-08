@@ -94,6 +94,13 @@ export async function createGroup(formData: FormData) {
     );
   }
 
+  // Enrol the creator as an organiser (non-fatal — group is already created)
+  await supabase.from("group_members").insert({
+    group_id: group.id,
+    user_id: user.id,
+    role: "organiser",
+  });
+
   // Upload logo if provided (non-fatal — group is already created)
   if (logoFile instanceof File && logoFile.size > 0) {
     const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp"]);

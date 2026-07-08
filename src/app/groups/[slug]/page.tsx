@@ -2,9 +2,10 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, Globe, Share2, Mail, Users, Calendar, Pencil } from "lucide-react";
-import { getGroupBySlug, getEventsByGroupId } from "@/lib/events";
+import { ArrowLeft, Globe, Share2, Mail, Users, Calendar, Pencil, ShieldCheck } from "lucide-react";
+import { getGroupBySlug, getEventsByGroupId, getGroupMembers } from "@/lib/events";
 import { EventCard } from "@/components/events/EventCard";
+import { JoinGroupButton } from "@/components/groups/JoinGroupButton";
 import { createClient } from "@/lib/supabase/server";
 
 interface Props {
@@ -45,7 +46,14 @@ export default async function GroupPage({ params }: Props) {
 
   const isOwner = !!user && user.id === group.created_by;
 
-  const events = await getEventsByGroupId(group.id);
+  const [events, members] = await Promise.all([
+    getEventsByGroupId(group.id),
+    getGroupMembers(group.id),
+  ]);
+
+  const isMember = !!user && members.some((m) => m.user_id === user.id);
+  const organisers = members.filter((m) => m.role === "organiser");
+  const regularMembers = members.filter((m) => m.role === "member");
 
   const now = new Date();
   const upcoming = events.filter(
@@ -111,8 +119,24 @@ export default async function GroupPage({ params }: Props) {
                 {group.description}
               </p>
             )}
+            <p className="mt-2 flex items-center gap-1.5 text-sm text-gray-500">
+              <Users className="h-4 w-4" />
+              {members.length} {members.length === 1 ? "member" : "members"}
+            </p>
           </div>
         </div>
+
+        {/* Join / Leave */}
+        {!isOwner && (
+          <div className="mt-5 border-t border-gray-100 pt-5">
+            <JoinGroupButton
+              groupId={group.id}
+              groupSlug={slug}
+              initialIsMember={isMember}
+              isAuthenticated={!!user}
+            />
+          </div>
+        )}
 
         {/* Links */}
         {hasLinks && (
@@ -151,6 +175,43 @@ export default async function GroupPage({ params }: Props) {
           </div>
         )}
       </div>
+
+      {/* Organisers & Members */}
+      {members.length > 0 && (
+        <div className="rounded-xl border border-gray-200 bg-white p-6 mb-8 space-y-6">
+          {organisers.length > 0 && (
+            <div>
+              <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-gray-500">
+                <ShieldCheck className="h-4 w-4" />
+                Group Creator
+              </h2>
+              <ul className="flex flex-wrap gap-3">
+                {organisers.map((m) => (
+                  <li key={m.user_id}>
+                    <MemberChip member={m} />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {regularMembers.length > 0 && (
+            <div>
+              <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-gray-500">
+                <Users className="h-4 w-4" />
+                Group Members
+              </h2>
+              <ul className="flex flex-wrap gap-3">
+                {regularMembers.map((m) => (
+                  <li key={m.user_id}>
+                    <MemberChip member={m} />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Events */}
       {events.length === 0 ? (
@@ -193,4 +254,33 @@ export default async function GroupPage({ params }: Props) {
       )}
     </div>
   );
+}
+
+import type { GroupMember } from "@/lib/events";
+
+function MemberChip({ member }: { member: GroupMember }) {
+  const name = member.display_name ?? member.username ?? "Member";
+  const inner = (
+    <div className="flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 py-1 pl-1 pr-3 text-sm text-gray-700 hover:bg-gray-100 transition-colors">
+      {member.avatar_url ? (
+        <Image
+          src={member.avatar_url}
+          alt={name}
+          width={24}
+          height={24}
+          className="rounded-full object-cover"
+        />
+      ) : (
+        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand/10 text-xs font-medium text-brand">
+          {name.charAt(0).toUpperCase()}
+        </span>
+      )}
+      {name}
+    </div>
+  );
+
+  if (member.username) {
+    return <Link href={`/profile/${member.username}`}>{inner}</Link>;
+  }
+  return inner;
 }

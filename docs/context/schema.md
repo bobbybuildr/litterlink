@@ -113,6 +113,26 @@ One row per event (unique on `event_id`). Written when organiser logs impact aft
 
 **Indexes:** `slug`, `created_by`
 
+### `group_members`
+
+One row per user-group membership. Makes groups joinable.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | PK |
+| `group_id` | UUID | FK → `groups` ON DELETE CASCADE |
+| `user_id` | UUID | FK → `profiles` ON DELETE CASCADE |
+| `role` | TEXT | `'member'` \| `'organiser'` — default `'member'` |
+| `joined_at` | TIMESTAMPTZ | |
+
+**Constraint:** `UNIQUE (group_id, user_id)`
+
+**Indexes:** `group_id`, `user_id`
+
+| Table | Read | Write |
+|---|---|---|
+| `group_members` | Public | Insert/Delete: self only; Update role: group organiser or admin |
+
 ### `organiser_applications`
 
 | Column | Type | Notes |
@@ -204,6 +224,7 @@ Returns distance in kilometres using the Haversine formula. IMMUTABLE. Used for 
 | `event_stats` | Organiser only | Organiser only |
 | `event_photos` | Public | Authenticated upload; owner delete |
 | `groups` | Public | Verified organiser (creator) only |
+| `group_members` | Public | Insert/Delete: self; Update role: group organiser or admin |
 | `organiser_applications` | Owner sees own; admin sees all | Owner insert; admin update |
 | `email_preferences` | Owner only | Owner only |
 
@@ -219,6 +240,7 @@ type ProfileRow                  = Database["public"]["Tables"]["profiles"]["Row
 type ParticipantRow              = Database["public"]["Tables"]["event_participants"]["Row"];
 type EventStatsRow               = Database["public"]["Tables"]["event_stats"]["Row"];
 type GroupRow                    = Database["public"]["Tables"]["groups"]["Row"];
+type GroupMemberRow              = Database["public"]["Tables"]["group_members"]["Row"];
 type OrganiserApplicationRow     = Database["public"]["Tables"]["organiser_applications"]["Row"];
 type EmailPreferencesRow         = Database["public"]["Tables"]["email_preferences"]["Row"];
 

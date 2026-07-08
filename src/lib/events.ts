@@ -165,6 +165,45 @@ export async function getEventsByGroupId(
   return (data ?? []) as EventWithCount[];
 }
 
+export type GroupMember = {
+  user_id: string;
+  role: "member" | "organiser";
+  joined_at: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  username: string | null;
+};
+
+/** Fetch all members of a group with their profile info, ordered by join date. */
+export async function getGroupMembers(groupId: string): Promise<GroupMember[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("group_members")
+    .select("user_id, role, joined_at, profiles(display_name, avatar_url, username)")
+    .eq("group_id", groupId)
+    .order("joined_at", { ascending: true });
+
+  if (!data) return [];
+
+  // The hand-written Database type carries no relationship metadata, so the
+  // Supabase client infers `never[]` for the joined select. Cast via unknown.
+  type RawRow = {
+    user_id: string;
+    role: string;
+    joined_at: string;
+    profiles: { display_name: string | null; avatar_url: string | null; username: string | null } | null;
+  };
+
+  return (data as unknown as RawRow[]).map((row) => ({
+    user_id: row.user_id,
+    role: row.role as "member" | "organiser",
+    joined_at: row.joined_at,
+    display_name: row.profiles?.display_name ?? null,
+    avatar_url: row.profiles?.avatar_url ?? null,
+    username: row.profiles?.username ?? null,
+  }));
+}
+
 /** Fetch all photos for a completed event, ordered oldest-first. */
 export async function getEventPhotos(eventId: string): Promise<EventPhotoRow[]> {
   const supabase = await createClient();

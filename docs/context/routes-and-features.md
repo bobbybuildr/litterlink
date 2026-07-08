@@ -40,6 +40,7 @@ All routes use the Next.js 16 App Router. There is no Pages Router.
 | `/events/[id]/stats` | `src/app/events/[id]/stats/page.tsx` | Log post-event impact data (organiser only — returns 404 for other users) |
 | `/become-a-verified-organiser` | `src/app/become-a-verified-organiser/page.tsx` | Apply for verified-organiser status; shows existing application status |
 | `/groups/create` | `src/app/groups/create/page.tsx` | Create a new group (verified organisers only) |
+| `/groups/[slug]/edit` | `src/app/groups/[slug]/edit/page.tsx` | Edit a group profile — name, description, type, links, contact email, and logo (group owner only) |
 
 ### Admin Routes (redirect to `/dashboard` if not `is_admin`)
 
@@ -61,6 +62,7 @@ All routes use the Next.js 16 App Router. There is no Pages Router.
 | `src/app/become-a-verified-organiser/actions.ts` | `submitOrganiserApplication` | `ApplicationForm` |
 | `src/app/admin/applications/actions.ts` | `approveApplication`, `rejectApplication` | `ApproveButton`, `RejectButton` |
 | `src/app/groups/create/actions.ts` | `createGroup` | Create group page |
+| `src/app/groups/[slug]/edit/actions.ts` | `updateGroup` | Edit group page |
 
 ### Route Protection Logic
 
@@ -177,6 +179,7 @@ Organiser-only form at `/events/[id]/stats`:
 #### Groups
 - Verified organisers can create groups at `/groups/create` (name, description, type, logo, website, social, contact email)
 - Group profile page at `/groups/[slug]` — shows logo, type, description, links, upcoming/past events
+- Group owners can edit groups at `/groups/[slug]/edit` — updates name, slug, description, type, website/social/contact details, and logo changes are published immediately
 - Groups can be affiliated with events at creation time
 - Group name and slug appear on `EventCard` and event detail
 
