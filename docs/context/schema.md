@@ -113,6 +113,24 @@ One row per event (unique on `event_id`). Written when organiser logs impact aft
 
 **Indexes:** `slug`, `created_by`
 
+### `group_members`
+
+One row per user-group membership. Makes groups joinable.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | PK |
+| `group_id` | UUID | FK → `groups` ON DELETE CASCADE |
+| `user_id` | UUID | FK → `profiles` ON DELETE CASCADE |
+| `role` | TEXT | `'member'` \| `'organiser'` — default `'member'` |
+| `joined_at` | TIMESTAMPTZ | |
+
+**Constraint:** `UNIQUE (group_id, user_id)`
+
+**Indexes:** `group_id`, `user_id`
+
+**DB Trigger:** `enforce_creator_cannot_leave` — BEFORE DELETE, raises `P0001` if `user_id` matches `groups.created_by` for that group
+
 ### `organiser_applications`
 
 | Column | Type | Notes |
@@ -179,6 +197,7 @@ Returns distance in kilometres using the Haversine formula. IMMUTABLE. Used for 
 | `on_email_preferences_updated` | `email_preferences` | Keeps `updated_at` current |
 | `enforce_event_capacity` | `event_participants` | BEFORE INSERT — raises `P0001/event_full` if `confirmed_count >= max_attendees` |
 | `events_set_updated_at` | `events` | BEFORE UPDATE — sets `updated_at = now()` |
+| `enforce_creator_cannot_leave` | `group_members` | BEFORE DELETE — raises `P0001` if the row being deleted belongs to the group creator |
 
 ## Storage Buckets
 
@@ -204,6 +223,7 @@ Returns distance in kilometres using the Haversine formula. IMMUTABLE. Used for 
 | `event_stats` | Organiser only | Organiser only |
 | `event_photos` | Public | Authenticated upload; owner delete |
 | `groups` | Public | Verified organiser (creator) only |
+| `group_members` | Public | Insert (self only, `role = 'member'` enforced by RLS); Delete (self, blocked for creators by trigger); Update role: group organiser or admin |
 | `organiser_applications` | Owner sees own; admin sees all | Owner insert; admin update |
 | `email_preferences` | Owner only | Owner only |
 
@@ -219,6 +239,7 @@ type ProfileRow                  = Database["public"]["Tables"]["profiles"]["Row
 type ParticipantRow              = Database["public"]["Tables"]["event_participants"]["Row"];
 type EventStatsRow               = Database["public"]["Tables"]["event_stats"]["Row"];
 type GroupRow                    = Database["public"]["Tables"]["groups"]["Row"];
+type GroupMemberRow              = Database["public"]["Tables"]["group_members"]["Row"];
 type OrganiserApplicationRow     = Database["public"]["Tables"]["organiser_applications"]["Row"];
 type EmailPreferencesRow         = Database["public"]["Tables"]["email_preferences"]["Row"];
 
@@ -233,4 +254,5 @@ Extended types defined in `src/lib/events.ts`:
 type EventWithCount  // EventRow + organiser_name, organiser_avatar, organiser_is_verified,
                      //           confirmed_count, group_name, group_slug
 type EventWithStats  // EventWithCount + event_stats row (nullable)
+type GroupMember     // user_id, role, joined_at, display_name, avatar_url, username
 ```

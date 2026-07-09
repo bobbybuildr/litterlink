@@ -9,6 +9,10 @@ const CREATE_WINDOW_MS = 24 * 60 * 60 * 1000;
 const JOIN_LIMIT = 20;
 const JOIN_WINDOW_MS = 60 * 60 * 1000;
 
+/** 10 group joins per user per 1 hour. */
+const GROUP_JOIN_LIMIT = 10;
+const GROUP_JOIN_WINDOW_MS = 60 * 60 * 1000;
+
 /**
  * 15-minute cooldown between reschedule notification emails per event.
  * Prevents an organiser from spamming participants by repeatedly toggling
@@ -51,4 +55,17 @@ export async function isJoinRateLimited(
     .eq("user_id", userId)
     .gte("joined_at", since);
   return (count ?? 0) >= JOIN_LIMIT;
+}
+
+export async function isGroupJoinRateLimited(
+  userId: string,
+  supabase: SupabaseClient<Database>
+): Promise<boolean> {
+  const since = new Date(Date.now() - GROUP_JOIN_WINDOW_MS).toISOString();
+  const { count } = await supabase
+    .from("group_members")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .gte("joined_at", since);
+  return (count ?? 0) >= GROUP_JOIN_LIMIT;
 }

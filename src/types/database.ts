@@ -295,6 +295,30 @@ export interface Database {
         };
         Relationships: [];
       };
+      group_members: {
+        Row: {
+          id: string;
+          group_id: string;
+          user_id: string;
+          role: "member" | "organiser";
+          joined_at: string;
+        };
+        Insert: {
+          id?: string;
+          group_id: string;
+          user_id: string;
+          role?: "member" | "organiser";
+          joined_at?: string;
+        };
+        Update: {
+          id?: string;
+          group_id?: string;
+          user_id?: string;
+          role?: "member" | "organiser";
+          joined_at?: string;
+        };
+        Relationships: [];
+      };
       organiser_applications: {
         Row: {
           id: string;
