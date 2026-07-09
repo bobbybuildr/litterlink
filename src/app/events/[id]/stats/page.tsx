@@ -35,13 +35,22 @@ export default async function StatsPage({ params, searchParams }: Props) {
   // Only the organiser can log stats
   if (event.organiser_id !== user.id) notFound();
 
-  // Stats already submitted — redirect back to event page
-  if (event.status === "completed") redirect(`/events/${id}`);
+  // Cancelled events cannot accept new or edited stats
+  if (event.status === "cancelled") redirect(`/events/${id}`);
 
   // Can only log stats after the event has started
   if (new Date(event.starts_at) > new Date()) redirect(`/events/${id}`);
 
+  const { data: existingStats } = await supabase
+    .from("event_stats")
+    .select(
+      "bags_collected, actual_attendees, duration_hours, litter_types, hotspot_severity, notable_brands, notes"
+    )
+    .eq("event_id", id)
+    .maybeSingle();
+
   const submitStatsForEvent = submitStats.bind(null, id);
+  const isEditing = !!existingStats;
 
   return (
     <div className="mx-auto max-w-xl px-4 py-10 sm:px-6">
@@ -54,7 +63,9 @@ export default async function StatsPage({ params, searchParams }: Props) {
       </Link>
 
       <div className="mb-4">
-        <h1 className="text-2xl font-bold text-gray-900">Log impact stats</h1>
+        <h1 className="text-2xl font-bold text-gray-900">
+          {isEditing ? "Edit impact stats" : "Log impact stats"}
+        </h1>
         <p className="mt-1 text-sm text-gray-500">{event.title}</p>
       </div>
 
@@ -78,6 +89,7 @@ export default async function StatsPage({ params, searchParams }: Props) {
               min={0}
               max={MAX_BAGS_COLLECTED}
               placeholder="0"
+              defaultValue={existingStats?.bags_collected ?? ""}
               className={inputCls}
             />
           </Field>
@@ -89,10 +101,11 @@ export default async function StatsPage({ params, searchParams }: Props) {
               min={0}
               max={MAX_ACTUAL_ATTENDEES}
               placeholder="0"
+              defaultValue={existingStats?.actual_attendees ?? ""}
               className={inputCls}
             />
           </Field>
-          <Field label="Duration (hours)" htmlFor="duration_hours">
+          <Field label="Event Duration (hours)" htmlFor="duration_hours">
             <input
               id="duration_hours"
               name="duration_hours"
@@ -101,6 +114,7 @@ export default async function StatsPage({ params, searchParams }: Props) {
               max={MAX_DURATION_HOURS}
               step={0.5}
               placeholder="1.5"
+              defaultValue={existingStats?.duration_hours ?? ""}
               className={inputCls}
             />
           </Field>
@@ -114,6 +128,10 @@ export default async function StatsPage({ params, searchParams }: Props) {
                   type="checkbox"
                   name="litter_types"
                   value={type}
+                  defaultChecked={
+                    Array.isArray(existingStats?.litter_types) &&
+                    existingStats.litter_types.includes(type)
+                  }
                   className="h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand"
                 />
                 {type}
@@ -130,6 +148,7 @@ export default async function StatsPage({ params, searchParams }: Props) {
                   type="radio"
                   name="hotspot_severity"
                   value={value}
+                  defaultChecked={existingStats?.hotspot_severity === value}
                   className="h-4 w-4 border-gray-300 text-brand focus:ring-brand"
                 />
                 <span className="text-xs text-gray-500">{value}</span>
@@ -150,6 +169,7 @@ export default async function StatsPage({ params, searchParams }: Props) {
             rows={2}
             placeholder="e.g. Coca-Cola, McDonald's, Walkers…"
             maxLength={MAX_NOTABLE_BRANDS_LENGTH}
+            defaultValue={existingStats?.notable_brands ?? ""}
             className={inputCls}
           />
         </Field>
@@ -165,12 +185,13 @@ export default async function StatsPage({ params, searchParams }: Props) {
             rows={3}
             placeholder="Any highlights, challenges, or thank-yous…"
             maxLength={MAX_NOTES_LENGTH}
+            defaultValue={existingStats?.notes ?? ""}
             className={inputCls}
           />
         </Field>
 
         <p className="text-xs text-gray-500 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
-          🖼️ Once marked as completed, you'll be able to add event photos to the event page.
+          🖼️ Once marked as completed, you&apos;ll be able to add event photos to the event page.
         </p>
 
         <div className="flex items-center gap-4 pt-2">
@@ -178,12 +199,14 @@ export default async function StatsPage({ params, searchParams }: Props) {
             pendingText="Saving…"
             className="rounded-xl bg-brand px-6 py-3 text-sm font-semibold text-white hover:bg-brand-dark transition-colors"
           >
-            Save &amp; mark completed
+            {isEditing ? "Save changes" : "Save & mark completed"}
           </FormSubmitButton>
         </div>
 
         <p className="text-xs text-gray-400">
-          Saving will mark this event as completed and publish the stats publicly.
+          {isEditing
+            ? "Saving updates these stats publicly on the event page."
+            : "Saving will mark this event as completed and publish the stats publicly."}
         </p>
       </form>
     </div>

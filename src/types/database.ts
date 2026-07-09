@@ -164,6 +164,7 @@ export interface Database {
           hotspot_severity: number | null;
           notable_brands: string | null;
           notes: string | null;
+          updated_at: string;
         };
         Insert: {
           id?: string;
@@ -177,6 +178,7 @@ export interface Database {
           hotspot_severity?: number | null;
           notable_brands?: string | null;
           notes?: string | null;
+          updated_at?: string;
         };
         Update: {
           id?: string;
@@ -190,6 +192,7 @@ export interface Database {
           hotspot_severity?: number | null;
           notable_brands?: string | null;
           notes?: string | null;
+          updated_at?: string;
         };
         Relationships: [];
       };

@@ -2,7 +2,6 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import imageCompression from "browser-image-compression";
 import { Camera } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { uploadEventPhoto } from "@/app/events/actions";
@@ -49,6 +48,7 @@ export function PhotoUpload({ eventId, className }: PhotoUploadProps) {
       return;
     }
     startTransition(async () => {
+      const { default: imageCompression } = await import("browser-image-compression");
       const formData = new FormData();
       for (const file of files) {
         const compressed = await imageCompression(file, compressionOptions);

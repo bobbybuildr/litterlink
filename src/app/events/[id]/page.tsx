@@ -23,14 +23,14 @@ import { JoinButton } from "@/components/events/JoinButton";
 import { ShareUrl } from "@/components/events/ShareUrl";
 import { EventsMap } from "@/components/map/EventsMap";
 import { cancelEvent } from "@/app/events/actions";
-import { FormSubmitButton } from "@/components/FormSubmitButton";
 import { CancelEventButton } from "@/components/events/CancelEventButton";
 import { EventPhotosGallery } from "@/components/events/EventPhotosGallery";
 import { PhotoUpload } from "@/components/events/PhotoUpload";
+import { EventFlashBanner } from "./EventFlashBanner";
 
 interface Props {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ updated?: string; back?: string }>;
+  searchParams: Promise<{ back?: string }>;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -55,7 +55,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function EventDetailPage({ params, searchParams }: Props) {
   const { id } = await params;
-  const { updated, back } = await searchParams;
+  const { back } = await searchParams;
 
   // Validate back URL is a safe relative /events path to prevent open redirects
   const backHref =
@@ -105,12 +105,7 @@ export default async function EventDetailPage({ params, searchParams }: Props) {
         All events
       </Link>
 
-      {updated === "1" && (
-        <div className="mb-6 flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-800">
-          <CheckCircle className="h-4 w-4 shrink-0" />
-          Event updated successfully.
-        </div>
-      )}
+      <EventFlashBanner />
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         {/* Main content */}
@@ -176,9 +171,9 @@ export default async function EventDetailPage({ params, searchParams }: Props) {
           </div>
 
           {event.organiser_is_verified && (
-            <div className="mb-6 flex items-center gap-3 rounded-xl border border-brand/20 bg-brand/5 px-4 py-3">
+            <div className="mb-6 flex items-center gap-2 md:gap-3 rounded-xl border border-brand/20 px-3 py-2">
               <BadgeCheck className="h-5 w-5 shrink-0 text-brand" />
-              <p className="text-sm font-medium text-brand">
+              <p className="text-xs font-medium text-brand">
                 <span className="font-semibold">{event.organiser_name}</span>&nbsp;is a Verified Organiser — Verified Organisers have a proven record of organising events. This helps
           participants feel confident about who they&apos;re joining.
               </p>
@@ -219,7 +214,17 @@ export default async function EventDetailPage({ params, searchParams }: Props) {
           {/* Post-event stats */}
           {isCompleted && event.event_stats && (
             <div className="rounded-xl border border-green-200 bg-green-50 p-5">
-              <h2 className="mb-4 font-semibold text-green-900">Impact stats</h2>
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <h2 className="font-semibold text-green-900">Impact stats</h2>
+                {isOrganiser && (
+                  <Link
+                    href={`/events/${id}/stats`}
+                    className="text-xs font-medium text-red-700 hover:text-green-800 hover:underline"
+                  >
+                    Edit stats
+                  </Link>
+                )}
+              </div>
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                 {event.event_stats.bags_collected != null && (
                   <StatTile
@@ -298,6 +303,20 @@ export default async function EventDetailPage({ params, searchParams }: Props) {
                   <p className="text-xs font-medium text-green-800 mb-1">Notable brands</p>
                   <p className="text-sm text-green-700">{event.event_stats.notable_brands}</p>
                 </div>
+              )}
+
+              {event.event_stats.updated_at && (
+                <p className="mt-4 text-right text-xs text-green-700/70">
+                  Stats updated:{" "}
+                  {new Date(event.event_stats.updated_at).toLocaleString("en-GB", {
+                    timeZone: "Europe/London",
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </p>
               )}
             </div>
           )}

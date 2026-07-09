@@ -32,8 +32,8 @@ export async function submitStats(eventId: string, formData: FormData) {
     redirect(`/events/${eventId}?error=Not+authorised`);
   }
 
-  // Stats can only be submitted once — prevent re-submission on completed events
-  if (event.status === "completed") {
+  // Cancelled events cannot accept stats
+  if (event.status === "cancelled") {
     redirect(`/events/${eventId}`);
   }
 
@@ -113,6 +113,12 @@ export async function submitStats(eventId: string, formData: FormData) {
     );
   }
 
+  const { data: existingStats } = await supabase
+    .from("event_stats")
+    .select("event_id")
+    .eq("event_id", eventId)
+    .maybeSingle();
+
   // Upsert stats + mark event as completed in a single round-trip
   const [statsResult] = await Promise.all([
     supabase.from("event_stats").upsert(
@@ -142,5 +148,6 @@ export async function submitStats(eventId: string, formData: FormData) {
   }
 
   revalidatePath(`/events/${eventId}`);
-  redirect(`/events/${eventId}`);
+  const successParam = existingStats ? "statsUpdated=1" : "statsSaved=1";
+  redirect(`/events/${eventId}?${successParam}`);
 }
