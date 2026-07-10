@@ -231,6 +231,10 @@ export interface Database {
           social_url: string | null;
           contact_email: string | null;
           group_type: string;
+          location_postcode: string | null;
+          latitude: number | null;
+          longitude: number | null;
+          location_name: string | null;
           created_by: string | null;
           created_at: string;
         };
@@ -244,6 +248,10 @@ export interface Database {
           social_url?: string | null;
           contact_email?: string | null;
           group_type?: string;
+          location_postcode?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
+          location_name?: string | null;
           created_by: string;
           created_at?: string;
         };
@@ -257,6 +265,10 @@ export interface Database {
           social_url?: string | null;
           contact_email?: string | null;
           group_type?: string;
+          location_postcode?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
+          location_name?: string | null;
           created_by?: string;
           created_at?: string;
         };

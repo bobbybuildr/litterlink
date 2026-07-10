@@ -3,7 +3,10 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { geocodePostcode } from "@/lib/geocode";
 import { sanitizeText } from "@/lib/sanitize";
+
+const LOCATION_NAME_MAX = 100;
 
 export type EditGroupState = {
   error: string | null;
@@ -45,7 +48,7 @@ export async function updateGroup(
 
   const { data: existing, error: fetchError } = await supabase
     .from("groups")
-    .select("created_by, slug")
+    .select("created_by, slug, location_postcode, latitude, longitude")
     .eq("id", groupId)
     .single();
 
@@ -63,10 +66,24 @@ export async function updateGroup(
   const contactEmail =
     sanitizeText((formData.get("contact_email") as string) ?? "").trim() ||
     null;
+  const postcode = sanitizeText((formData.get("postcode") as string) ?? "")
+    .toUpperCase()
+    .trim();
+  const locationName = sanitizeText(
+    (formData.get("location_name") as string) ?? ""
+  ).trim();
   const logoFile = formData.get("logo") as File | null;
   const removeLogo = formData.get("remove_logo") === "1";
 
   if (!name) return fail("Group name is required.", formData);
+
+  if (!postcode) return fail("Postcode is required.", formData);
+  if (!locationName) return fail("Display location is required.", formData);
+  if (locationName.length > LOCATION_NAME_MAX)
+    return fail(
+      `Display location must be ${LOCATION_NAME_MAX} characters or fewer.`,
+      formData
+    );
 
   const validGroupTypes = [
     "community",
@@ -105,6 +122,21 @@ export async function updateGroup(
     }
   }
 
+  // Re-geocode only if the postcode changed
+  let lat = existing.latitude;
+  let lng = existing.longitude;
+  if (postcode !== existing.location_postcode) {
+    const geo = await geocodePostcode(postcode);
+    if (!geo) {
+      return fail(
+        `Postcode "${postcode}" wasn't recognised. Please enter a valid UK postcode.`,
+        formData
+      );
+    }
+    lat = geo.latitude;
+    lng = geo.longitude;
+  }
+
   const { error: updateError } = await supabase
     .from("groups")
     .update({
@@ -115,6 +147,10 @@ export async function updateGroup(
       website_url: websiteUrl,
       social_url: socialUrl,
       contact_email: contactEmail,
+      location_postcode: postcode,
+      latitude: lat,
+      longitude: lng,
+      location_name: locationName,
     })
     .eq("id", groupId);
 

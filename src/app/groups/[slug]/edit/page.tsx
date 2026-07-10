@@ -35,6 +35,8 @@ export default async function EditGroupPage({ params }: Props) {
     website_url: group.website_url ?? "",
     social_url: group.social_url ?? "",
     contact_email: group.contact_email ?? "",
+    postcode: group.location_postcode ?? "",
+    location_name: group.location_name ?? "",
   };
 
   return (

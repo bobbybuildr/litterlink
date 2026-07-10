@@ -119,6 +119,39 @@ export default async function CreateGroupPage({ searchParams }: Props) {
           />
         </Field>
 
+        <Field 
+          label="Postcode *" 
+          htmlFor="postcode"
+          hint="We use this to show your group on the map and to find nearby events. Please enter a valid UK postcode."
+        >
+          <input
+            id="postcode"
+            name="postcode"
+            type="text"
+            required
+            maxLength={10}
+            autoComplete="postal-code"
+            placeholder="e.g. B60 1AA"
+            className={inputCls}
+          />
+        </Field>
+
+        <Field
+          label="Display location *"
+          htmlFor="location_name"
+          hint="How the location appears to visitors"
+        >
+          <input
+            id="location_name"
+            name="location_name"
+            type="text"
+            required
+            maxLength={100}
+            placeholder="e.g. Bromsgrove"
+            className={inputCls}
+          />
+        </Field>
+
         <LogoUploadInput />
 
         <Field label="Website URL" htmlFor="website_url" hint="Optional">

@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, Globe, Share2, Mail, Users, Calendar, Pencil, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Globe, Share2, Mail, Users, Calendar, Pencil, ShieldCheck, MapPin } from "lucide-react";
 import { getGroupBySlug, getEventsByGroupId, getGroupMembers } from "@/lib/events";
 import { EventCard } from "@/components/events/EventCard";
 import { JoinGroupButton } from "@/components/groups/JoinGroupButton";
@@ -65,6 +65,7 @@ export default async function GroupPage({ params }: Props) {
 
   const typeLabel = GROUP_TYPE_LABELS[group.group_type] ?? "Organisation";
   const hasLinks = group.website_url || group.social_url || group.contact_email;
+  const locationLabel = group.location_name || group.location_postcode;
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
@@ -117,6 +118,12 @@ export default async function GroupPage({ params }: Props) {
             {group.description && (
               <p className="mt-2 text-sm text-gray-600 whitespace-pre-wrap">
                 {group.description}
+              </p>
+            )}
+            {locationLabel && (
+              <p className="mt-2 flex items-center gap-1.5 text-sm text-gray-500">
+                <MapPin className="h-4 w-4" />
+                {locationLabel}
               </p>
             )}
             <p className="mt-2 flex items-center gap-1.5 text-sm text-gray-500">

@@ -17,6 +17,8 @@ interface EditGroupFormProps {
     website_url: string;
     social_url: string;
     contact_email: string;
+    postcode: string;
+    location_name: string;
   };
 }
 
@@ -90,6 +92,41 @@ export function EditGroupForm({
           maxLength={2000}
           defaultValue={f?.description ?? defaultValues.description}
           placeholder="What is your group about? Who can join?"
+          className={inputCls}
+        />
+      </Field>
+
+        <Field 
+          label="Postcode *" 
+          htmlFor="postcode"
+          hint="We use this to show your group on the map. Please enter a valid UK postcode."
+        >
+        <input
+          id="postcode"
+          name="postcode"
+          type="text"
+          required
+          maxLength={10}
+          autoComplete="postal-code"
+          defaultValue={f?.postcode ?? defaultValues.postcode}
+          placeholder="e.g. B60 1AA"
+          className={inputCls}
+        />
+      </Field>
+
+      <Field
+        label="Display location *"
+        htmlFor="location_name"
+        hint="How the location appears to visitors"
+      >
+        <input
+          id="location_name"
+          name="location_name"
+          type="text"
+          required
+          maxLength={100}
+          defaultValue={f?.location_name ?? defaultValues.location_name}
+          placeholder="e.g. Bromsgrove"
           className={inputCls}
         />
       </Field>

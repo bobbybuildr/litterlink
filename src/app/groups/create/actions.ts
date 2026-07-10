@@ -2,6 +2,10 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { geocodePostcode } from "@/lib/geocode";
+import { sanitizeText } from "@/lib/sanitize";
+
+const LOCATION_NAME_MAX = 100;
 
 /** Convert a name to a URL-safe slug. */
 function slugify(name: string): string {
@@ -39,6 +43,8 @@ export async function createGroup(formData: FormData) {
   const websiteUrl = (formData.get("website_url") as string | null)?.trim() || null;
   const socialUrl = (formData.get("social_url") as string | null)?.trim() || null;
   const contactEmail = (formData.get("contact_email") as string | null)?.trim() || null;
+  const postcode = sanitizeText((formData.get("postcode") as string) ?? "").toUpperCase().trim();
+  const locationName = sanitizeText((formData.get("location_name") as string) ?? "").trim();
   const logoFile = formData.get("logo") as File | null;
 
   if (!name) {
@@ -54,12 +60,40 @@ export async function createGroup(formData: FormData) {
     );
   }
 
+  if (!postcode) {
+    redirect(
+      `/groups/create?error=${encodeURIComponent("Postcode is required.")}`
+    );
+  }
+
+  if (!locationName) {
+    redirect(
+      `/groups/create?error=${encodeURIComponent("Display location is required.")}`
+    );
+  }
+  if (locationName.length > LOCATION_NAME_MAX) {
+    redirect(
+      `/groups/create?error=${encodeURIComponent(
+        `Display location must be ${LOCATION_NAME_MAX} characters or fewer.`
+      )}`
+    );
+  }
+
   const slug = slugify(name);
 
   if (!slug) {
     redirect(
       `/groups/create?error=${encodeURIComponent(
         "Group name must contain at least one letter or number."
+      )}`
+    );
+  }
+
+  const geo = await geocodePostcode(postcode);
+  if (!geo) {
+    redirect(
+      `/groups/create?error=${encodeURIComponent(
+        `Postcode "${postcode}" wasn't recognised. Please enter a valid UK postcode.`
       )}`
     );
   }
@@ -74,6 +108,10 @@ export async function createGroup(formData: FormData) {
       website_url: websiteUrl,
       social_url: socialUrl,
       contact_email: contactEmail,
+      location_postcode: geo.postcode,
+      latitude: geo.latitude,
+      longitude: geo.longitude,
+      location_name: locationName,
       created_by: user.id,
     })
     .select("id, slug")
