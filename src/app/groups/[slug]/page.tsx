@@ -286,8 +286,5 @@ function MemberChip({ member }: { member: GroupMember }) {
     </div>
   );
 
-  if (member.username) {
-    return <Link href={`/profile/${member.username}`}>{inner}</Link>;
-  }
-  return inner;
+  return <Link href={`/profile/${member.username ?? member.user_id}`}>{inner}</Link>;
 }
