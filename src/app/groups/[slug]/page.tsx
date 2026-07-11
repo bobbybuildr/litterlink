@@ -153,10 +153,10 @@ export default async function GroupPage({ params }: Props) {
                 href={group.website_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
+                className="flex w-full min-w-0 items-center gap-1.5 overflow-hidden rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100"
               >
                 <Globe className="h-3.5 w-3.5" />
-                {group.website_url}
+                <span className="min-w-0 truncate">{group.website_url}</span>
               </a>
             )}
             {group.social_url && (
@@ -164,19 +164,21 @@ export default async function GroupPage({ params }: Props) {
                 href={group.social_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
+                className="flex w-full min-w-0 items-center gap-1.5 overflow-hidden rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100"
               >
-                <Share2 className="h-3.5 w-3.5" />
-                {group.social_url}
+                <svg viewBox="0 0 24 24" fill="currentColor" className="h-3.5 w-3.5" aria-hidden="true">
+                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                </svg>
+                <span className="min-w-0 truncate">{group.social_url}</span>
               </a>
             )}
             {group.contact_email && (
               <a
                 href={`mailto:${group.contact_email}`}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
+                className="flex w-full min-w-0 items-center gap-1.5 overflow-hidden rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100"
               >
                 <Mail className="h-3.5 w-3.5" />
-                {group.contact_email}
+                <span className="min-w-0 truncate">{group.contact_email}</span>
               </a>
             )}
           </div>

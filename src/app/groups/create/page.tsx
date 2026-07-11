@@ -164,7 +164,7 @@ export default async function CreateGroupPage({ searchParams }: Props) {
           />
         </Field>
 
-        <Field label="Primary social media page" htmlFor="social_url" hint="Optional">
+        <Field label="Facebook page" htmlFor="social_url" hint="Optional">
           <UrlInput
             id="social_url"
             name="social_url"

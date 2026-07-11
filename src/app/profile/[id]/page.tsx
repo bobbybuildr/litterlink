@@ -328,7 +328,7 @@ export default async function PublicProfilePage({ params }: Props) {
               <Link
                 key={group.id}
                 href={`/groups/${group.slug}`}
-                className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
+                className="flex min-w-0 items-center gap-3 overflow-hidden rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
               >
                 {group.logo_url ? (
                   <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg">
@@ -345,10 +345,10 @@ export default async function PublicProfilePage({ params }: Props) {
                     {group.name.charAt(0).toUpperCase()}
                   </div>
                 )}
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-gray-900">{group.name}</p>
+                <div className="min-w-0 flex-1 overflow-hidden">
+                  <p className="text-sm font-semibold text-gray-900 break-words whitespace-normal">{group.name}</p>
                   {group.description && (
-                    <p className="truncate text-xs text-gray-400">{group.description}</p>
+                    <p className="mt-0.5 line-clamp-3 text-xs text-gray-400 break-words whitespace-normal">{group.description}</p>
                   )}
                 </div>
               </Link>

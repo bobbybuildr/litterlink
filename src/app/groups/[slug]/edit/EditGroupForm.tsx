@@ -145,7 +145,7 @@ export function EditGroupForm({
       </Field>
 
       <Field
-        label="Primary social media page"
+        label="Facebook page"
         htmlFor="social_url"
         hint="Optional"
       >
