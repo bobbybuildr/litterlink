@@ -152,6 +152,8 @@ export async function createEvent(
       location_postcode: geo.postcode,
       latitude: geo.latitude,
       longitude: geo.longitude,
+      location_outcode: geo.outcode,
+      location_admin_district: geo.adminDistrict,
       address_label: addressLabel,
       starts_at: startsAtUTC,
       ends_at: endsAtUTC,

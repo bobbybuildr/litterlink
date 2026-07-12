@@ -7,6 +7,8 @@ export interface GeoResult {
   latitude: number;
   longitude: number;
   postcode: string;
+  outcode: string;
+  adminDistrict: string | null;
 }
 
 export async function geocodePostcode(
@@ -32,6 +34,8 @@ export async function geocodePostcode(
       latitude: json.result.latitude,
       longitude: json.result.longitude,
       postcode: json.result.postcode,
+      outcode: json.result.outcode,
+      adminDistrict: json.result.admin_district ?? null,
     };
   } catch {
     return null;

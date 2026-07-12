@@ -12,8 +12,8 @@ export const metadata: Metadata = {
     "See the collective impact LitterLink volunteers are making across the UK — bags collected, hours completed, and more.",
 };
 
-type Period = "month" | "year" | "90d" | "all";
-const PERIOD_VALUES: Period[] = ["month", "year", "90d", "all"];
+type Period = "month" | "lastMonth" | "year" | "90d" | "all";
+const PERIOD_VALUES: Period[] = ["month", "lastMonth", "year", "90d", "all"];
 
 function isPeriod(value: string | undefined): value is Period {
   return !!value && (PERIOD_VALUES as string[]).includes(value);
@@ -22,6 +22,7 @@ function isPeriod(value: string | undefined): value is Period {
 function getPeriodOptions(): Array<{ value: Period; label: string }> {
   return [
     { value: "month", label: "This month" },
+    { value: "lastMonth", label: "Last month" },
     // Redundant while the app's launch year is still the current year — same data as "All time".
     // { value: "year", label: String(new Date().getFullYear()) },
     { value: "90d", label: "Last 90 days" },
@@ -29,17 +30,22 @@ function getPeriodOptions(): Array<{ value: Period; label: string }> {
   ];
 }
 
-function getPeriodStart(period: Period): string | null {
+function getPeriodRange(period: Period): { start: string | null; end: string | null } {
   const now = new Date();
   switch (period) {
     case "month":
-      return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      return { start: new Date(now.getFullYear(), now.getMonth(), 1).toISOString(), end: null };
+    case "lastMonth": {
+      const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const end = new Date(now.getFullYear(), now.getMonth(), 1);
+      return { start: start.toISOString(), end: end.toISOString() };
+    }
     case "year":
-      return new Date(now.getFullYear(), 0, 1).toISOString();
+      return { start: new Date(now.getFullYear(), 0, 1).toISOString(), end: null };
     case "90d":
-      return new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString();
+      return { start: new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString(), end: null };
     case "all":
-      return null;
+      return { start: null, end: null };
   }
 }
 
@@ -47,6 +53,12 @@ function getPeriodDescription(period: Period): string {
   switch (period) {
     case "month":
       return "this month";
+    case "lastMonth": {
+      const lastMonthDate = new Date();
+      lastMonthDate.setDate(1);
+      lastMonthDate.setMonth(lastMonthDate.getMonth() - 1);
+      return `in ${lastMonthDate.toLocaleString("en-GB", { month: "long" })}`;
+    }
     case "year":
       return `in ${new Date().getFullYear()}`;
     case "90d":
@@ -56,32 +68,86 @@ function getPeriodDescription(period: Period): string {
   }
 }
 
-async function getImpactData(organisersPeriod: Period) {
+async function getImpactData(
+  organisersPeriod: Period,
+  areasPeriod: Period,
+  statsPeriod: Period,
+  groupsPeriod: Period
+) {
   const supabase = await createClient();
 
-  const thirtyDaysAgo = new Date(
-    Date.now() - 30 * 24 * 60 * 60 * 1000
-  ).toISOString();
-  const organisersPeriodStart = getPeriodStart(organisersPeriod);
+  const organisersPeriodRange = getPeriodRange(organisersPeriod);
+  const areasPeriodRange = getPeriodRange(areasPeriod);
+  const statsPeriodRange = getPeriodRange(statsPeriod);
+  const groupsPeriodRange = getPeriodRange(groupsPeriod);
 
   let organiserEventsQuery = supabase
     .from("events")
     .select("id, organiser_id")
     .eq("status", "completed")
     .not("organiser_id", "is", null);
-  if (organisersPeriodStart) {
-    organiserEventsQuery = organiserEventsQuery.gte("starts_at", organisersPeriodStart);
+  if (organisersPeriodRange.start) {
+    organiserEventsQuery = organiserEventsQuery.gte("starts_at", organisersPeriodRange.start);
+  }
+  if (organisersPeriodRange.end) {
+    organiserEventsQuery = organiserEventsQuery.lt("starts_at", organisersPeriodRange.end);
+  }
+
+  let areaEventsQuery = supabase
+    .from("events")
+    .select("id, location_postcode, location_outcode, location_admin_district")
+    .eq("status", "completed");
+  if (areasPeriodRange.start) {
+    areaEventsQuery = areaEventsQuery.gte("starts_at", areasPeriodRange.start);
+  }
+  if (areasPeriodRange.end) {
+    areaEventsQuery = areaEventsQuery.lt("starts_at", areasPeriodRange.end);
+  }
+
+  let statsEventsQuery = supabase
+    .from("events")
+    .select("id", { count: "exact" })
+    .eq("status", "completed");
+  if (statsPeriodRange.start) {
+    statsEventsQuery = statsEventsQuery.gte("starts_at", statsPeriodRange.start);
+  }
+  if (statsPeriodRange.end) {
+    statsEventsQuery = statsEventsQuery.lt("starts_at", statsPeriodRange.end);
+  }
+
+  let statsParticipantsQuery = supabase
+    .from("event_participants")
+    .select("user_id")
+    .eq("status", "confirmed");
+  if (statsPeriodRange.start) {
+    statsParticipantsQuery = statsParticipantsQuery.gte("joined_at", statsPeriodRange.start);
+  }
+  if (statsPeriodRange.end) {
+    statsParticipantsQuery = statsParticipantsQuery.lt("joined_at", statsPeriodRange.end);
+  }
+
+  let groupEventsQuery = supabase
+    .from("events")
+    .select("id, group_id")
+    .eq("status", "completed")
+    .not("group_id", "is", null);
+  if (groupsPeriodRange.start) {
+    groupEventsQuery = groupEventsQuery.gte("starts_at", groupsPeriodRange.start);
+  }
+  if (groupsPeriodRange.end) {
+    groupEventsQuery = groupEventsQuery.lt("starts_at", groupsPeriodRange.end);
   }
 
   const [
     { count: eventCount },
     { data: statsData },
-    { data: completedEventsData },
     { count: groupCount },
     { count: verifiedOrgCount },
     { count: recentEventCount, data: recentEvents },
     { data: recentParticipants },
     { data: organiserEventsData },
+    { data: areaEventsData },
+    { data: groupEventsData },
   ] = await Promise.all([
     supabase
       .from("events")
@@ -90,27 +156,16 @@ async function getImpactData(organisersPeriod: Period) {
     supabase
       .from("event_stats")
       .select("event_id, bags_collected, actual_attendees, duration_hours, litter_types"),
-    supabase
-      .from("events")
-      .select("id, location_postcode, organiser_id, group_id")
-      .eq("status", "completed")
-      .gte("starts_at", thirtyDaysAgo),
     supabase.from("groups").select("*", { count: "exact", head: true }),
     supabase
       .from("profiles")
       .select("*", { count: "exact", head: true })
       .eq("is_verified_organiser", true),
-    supabase
-      .from("events")
-      .select("id", { count: "exact" })
-      .eq("status", "completed")
-      .gte("starts_at", thirtyDaysAgo),
-    supabase
-      .from("event_participants")
-      .select("user_id")
-      .eq("status", "confirmed")
-      .gte("joined_at", thirtyDaysAgo),
+    statsEventsQuery,
+    statsParticipantsQuery,
     organiserEventsQuery,
+    areaEventsQuery,
+    groupEventsQuery,
   ]);
 
   const totalBags =
@@ -121,7 +176,9 @@ async function getImpactData(organisersPeriod: Period) {
     statsData?.reduce((sum, s) => sum + (s.duration_hours ?? 0), 0) ?? 0
   );
 
-  // Top areas: aggregate by postcode district (outward code = part before the space)
+  // Top areas: aggregate by the resolved local authority district name, so
+  // postcodes sharing one place (e.g. several outcodes within Sandwell) are
+  // combined under a single human-readable label rather than split by outcode.
   const statsByEventId = new Map(
     (statsData ?? []).map((s) => ([
       s.event_id,
@@ -132,9 +189,17 @@ async function getImpactData(organisersPeriod: Period) {
     string,
     { totalBags: number; eventCount: number; volunteerTurnout: number }
   >();
-  type CompletedEvent = { id: string; location_postcode: string; organiser_id: string | null; group_id: string | null };
-  for (const event of (completedEventsData ?? []) as CompletedEvent[]) {
-    const district = event.location_postcode.split(" ")[0].toUpperCase();
+  type AreaEvent = {
+    id: string;
+    location_postcode: string;
+    location_outcode: string | null;
+    location_admin_district: string | null;
+  };
+  for (const event of (areaEventsData ?? []) as AreaEvent[]) {
+    const district =
+      event.location_admin_district ??
+      event.location_outcode ??
+      event.location_postcode.split(" ")[0].toUpperCase();
     const existing = districtMap.get(district) ?? {
       totalBags: 0,
       eventCount: 0,
@@ -213,12 +278,13 @@ async function getImpactData(organisersPeriod: Period) {
       .filter((o) => o.display_name);
   }
 
-  // Most active groups (last 30 days)
+  // Most active groups (selected period)
   const groupMap = new Map<
     string,
     { eventCount: number; totalBags: number }
   >();
-  for (const event of (completedEventsData ?? []) as CompletedEvent[]) {
+  type GroupEvent = { id: string; group_id: string | null };
+  for (const event of (groupEventsData ?? []) as GroupEvent[]) {
     if (!event.group_id) continue;
     const existing = groupMap.get(event.group_id) ?? { eventCount: 0, totalBags: 0 };
     const stats = statsByEventId.get(event.id);
@@ -304,14 +370,43 @@ function formatLitterType(type: string) {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function capitalize(text: string) {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+function buildImpactHref(
+  periods: {
+    orgPeriod: Period;
+    areaPeriod: Period;
+    statsPeriod: Period;
+    groupPeriod: Period;
+  },
+  anchor: string
+) {
+  return `/impact?orgPeriod=${periods.orgPeriod}&areaPeriod=${periods.areaPeriod}&statsPeriod=${periods.statsPeriod}&groupPeriod=${periods.groupPeriod}#${anchor}`;
+}
+
 export default async function ImpactPage({
   searchParams,
 }: {
-  searchParams: Promise<{ orgPeriod?: string }>;
+  searchParams: Promise<{
+    orgPeriod?: string;
+    areaPeriod?: string;
+    statsPeriod?: string;
+    groupPeriod?: string;
+  }>;
 }) {
-  const { orgPeriod } = await searchParams;
+  const {
+    orgPeriod,
+    areaPeriod,
+    statsPeriod: statsPeriodParam,
+    groupPeriod,
+  } = await searchParams;
   const organisersPeriod: Period = isPeriod(orgPeriod) ? orgPeriod : "month";
-  const data = await getImpactData(organisersPeriod);
+  const areasPeriod: Period = isPeriod(areaPeriod) ? areaPeriod : "month";
+  const statsPeriod: Period = isPeriod(statsPeriodParam) ? statsPeriodParam : "month";
+  const groupsPeriod: Period = isPeriod(groupPeriod) ? groupPeriod : "month";
+  const data = await getImpactData(organisersPeriod, areasPeriod, statsPeriod, groupsPeriod);
   const maxLitterCount = data.sortedLitterTypes[0]?.[1] ?? 1;
 
   return (
@@ -366,76 +461,37 @@ export default async function ImpactPage({
         </div>
       </section>
 
-      {/* Litter types */}
-      {data.sortedLitterTypes.length > 0 && (
-        <section className="px-4 py-14">
-          <div className="mx-auto max-w-2xl">
-            <h2 className="mb-2 text-center text-2xl font-bold text-gray-900">
-              What we&apos;re finding
-            </h2>
-            <p className="mb-8 text-center text-sm text-gray-500">
-              Types of litter recorded across completed events
-            </p>
-            <ul className="space-y-4">
-              {data.sortedLitterTypes.map(([type, count]) => (
-                <li key={type}>
-                  <div className="mb-1.5 flex items-center justify-between text-sm">
-                    <span className="font-medium text-gray-800">
-                      {formatLitterType(type)}
-                    </span>
-                    <span className="text-gray-400">
-                      {count} {count === 1 ? "event" : "events"}
-                    </span>
-                  </div>
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
-                    <div
-                      className="h-2 rounded-full bg-brand transition-all"
-                      style={{
-                        width: `${(count / maxLitterCount) * 100}%`,
-                      }}
-                    />
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </section>
-      )}
-
-      {/* Community stats */}
-      <section className="border-t border-gray-200 bg-white px-4 py-14">
-        <div className="mx-auto max-w-3xl">
-          <h2 className="mb-8 text-center text-2xl font-bold text-gray-900">
-            A growing community
-          </h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <CommunityCard
-              icon={Building2}
-              value={data.groupCount.toLocaleString()}
-              label="Active groups"
-              description="Community, school, charity and council groups organising cleanups across the UK."
-            />
-            <CommunityCard
-              icon={BadgeCheck}
-              value={data.verifiedOrgCount.toLocaleString()}
-              label="Verified organisers"
-              description="Trusted organisers approved to run events on LitterLink."
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* Last 30 days */}
-      <section className="border-t border-gray-200 bg-gray-50 px-4 pt-14 pb-4">
+      {/* Recent activity (selected period) */}
+      <section id="recent-activity" className="border-t border-gray-200 bg-gray-50 px-4 pt-14 pb-8">
         <div className="mx-auto max-w-5xl">
           <h2 className="mb-1 text-center text-2xl font-bold text-gray-900">
-            Last 30 days
+            Recent activity
           </h2>
           <p className="mb-6 text-center text-sm text-gray-500">
-            Momentum from the past month
+            Momentum {getPeriodDescription(statsPeriod)}
           </p>
+          <div className="mb-8 flex flex-wrap justify-center gap-2">
+            {getPeriodOptions().map((option) => (
+              <Link
+                key={option.value}
+                href={buildImpactHref(
+                  { orgPeriod: organisersPeriod, areaPeriod: areasPeriod, statsPeriod: option.value, groupPeriod: groupsPeriod },
+                  "recent-activity"
+                )}
+                scroll={false}
+                className={cn(
+                  "rounded-full px-4 py-1.5 text-xs font-semibold transition-colors",
+                  statsPeriod === option.value
+                    ? "bg-brand text-white"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                )}
+              >
+                {option.label}
+              </Link>
+            ))}
+          </div>
           <p className="mx-auto mb-8 max-w-xl rounded-xl border border-green-100 bg-green-50 px-5 py-3 text-center text-sm font-medium text-green-800">
-            In the last 30 days,{" "}
+            {capitalize(getPeriodDescription(statsPeriod))},{" "}
             <span className="font-bold">{data.recentBags.toLocaleString()} bag{data.recentBags !== 1 ? "s" : ""}</span>{" "}
             {data.recentBags !== 1 ? "were" : "was"} removed across{" "}
             <span className="font-bold">{data.recentEventCount.toLocaleString()} event{data.recentEventCount !== 1 ? "s" : ""}</span>.
@@ -464,18 +520,41 @@ export default async function ImpactPage({
         </div>
       </section>
 
-      {/* Top areas (last 30 days) */}
-      {data.topAreas.length > 0 && (
-        <section className="px-4 pb-14 pt-1">
-          <div className="mx-auto max-w-2xl">
-            <p className="mb-8 text-center text-sm text-gray-500">
-              Postcode districts leading the way on litter-picking in the last 30 days
-            </p>
+      {/* Top areas (selected period) */}
+      <section id="top-areas" className="px-4 pb-8 pt-1">
+        <div className="mx-auto max-w-2xl">
+          <h2 className="mb-2 text-center text-2xl font-bold text-gray-900">
+            Top areas
+          </h2>
+          <p className="mb-6 text-center text-sm text-gray-500">
+            Areas leading the way on litter-picking {getPeriodDescription(areasPeriod)}
+          </p>
+          <div className="mb-8 flex flex-wrap justify-center gap-2">
+            {getPeriodOptions().map((option) => (
+              <Link
+                key={option.value}
+                href={buildImpactHref(
+                  { orgPeriod: organisersPeriod, areaPeriod: option.value, statsPeriod, groupPeriod: groupsPeriod },
+                  "top-areas"
+                )}
+                scroll={false}
+                className={cn(
+                  "rounded-full px-4 py-1.5 text-xs font-semibold transition-colors",
+                  areasPeriod === option.value
+                    ? "bg-brand text-white"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                )}
+              >
+                {option.label}
+              </Link>
+            ))}
+          </div>
+          {data.topAreas.length > 0 ? (
             <div className="overflow-hidden rounded-xl border border-gray-100">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-100 bg-gray-50 text-left text-xs font-semibold uppercase tracking-wider text-gray-400">
-                    <th className="px-4 py-3">District</th>
+                    <th className="px-4 py-3">Area</th>
                     <th className="px-4 py-3 text-right">Bags</th>
                     <th className="px-4 py-3 text-right">Events</th>
                   </tr>
@@ -502,12 +581,16 @@ export default async function ImpactPage({
                 </tbody>
               </table>
             </div>
-          </div>
-        </section>
-      )}
+          ) : (
+            <p className="rounded-xl border border-gray-100 bg-white px-4 py-6 text-center text-sm text-gray-500">
+              No areas have completed events {getPeriodDescription(areasPeriod)} yet.
+            </p>
+          )}
+        </div>
+      </section>
 
       {/* Top organisers (selected period) */}
-      <section id="top-organisers" className="px-4 pt-1 pb-14">
+      <section id="top-organisers" className="px-4 pt-1 pb-8">
         <div className="mx-auto max-w-2xl">
           <h2 className="mb-2 text-center text-2xl font-bold text-gray-900">
             Top organisers
@@ -519,7 +602,10 @@ export default async function ImpactPage({
             {getPeriodOptions().map((option) => (
               <Link
                 key={option.value}
-                href={`/impact?orgPeriod=${option.value}#top-organisers`}
+                href={buildImpactHref(
+                  { orgPeriod: option.value, areaPeriod: areasPeriod, statsPeriod, groupPeriod: groupsPeriod },
+                  "top-organisers"
+                )}
                 scroll={false}
                 className={cn(
                   "rounded-full px-4 py-1.5 text-xs font-semibold transition-colors",
@@ -588,16 +674,36 @@ export default async function ImpactPage({
         </div>
       </section>
 
-      {/* Most active groups (last 30 days) */}
-      {data.topGroups.length > 0 && (
-        <section className="border-t border-gray-200 px-4 py-14">
-          <div className="mx-auto max-w-2xl">
-            <h2 className="mb-2 text-center text-2xl font-bold text-gray-900">
-              Most active groups
-            </h2>
-            <p className="mb-8 text-center text-sm text-gray-500">
-              Groups running the most events over the last 30 days
-            </p>
+      {/* Most active groups (selected period) */}
+      <section id="top-groups" className="px-4 pt-1 pb-14">
+        <div className="mx-auto max-w-2xl">
+          <h2 className="mb-2 text-center text-2xl font-bold text-gray-900">
+            Most active groups
+          </h2>
+          <p className="mb-6 text-center text-sm text-gray-500">
+            Groups running the most events {getPeriodDescription(groupsPeriod)}
+          </p>
+          <div className="mb-8 flex flex-wrap justify-center gap-2">
+            {getPeriodOptions().map((option) => (
+              <Link
+                key={option.value}
+                href={buildImpactHref(
+                  { orgPeriod: organisersPeriod, areaPeriod: areasPeriod, statsPeriod, groupPeriod: option.value },
+                  "top-groups"
+                )}
+                scroll={false}
+                className={cn(
+                  "rounded-full px-4 py-1.5 text-xs font-semibold transition-colors",
+                  groupsPeriod === option.value
+                    ? "bg-brand text-white"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                )}
+              >
+                {option.label}
+              </Link>
+            ))}
+          </div>
+          {data.topGroups.length > 0 ? (
             <div className="overflow-hidden rounded-xl border border-gray-100">
               <table className="w-full text-sm">
                 <thead>
@@ -634,9 +740,73 @@ export default async function ImpactPage({
                 </tbody>
               </table>
             </div>
+          ) : (
+            <p className="rounded-xl border border-gray-100 bg-white px-4 py-6 text-center text-sm text-gray-500">
+              No groups have completed events {getPeriodDescription(groupsPeriod)} yet.
+            </p>
+          )}
+        </div>
+      </section>
+
+      {/* Community stats */}
+      <section className="border-t border-gray-200 bg-white px-4 py-14">
+        <div className="mx-auto max-w-3xl">
+          <h2 className="mb-8 text-center text-2xl font-bold text-gray-900">
+            A growing community
+          </h2>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <CommunityCard
+              icon={Building2}
+              value={data.groupCount.toLocaleString()}
+              label="Active groups"
+              description="Community, school, charity and council groups organising cleanups across the UK."
+            />
+            <CommunityCard
+              icon={BadgeCheck}
+              value={data.verifiedOrgCount.toLocaleString()}
+              label="Verified organisers"
+              description="Trusted organisers approved to run events on LitterLink."
+            />
+          </div>
+        </div>
+      </section>
+      
+      {/* Litter types */}
+      {data.sortedLitterTypes.length > 0 && (
+        <section className="px-4 py-14">
+          <div className="mx-auto max-w-2xl">
+            <h2 className="mb-2 text-center text-2xl font-bold text-gray-900">
+              What we&apos;re finding
+            </h2>
+            <p className="mb-8 text-center text-sm text-gray-500">
+              Types of litter recorded across completed events
+            </p>
+            <ul className="space-y-4">
+              {data.sortedLitterTypes.map(([type, count]) => (
+                <li key={type}>
+                  <div className="mb-1.5 flex items-center justify-between text-sm">
+                    <span className="font-medium text-gray-800">
+                      {formatLitterType(type)}
+                    </span>
+                    <span className="text-gray-400">
+                      {count} {count === 1 ? "event" : "events"}
+                    </span>
+                  </div>
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
+                    <div
+                      className="h-2 rounded-full bg-brand transition-all"
+                      style={{
+                        width: `${(count / maxLitterCount) * 100}%`,
+                      }}
+                    />
+                  </div>
+                </li>
+              ))}
+            </ul>
           </div>
         </section>
       )}
+
 
       {/* CTA */}
       <section className="bg-brand px-4 py-16 text-center text-white">

@@ -46,8 +46,10 @@ Auto-created on sign-up via a `on_auth_user_created` trigger (reads `raw_user_me
 | `updated_at` | TIMESTAMPTZ | Auto-updated by trigger on every UPDATE |
 | `reschedule_notified_at` | TIMESTAMPTZ \| null | Last time participants were emailed about a datetime/location change |
 | `stats_reminder_sent_at` | TIMESTAMPTZ \| null | Set to `now()` when the stats-reminder cron email is dispatched; NULL means not yet sent |
+| `location_outcode` | TEXT \| null | Postcode outward code / district (e.g. `SW1A`), returned directly by `postcodes.io` as `outcode`. Populated on create/edit. |
+| `location_admin_district` | TEXT \| null | Human-readable local authority / district name from `postcodes.io` (`admin_district`). Populated on create/edit; null if postcodes.io has no admin_district for that postcode. |
 
-**Indexes:** `organiser_id`, `group_id`, `(status, starts_at)`, `(latitude, longitude)`
+**Indexes:** `organiser_id`, `group_id`, `(status, starts_at)`, `(latitude, longitude)`, `location_outcode`
 
 **Constraint:** `organiser_contact_details IS NULL OR organiser_id IS NOT NULL` — contact details are cleared if the organiser deletes their account
 

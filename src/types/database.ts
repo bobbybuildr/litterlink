@@ -82,6 +82,8 @@ export interface Database {
           content_updated_at: string | null;
           reschedule_notified_at: string | null;
           stats_reminder_sent_at: string | null;
+          location_outcode: string | null;
+          location_admin_district: string | null;
         };
         Insert: {
           id?: string;
@@ -103,6 +105,8 @@ export interface Database {
           content_updated_at?: string | null;
           reschedule_notified_at?: string | null;
           stats_reminder_sent_at?: string | null;
+          location_outcode?: string | null;
+          location_admin_district?: string | null;
         };
         Update: {
           id?: string;
@@ -124,6 +128,8 @@ export interface Database {
           content_updated_at?: string | null;
           reschedule_notified_at?: string | null;
           stats_reminder_sent_at?: string | null;
+          location_outcode?: string | null;
+          location_admin_district?: string | null;
         };
         Relationships: [];
       };

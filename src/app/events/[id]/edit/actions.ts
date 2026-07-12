@@ -72,7 +72,7 @@ export async function updateEvent(
   const { data: existing, error: fetchError } = await supabase
     .from("events")
     .select(
-      "organiser_id, status, starts_at, ends_at, location_postcode, address_label, latitude, longitude, reschedule_notified_at"
+      "organiser_id, status, starts_at, ends_at, location_postcode, address_label, latitude, longitude, reschedule_notified_at, location_outcode, location_admin_district"
     )
     .eq("id", eventId)
     .single();
@@ -176,6 +176,8 @@ export async function updateEvent(
   // Re-geocode only if postcode changed
   let lat = existing.latitude;
   let lng = existing.longitude;
+  let outcode = existing.location_outcode;
+  let adminDistrict = existing.location_admin_district;
   if (postcode !== existing.location_postcode) {
     const geo = await geocodePostcode(postcode);
     if (!geo)
@@ -185,6 +187,8 @@ export async function updateEvent(
       );
     lat = geo.latitude;
     lng = geo.longitude;
+    outcode = geo.outcode;
+    adminDistrict = geo.adminDistrict;
   }
 
   const { error } = await supabase
@@ -199,6 +203,8 @@ export async function updateEvent(
       location_postcode: postcode,
       latitude: lat,
       longitude: lng,
+      location_outcode: outcode,
+      location_admin_district: adminDistrict,
       organiser_contact_details: organiserContactDetails,
       content_updated_at: new Date().toISOString(),
     })
