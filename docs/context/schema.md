@@ -222,7 +222,7 @@ Returns distance in kilometres using the Haversine formula. IMMUTABLE. Used for 
 | `event_participants` | Own rows + organiser sees all for their events; confirmed rows public | Self |
 | `event_stats` | Organiser only | Organiser only |
 | `event_photos` | Public | Authenticated upload; owner delete |
-| `groups` | Public | Verified organiser (creator) only |
+| `groups` | Public | Verified organiser (creator) only; delete also allowed for admins |
 | `group_members` | Public | Insert (self only, `role = 'member'` enforced by RLS); Delete (self, blocked for creators by trigger); Update role: group organiser or admin |
 | `organiser_applications` | Owner sees own; admin sees all | Owner insert; admin update |
 | `email_preferences` | Owner only | Owner only |

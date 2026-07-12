@@ -128,7 +128,7 @@ export default async function PublicProfilePage({ params }: Props) {
   const [
     { data: attendedStatsRows },
     { data: completedStatsRows },
-    { data: groups },
+    { data: groupMembershipsRaw },
   ] = await Promise.all([
     // Bags collected from completed events they attended
     completedJoinedEvents.length > 0
@@ -155,14 +155,30 @@ export default async function PublicProfilePage({ params }: Props) {
         : Promise.resolve({ data: [] as { duration_hours: number | null }[], error: null });
     })(),
 
-    // Groups created by this person
+    // Groups this person is a member of (with membership role)
     supabase
-      .from("groups")
-      .select("id, name, slug, description, logo_url, group_type")
-      .eq("created_by", profile.id)
-      .order("created_at", { ascending: false })
+      .from("group_members")
+      .select("role, groups(id, name, slug, description, logo_url, group_type)")
+      .eq("user_id", profile.id)
+      .order("joined_at", { ascending: false })
       .limit(6),
   ]);
+
+  const groups = ((groupMembershipsRaw ?? []) as {
+    role: "member" | "organiser" | null;
+    groups: {
+      id: string;
+      name: string;
+      slug: string;
+      description: string | null;
+      logo_url: string | null;
+      group_type: string;
+    } | null;
+  }[])
+    .flatMap((membership) => {
+      if (!membership.groups) return [];
+      return [{ ...membership.groups, role: membership.role ?? "member" }];
+    });
 
   const upcoming = (organisedEvents ?? []).filter(
     (e) => e.status === "published" && e.starts_at >= now
@@ -346,7 +362,12 @@ export default async function PublicProfilePage({ params }: Props) {
                   </div>
                 )}
                 <div className="min-w-0 flex-1 overflow-hidden">
-                  <p className="text-sm font-semibold text-gray-900 break-words whitespace-normal">{group.name}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-semibold text-gray-900 break-words whitespace-normal">{group.name}</p>
+                    <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gray-600">
+                      {group.role === "organiser" ? "Organiser" : "Member"}
+                    </span>
+                  </div>
                   {group.description && (
                     <p className="mt-0.5 line-clamp-3 text-xs text-gray-400 break-words whitespace-normal">{group.description}</p>
                   )}

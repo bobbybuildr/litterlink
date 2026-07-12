@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 import { EventCard } from "@/components/events/EventCard";
 import type { EventWithCount, GroupRow } from "@/lib/events";
 
+type DashboardGroup = GroupRow & { role: "member" | "organiser" };
+
 export const metadata: Metadata = { title: "My Events" };
 
 export default async function DashboardPage() {
@@ -55,14 +57,21 @@ export default async function DashboardPage() {
 
   const organisedEvents = (organisedEventsRaw ?? []) as EventWithCount[];
 
-  // Fetch groups the user has created
-  const { data: groupsRaw } = await supabase
-    .from("groups")
-    .select("*")
-    .eq("created_by", user.id)
-    .order("created_at", { ascending: false });
+  // Fetch groups the user belongs to, including role in each group
+  const { data: groupMembershipsRaw } = await supabase
+    .from("group_members")
+    .select("role, joined_at, groups(*)")
+    .eq("user_id", user.id)
+    .order("joined_at", { ascending: false });
 
-  const groups = (groupsRaw ?? []) as GroupRow[];
+  const groups = ((groupMembershipsRaw ?? []) as {
+    role: "member" | "organiser" | null;
+    groups: GroupRow | null;
+  }[])
+    .flatMap((membership) => {
+      if (!membership.groups) return [];
+      return [{ ...membership.groups, role: membership.role ?? "member" }];
+    }) as DashboardGroup[];
 
   // Personal impact totals from completed events
   const completedJoinedIds = joinedEvents
@@ -156,11 +165,11 @@ export default async function DashboardPage() {
             </Link>
             {profile?.is_verified_organiser && (
               <Link
-          href="/groups/create"
-          className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-dark transition-colors"
-              >
-          <Users className="h-4 w-4" />
-          Create group
+                href="/groups/create"
+                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-dark transition-colors"
+                    >
+                <Users className="h-4 w-4" />
+                Create group
               </Link>
             )}
           </div>
@@ -247,7 +256,7 @@ export default async function DashboardPage() {
 </section>
 
       {/* Your groups */}
-      {profile?.is_verified_organiser && <div className="mb-10">
+      <div className="mb-10">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-900">
             Your groups
@@ -256,7 +265,7 @@ export default async function DashboardPage() {
           {profile?.is_verified_organiser && (
             <Link
               href="/groups/create"
-              className="text-sm font-medium text-brand hover:underline"
+              className="text-sm font-medium text-accent hover:underline"
             >
               + New group
             </Link>
@@ -264,15 +273,13 @@ export default async function DashboardPage() {
         </div>
         {groups.length === 0 ? (
           <div className="rounded-xl border border-dashed border-gray-300 bg-white p-8 text-center">
-            <p className="text-sm text-gray-500">You haven&apos;t created any groups yet.</p>
-            {profile?.is_verified_organiser && (
-              <Link
-                href="/groups/create"
+            <p className="text-sm text-gray-500">You haven&apos;t joined any groups yet.</p>
+            <Link
+                href="/groups"
                 className="mt-3 inline-block text-sm font-medium text-brand hover:underline"
               >
-                Create a group
+                Discover groups
               </Link>
-            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -281,7 +288,7 @@ export default async function DashboardPage() {
             ))}
           </div>
         )}
-      </div>}
+      </div>
 
       {/* Upcoming events */}
       <Section
@@ -382,7 +389,7 @@ export default async function DashboardPage() {
   );
 }
 
-function GroupCard({ group }: { group: GroupRow }) {
+function GroupCard({ group }: { group: DashboardGroup }) {
   const GROUP_TYPE_LABELS: Record<string, string> = {
     community: "Community",
     school: "School",
@@ -411,8 +418,11 @@ function GroupCard({ group }: { group: GroupRow }) {
         </div>
       )}
       <div className="min-w-0">
-        <span className="inline-block rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500 mb-1">
+        <span className="mr-1 inline-block rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500 mb-1">
           {GROUP_TYPE_LABELS[group.group_type] ?? "Organisation"}
+        </span>
+        <span className="inline-block rounded-full bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent mb-1">
+          {group.role === "organiser" ? "Organiser" : "Member"}
         </span>
         <p className="font-semibold text-gray-900 group-hover:text-brand truncate">
           {group.name}
