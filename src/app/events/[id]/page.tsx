@@ -94,6 +94,16 @@ export default async function EventDetailPage({ params, searchParams }: Props) {
   const isOrganiser = user?.id === event.organiser_id;
   const needsWrapUp = isOrganiser && isPast && !isCompleted && !isCancelled;
 
+  let isAdmin = false;
+  if (user && !isOrganiser) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("is_admin")
+      .eq("id", user.id)
+      .single();
+    isAdmin = !!profile?.is_admin;
+  }
+
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
       {/* Back */}
@@ -429,8 +439,8 @@ export default async function EventDetailPage({ params, searchParams }: Props) {
             </Link>
           )}
 
-          {/* Organiser: cancel event */}
-          {isOrganiser && !isCompleted && !isCancelled && !isPast && (
+          {/* Organiser/admin: cancel event */}
+          {(isOrganiser || isAdmin) && !isCompleted && !isCancelled && !isPast && (
             <CancelEventButton action={async () => { "use server"; await cancelEvent(id); }} />
           )}
 

@@ -218,7 +218,7 @@ Returns distance in kilometres using the Haversine formula. IMMUTABLE. Used for 
 | Table | Read | Write |
 |---|---|---|
 | `profiles` | Public | Owner only; admin can update |
-| `events` | Public (published/completed; organiser sees own drafts) | Organiser only; delete only for drafts |
+| `events` | Public (published/completed; organiser sees own drafts) | Organiser only; delete only for drafts; admins can also update (e.g. cancel) |
 | `event_participants` | Own rows + organiser sees all for their events; confirmed rows public | Self |
 | `event_stats` | Organiser only | Organiser only |
 | `event_photos` | Public | Authenticated upload; owner delete |

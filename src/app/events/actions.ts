@@ -146,7 +146,18 @@ export async function cancelEvent(eventId: string) {
     .single();
 
   if (fetchError || !event) return { error: "Event not found." };
-  if (event.organiser_id !== user.id) return { error: "Not authorised." };
+
+  const isOrganiser = event.organiser_id === user.id;
+  if (!isOrganiser) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("is_admin")
+      .eq("id", user.id)
+      .single();
+
+    if (!profile?.is_admin) return { error: "Not authorised." };
+  }
+
   if (event.status === "cancelled") return { error: "Event is already cancelled." };
   if (event.status === "completed") return { error: "Completed events cannot be cancelled." };
 
