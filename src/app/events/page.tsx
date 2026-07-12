@@ -289,9 +289,3 @@ function FilterSkeleton() {
     </div>
   );
 }
-
-function MapSkeleton() {
-  return (
-    <div className="h-full w-full animate-pulse rounded-xl bg-gray-100" />
-  );
-}

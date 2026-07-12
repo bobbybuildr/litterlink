@@ -295,6 +295,7 @@ export async function sendEventCancelledEmails({
   if (!participants.length) return;
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://litterlink.co.uk";
+  const eventUrl = `${siteUrl}/events/${eventId}`;
   const eventsUrl = `${siteUrl}/events`;
 
   const formatDate = (iso: string) =>
@@ -310,6 +311,10 @@ export async function sendEventCancelledEmails({
       "",
       `We're sorry to let you know that the litter pick "${title}" scheduled`,
       `for ${formatDate(startsAt)} has been cancelled by the organiser.`,
+      "",
+      "View event details:",
+      "",
+      eventUrl,
       "",
       "Browse other upcoming events near you:",
       "",

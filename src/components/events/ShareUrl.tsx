@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Copy, Check, Share2 } from "lucide-react";
 
 interface ShareUrlProps {
@@ -9,12 +9,8 @@ interface ShareUrlProps {
 
 export function ShareUrl({ title }: ShareUrlProps) {
   const [copied, setCopied] = useState(false);
-  const [canShare, setCanShare] = useState(false);
   const url = typeof window !== "undefined" ? window.location.href : "";
-
-  useEffect(() => {
-    setCanShare(typeof navigator !== "undefined" && !!navigator.share);
-  }, []);
+  const canShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
 
   async function handleShare() {
     try {

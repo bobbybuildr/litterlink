@@ -12,12 +12,66 @@ export const metadata: Metadata = {
     "See the collective impact LitterLink volunteers are making across the UK — bags collected, hours completed, and more.",
 };
 
-async function getImpactData() {
+type Period = "month" | "year" | "90d" | "all";
+const PERIOD_VALUES: Period[] = ["month", "year", "90d", "all"];
+
+function isPeriod(value: string | undefined): value is Period {
+  return !!value && (PERIOD_VALUES as string[]).includes(value);
+}
+
+function getPeriodOptions(): Array<{ value: Period; label: string }> {
+  return [
+    { value: "month", label: "This month" },
+    // Redundant while the app's launch year is still the current year — same data as "All time".
+    // { value: "year", label: String(new Date().getFullYear()) },
+    { value: "90d", label: "Last 90 days" },
+    { value: "all", label: "All time" },
+  ];
+}
+
+function getPeriodStart(period: Period): string | null {
+  const now = new Date();
+  switch (period) {
+    case "month":
+      return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    case "year":
+      return new Date(now.getFullYear(), 0, 1).toISOString();
+    case "90d":
+      return new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString();
+    case "all":
+      return null;
+  }
+}
+
+function getPeriodDescription(period: Period): string {
+  switch (period) {
+    case "month":
+      return "this month";
+    case "year":
+      return `in ${new Date().getFullYear()}`;
+    case "90d":
+      return "over the last 90 days";
+    case "all":
+      return "of all time";
+  }
+}
+
+async function getImpactData(organisersPeriod: Period) {
   const supabase = await createClient();
 
   const thirtyDaysAgo = new Date(
     Date.now() - 30 * 24 * 60 * 60 * 1000
   ).toISOString();
+  const organisersPeriodStart = getPeriodStart(organisersPeriod);
+
+  let organiserEventsQuery = supabase
+    .from("events")
+    .select("id, organiser_id")
+    .eq("status", "completed")
+    .not("organiser_id", "is", null);
+  if (organisersPeriodStart) {
+    organiserEventsQuery = organiserEventsQuery.gte("starts_at", organisersPeriodStart);
+  }
 
   const [
     { count: eventCount },
@@ -27,6 +81,7 @@ async function getImpactData() {
     { count: verifiedOrgCount },
     { count: recentEventCount, data: recentEvents },
     { data: recentParticipants },
+    { data: organiserEventsData },
   ] = await Promise.all([
     supabase
       .from("events")
@@ -55,6 +110,7 @@ async function getImpactData() {
       .select("user_id")
       .eq("status", "confirmed")
       .gte("joined_at", thirtyDaysAgo),
+    organiserEventsQuery,
   ]);
 
   const totalBags =
@@ -96,12 +152,13 @@ async function getImpactData() {
     .sort((a, b) => b.totalBags - a.totalBags || b.eventCount - a.eventCount)
     .slice(0, 5);
 
-  // Top organisers (last 30 days)
+  // Top organisers (selected period)
   const organiserMap = new Map<
     string,
     { eventCount: number; totalBags: number; totalAttendees: number }
   >();
-  for (const event of (completedEventsData ?? []) as CompletedEvent[]) {
+  type OrganiserEvent = { id: string; organiser_id: string | null };
+  for (const event of (organiserEventsData ?? []) as OrganiserEvent[]) {
     if (!event.organiser_id) continue;
     const existing = organiserMap.get(event.organiser_id) ?? {
       eventCount: 0,
@@ -247,8 +304,14 @@ function formatLitterType(type: string) {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-export default async function ImpactPage() {
-  const data = await getImpactData();
+export default async function ImpactPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ orgPeriod?: string }>;
+}) {
+  const { orgPeriod } = await searchParams;
+  const organisersPeriod: Period = isPeriod(orgPeriod) ? orgPeriod : "month";
+  const data = await getImpactData(organisersPeriod);
   const maxLitterCount = data.sortedLitterTypes[0]?.[1] ?? 1;
 
   return (
@@ -443,16 +506,33 @@ export default async function ImpactPage() {
         </section>
       )}
 
-      {/* Top organisers (last 30 days) */}
-      {data.topOrganisers.length > 0 && (
-        <section className="px-4 pt-1 pb-14">
-          <div className="mx-auto max-w-2xl">
-            <h2 className="mb-2 text-center text-2xl font-bold text-gray-900">
-              Top organisers
-            </h2>
-            <p className="mb-8 text-center text-sm text-gray-500">
-              Most active event hosts over the last 30 days
-            </p>
+      {/* Top organisers (selected period) */}
+      <section id="top-organisers" className="px-4 pt-1 pb-14">
+        <div className="mx-auto max-w-2xl">
+          <h2 className="mb-2 text-center text-2xl font-bold text-gray-900">
+            Top organisers
+          </h2>
+          <p className="mb-6 text-center text-sm text-gray-500">
+            Most active event hosts {getPeriodDescription(organisersPeriod)}
+          </p>
+          <div className="mb-8 flex flex-wrap justify-center gap-2">
+            {getPeriodOptions().map((option) => (
+              <Link
+                key={option.value}
+                href={`/impact?orgPeriod=${option.value}#top-organisers`}
+                scroll={false}
+                className={cn(
+                  "rounded-full px-4 py-1.5 text-xs font-semibold transition-colors",
+                  organisersPeriod === option.value
+                    ? "bg-brand text-white"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                )}
+              >
+                {option.label}
+              </Link>
+            ))}
+          </div>
+          {data.topOrganisers.length > 0 ? (
             <ul className="space-y-3">
               {data.topOrganisers.map((org, i) => (
                 <li
@@ -500,12 +580,16 @@ export default async function ImpactPage() {
                 </li>
               ))}
             </ul>
-          </div>
-        </section>
-      )}
+          ) : (
+            <p className="rounded-xl border border-gray-100 bg-white px-4 py-6 text-center text-sm text-gray-500">
+              No organisers have completed events {getPeriodDescription(organisersPeriod)} yet.
+            </p>
+          )}
+        </div>
+      </section>
 
-      {/* Most active groups (last 30 days) — TODO: uncomment when groups work is complete */}
-      {/* {data.topGroups.length > 0 && (
+      {/* Most active groups (last 30 days) */}
+      {data.topGroups.length > 0 && (
         <section className="border-t border-gray-200 px-4 py-14">
           <div className="mx-auto max-w-2xl">
             <h2 className="mb-2 text-center text-2xl font-bold text-gray-900">
@@ -552,7 +636,7 @@ export default async function ImpactPage() {
             </div>
           </div>
         </section>
-      )} */}
+      )}
 
       {/* CTA */}
       <section className="bg-brand px-4 py-16 text-center text-white">

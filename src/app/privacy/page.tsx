@@ -194,7 +194,7 @@ export default function PrivacyPage() {
             <li><strong>Event and group content:</strong> events, groups, and post-event impact statistics are preserved after account deletion for community record-keeping. Your personal link to them is severed — the organiser or creator field is cleared and any organiser contact details are removed — so the retained data is no longer associated with you.</li>
             <li><strong>Media files:</strong> your avatar and any event photos you uploaded are deleted from storage when you delete your account. Group logos are retained with the group record.</li>
             <li><strong>Organiser application data:</strong> deleted as part of account deletion, as it is linked to your profile.</li>
-            <li><strong>Technical and analytics data:</strong> according to our providers' retention settings and only for as long as reasonably necessary for security and service improvement.</li>
+            <li><strong>Technical and analytics data:</strong> according to our providers&apos; retention settings and only for as long as reasonably necessary for security and service improvement.</li>
           </PolicyList>
         </PolicySection>
 
@@ -220,7 +220,7 @@ export default function PrivacyPage() {
             <li>object to processing based on legitimate interests;</li>
             <li>receive a copy of certain personal data in a portable format;</li>
             <li>withdraw consent where processing relies on consent — marketing email preferences can be updated at any time on your <Link href="/profile" className="font-medium text-brand hover:underline">profile page</Link>; and</li>
-            <li>complain to the UK Information Commissioner's Office or your local data protection authority.</li>
+            <li>complain to the UK Information Commissioner&apos;s Office or your local data protection authority.</li>
           </PolicyList>
           <p>
             For any other rights requests, email <a href="mailto:hello@litterlink.co.uk" className="font-medium text-brand hover:underline">hello@litterlink.co.uk</a>. We may

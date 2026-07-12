@@ -145,9 +145,12 @@ export async function updateProfile(
  *       (events/groups/stats are preserved for community record-keeping)
  */
 export async function deleteAccount(
-  _prev: ProfileState,
-  _formData: FormData,
+  prev: ProfileState,
+  formData: FormData,
 ): Promise<ProfileState> {
+  void prev;
+  void formData;
+
   const supabase = await createClient();
   const {
     data: { user },

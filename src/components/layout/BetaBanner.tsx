@@ -1,26 +1,22 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const STORAGE_KEY = "beta-banner-dismissed";
 
 export function BetaBanner({ className }: { className?: string }) {
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    if (!sessionStorage.getItem(STORAGE_KEY)) {
-      setVisible(true);
-    }
-  }, []);
+  const [dismissed, setDismissed] = useState(false);
+  const previouslyDismissed =
+    typeof window !== "undefined" && !!window.sessionStorage.getItem(STORAGE_KEY);
 
   function dismiss() {
     sessionStorage.setItem(STORAGE_KEY, "1");
-    setVisible(false);
+    setDismissed(true);
   }
 
-  if (!visible) return null;
+  if (dismissed || previouslyDismissed) return null;
 
   return (
     <div

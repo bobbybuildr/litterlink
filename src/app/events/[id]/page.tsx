@@ -89,8 +89,9 @@ export default async function EventDetailPage({ params, searchParams }: Props) {
     url: `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/event-photos/${p.storage_path}`,
   }));
 
-  const isPast = new Date(event.starts_at) < new Date();
-  const isNew = Date.now() - new Date(event.created_at).getTime() < 48 * 60 * 60 * 1000;
+  const now = new Date();
+  const isPast = new Date(event.starts_at) < now;
+  const isNew = now.getTime() - new Date(event.created_at).getTime() < 48 * 60 * 60 * 1000;
   const isOrganiser = user?.id === event.organiser_id;
   const needsWrapUp = isOrganiser && isPast && !isCompleted && !isCancelled;
 

@@ -184,7 +184,7 @@ export default async function PublicProfilePage({ params }: Props) {
     (e) => e.status === "published" && e.starts_at >= now
   ) as EventWithCount[];
 
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const thirtyDaysAgo = new Date(new Date(now).getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
   const recentlyAttended = joinedEvents.filter(
     (e) => e.starts_at >= thirtyDaysAgo && e.starts_at <= now
   );

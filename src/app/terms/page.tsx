@@ -256,7 +256,7 @@ export default function TermsPage() {
 
         <TermsSection title="13. Availability, disclaimers, and liability">
           <p>
-            LitterLink is provided on an "as is" and "as available" basis. We
+            LitterLink is provided on an &quot;as is&quot; and &quot;as available&quot; basis. We
             do not promise that the service will always be uninterrupted,
             secure, error-free, or suitable for every purpose.
           </p>
@@ -286,7 +286,7 @@ export default function TermsPage() {
           <p>
             We may update these terms from time to time to reflect changes to
             the service, applicable law, or our operating practices. When we do
-            so, we will update the "Last updated" date on this page and may
+            so, we will update the &quot;Last updated&quot; date on this page and may
             take additional steps to notify users where appropriate.
           </p>
           <p>

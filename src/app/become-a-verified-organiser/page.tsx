@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ApplicationForm } from "./ApplicationForm";
@@ -89,12 +90,12 @@ export default async function BecomeAnOrganiserPage({ searchParams }: Props) {
             {statusMessages[existingApp.status].body}
           </p>
           {existingApp.status === "approved" && (
-            <a
+            <Link
               href="/events/create"
               className="mt-3 inline-block rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white hover:bg-green-800 transition-colors"
             >
               Create an event
-            </a>
+            </Link>
           )}
         </div>
       ) : (

@@ -61,6 +61,9 @@ export function EventCard({ event, className, backHref }: EventCardProps) {
   const isMuted = state !== "joinable";
   const isCompleted = event.status === "completed";
   const isVerifiedOrganiser = event.organiser_is_verified;
+  const isNew =
+    new Date().getTime() - new Date(event.created_at).getTime() <
+    48 * 60 * 60 * 1000;
 
   const href = backHref
     ? `/events/${event.id}?back=${encodeURIComponent(backHref)}`
@@ -128,7 +131,7 @@ export function EventCard({ event, className, backHref }: EventCardProps) {
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
-        {Date.now() - new Date(event.created_at).getTime() < 48 * 60 * 60 * 1000 && (
+        {isNew && (
           <span className="inline-flex w-fit items-center rounded-lg bg-accent/10 px-3 py-1 text-xs font-medium text-accent">
             New
           </span>
