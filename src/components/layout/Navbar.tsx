@@ -3,6 +3,7 @@ import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { NavLinks } from "@/components/layout/NavLinks";
 import { AvatarDropdown } from "@/components/layout/AvatarDropdown";
+import { NavbarMobileMenu } from "@/components/layout/NavbarMobileMenu";
 import { CalendarPlus } from "lucide-react";
 
 export async function Navbar() {
@@ -41,10 +42,11 @@ export async function Navbar() {
         </Link>
 
         <div className="flex items-center gap-4">
-          <NavLinks className="flex" />
+          <NavLinks className="hidden sm:flex" />
 
           {user ? (
             <div className="flex items-center gap-3">
+              <NavbarMobileMenu isAuthenticated />
               <Link
                 href="/events/create"
                 className="hidden sm:inline-flex items-center gap-2 rounded-lg bg-brand px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-dark transition-colors"
@@ -60,15 +62,16 @@ export async function Navbar() {
             </div>
           ) : (
             <div className="flex items-center gap-2">
+              <NavbarMobileMenu isAuthenticated={false} />
               <Link
                 href="/sign-in"
-                className="rounded-lg bg-brand px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-dark transition-colors"
+                className="hidden sm:inline-flex rounded-lg bg-brand px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-dark transition-colors"
               >
                 Sign in
               </Link>
               <Link
                 href="/sign-up"
-                className="hidden sm:block rounded-lg border border-brand px-3 py-1.5 text-sm font-medium text-brand hover:bg-brand/5 transition-colors"
+                className="hidden sm:inline-flex rounded-lg border border-brand px-3 py-1.5 text-sm font-medium text-brand hover:bg-brand/5 transition-colors"
               >
                 Sign up
               </Link>

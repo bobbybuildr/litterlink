@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { geocodePostcode } from "@/lib/geocode";
 import { sanitizeText } from "@/lib/sanitize";
+import { sendGroupCreatedEmail } from "@/lib/email";
 
 const LOCATION_NAME_MAX = 100;
 
@@ -29,7 +30,7 @@ export async function createGroup(formData: FormData) {
   // Verify the user is a verified organiser
   const { data: profile } = await supabase
     .from("profiles")
-    .select("is_verified_organiser")
+    .select("is_verified_organiser, display_name")
     .eq("id", user.id)
     .single();
 
@@ -160,6 +161,15 @@ export async function createGroup(formData: FormData) {
         await supabase.from("groups").update({ logo_url: publicUrl }).eq("id", group.id);
       }
     }
+  }
+
+  if (user.email) {
+    await sendGroupCreatedEmail({
+      creatorEmail: user.email,
+      creatorName: profile?.display_name ?? null,
+      groupName: name,
+      groupSlug: group.slug,
+    });
   }
 
   redirect(`/groups/create?created=${encodeURIComponent(name)}`);

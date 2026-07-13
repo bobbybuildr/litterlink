@@ -53,10 +53,8 @@ export default async function GroupsPage({ searchParams }: Props) {
   const hasSearch = Boolean(postcode || type);
   const featuredGroup = hasSearch ? null : getFeaturedGroup(allGroups);
 
-  // Exclude the featured group from the regular list so it isn't shown twice
-  const listGroups = featuredGroup
-    ? groups.filter((g) => g.id !== featuredGroup.id)
-    : groups;
+  // Default sort: most members first
+  const listGroups = [...groups].sort((a, b) => b.member_count - a.member_count);
 
   const totalPages = Math.max(1, Math.ceil(listGroups.length / PAGE_SIZE));
   const safePage = Math.min(currentPage, totalPages);
@@ -96,7 +94,7 @@ export default async function GroupsPage({ searchParams }: Props) {
         </div>
         <Link
           href="/groups/create"
-          className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-dark transition-colors"
+          className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-dark transition-colors"
         >
           <UsersRound className="h-4 w-4" /> Create group
         </Link>
@@ -200,7 +198,7 @@ function EmptyState({ postcode }: { postcode?: string }) {
       </p>
       <Link
         href="/groups/create"
-        className="mt-4 inline-block rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-dark transition-colors"
+        className="mt-4 inline-block rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-dark transition-colors"
       >
         Be the first — create one
       </Link>

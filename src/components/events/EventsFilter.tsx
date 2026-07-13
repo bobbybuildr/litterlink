@@ -113,7 +113,7 @@ export function EventsFilter({ defaultFrom, defaultTo }: EventsFilterProps = {})
       <button
         type="submit"
         disabled={isPending}
-        className="rounded-lg bg-accent px-4 py-2 mt-2 sm:mt-0 text-sm font-medium text-white hover:bg-accent-dark disabled:opacity-60 transition-colors"
+        className="rounded-lg bg-brand px-4 py-2 mt-2 sm:mt-0 text-sm font-medium text-white hover:bg-brand-dark disabled:opacity-60 transition-colors"
       >
         {isPending ? "Searching…" : "Search"}
       </button>

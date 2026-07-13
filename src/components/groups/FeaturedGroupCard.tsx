@@ -21,13 +21,13 @@ export function FeaturedGroupCard({ group, className }: FeaturedGroupCardProps) 
   return (
     <div
       className={cn(
-        "flex h-full flex-col rounded-xl border border-brand/20 bg-linear-to-br from-brand/5 to-emerald-50 p-6 shadow-sm",
+        "flex h-full flex-col rounded-xl border border-blue-200 bg-linear-to-br from-accent/5 to-cyan-50 p-6 shadow-sm",
         className
       )}
     >
-      <span className="mb-4 inline-flex w-fit items-center gap-1.5 rounded-full bg-brand px-3 py-1 text-xs font-semibold text-white">
+      <span className="mb-4 inline-flex w-fit items-center gap-1.5 rounded-full bg-accent px-3 py-1 text-xs font-semibold text-white">
         <Flame className="h-3.5 w-3.5" />
-        Featured Group — most active this month
+        Featured Group — most active
       </span>
 
       <div className="flex items-start gap-4">
@@ -40,8 +40,8 @@ export function FeaturedGroupCard({ group, className }: FeaturedGroupCardProps) 
             className="h-18 w-18 shrink-0 rounded-xl border border-gray-100 object-cover"
           />
         ) : (
-          <div className="flex h-18 w-18 shrink-0 items-center justify-center rounded-xl border border-brand/20 bg-brand/10">
-            <Users className="h-8 w-8 text-brand" />
+          <div className="flex h-18 w-18 shrink-0 items-center justify-center rounded-xl border border-accent/20 bg-accent/10">
+            <Users className="h-8 w-8 text-accent" />
           </div>
         )}
 
@@ -49,12 +49,12 @@ export function FeaturedGroupCard({ group, className }: FeaturedGroupCardProps) 
           <div className="flex items-center gap-1.5">
             <Link
               href={`/groups/${group.slug}`}
-              className="truncate text-lg font-bold text-gray-900 hover:text-brand transition-colors"
+              className="truncate text-lg font-bold text-gray-900 hover:text-accent transition-colors"
             >
               {group.name}
             </Link>
             {group.creator_is_verified && (
-              <BadgeCheck className="h-5 w-5 shrink-0 text-brand" aria-label="Verified group" />
+              <BadgeCheck className="h-5 w-5 shrink-0 text-accent" aria-label="Verified group" />
             )}
           </div>
           <span className="mt-1.5 inline-flex w-fit items-center rounded-full bg-white px-2.5 py-0.5 text-xs font-medium text-gray-600">
@@ -87,7 +87,7 @@ export function FeaturedGroupCard({ group, className }: FeaturedGroupCardProps) 
 
       <Link
         href={`/groups/${group.slug}`}
-        className="mt-auto inline-flex w-fit items-center justify-center gap-2 rounded-lg bg-brand px-5 py-2.5 text-sm font-medium text-white hover:bg-brand-dark transition-colors self-start"
+        className="mt-auto inline-flex w-fit items-center justify-center gap-2 rounded-lg bg-accent px-5 py-2.5 text-sm font-medium text-white hover:bg-accent-dark transition-colors self-start"
       >
         View group
       </Link>

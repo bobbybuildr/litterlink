@@ -55,7 +55,7 @@ export function JoinGroupButton({
           "inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
           isMember
             ? "border border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
-            : "bg-brand text-white hover:bg-brand/90",
+            : "bg-accent text-white hover:bg-accent/90",
           className
         )}
       >

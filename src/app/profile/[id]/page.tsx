@@ -184,9 +184,9 @@ export default async function PublicProfilePage({ params }: Props) {
     (e) => e.status === "published" && e.starts_at >= now
   ) as EventWithCount[];
 
-  const thirtyDaysAgo = new Date(new Date(now).getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const ninetyDaysAgo = new Date(new Date(now).getTime() - 90 * 24 * 60 * 60 * 1000).toISOString();
   const recentlyAttended = joinedEvents.filter(
-    (e) => e.starts_at >= thirtyDaysAgo && e.starts_at <= now
+    (e) => e.starts_at >= ninetyDaysAgo && e.starts_at <= now
   );
 
   const bagsFromAttended = (attendedStatsRows ?? []).reduce(
@@ -325,7 +325,7 @@ export default async function PublicProfilePage({ params }: Props) {
         <section className="mt-10">
           <h2 className="mb-4 text-base font-semibold text-gray-800">
             Previous events
-            <span className="ml-2 text-sm font-normal text-gray-400">last 30 days</span>
+            <span className="ml-2 text-sm font-normal text-gray-400">last 90 days</span>
           </h2>
           <div className="grid gap-4 sm:grid-cols-2">
             {recentlyAttended.map((event) => (

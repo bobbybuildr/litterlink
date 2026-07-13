@@ -492,6 +492,54 @@ export async function sendStatsReminderEmail({
 }
 
 /**
+ * Send a confirmation email to the creator after they create a group.
+ * Encourages them to share the group link so others can join.
+ * Errors are swallowed so a mail failure never blocks the user redirect.
+ */
+export async function sendGroupCreatedEmail({
+  creatorEmail,
+  creatorName,
+  groupName,
+  groupSlug,
+}: {
+  creatorEmail: string;
+  creatorName: string | null;
+  groupName: string;
+  groupSlug: string;
+}) {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://litterlink.co.uk";
+  const groupUrl = `${siteUrl}/groups/${groupSlug}`;
+
+  const lines = [
+    `Hi${creatorName ? ` ${creatorName}` : ""},`,
+    "",
+    `Your group "${groupName}" has been created successfully on LitterLink!`,
+    "",
+    "Share your group page with friends, colleagues, or your community so",
+    "others can find it and join:",
+    "",
+    groupUrl,
+    "",
+    "You can also start creating events under this group to bring your",
+    "members together for a clean-up.",
+    "",
+    "Thanks for helping keep our communities clean.",
+    "The LitterLink team",
+  ];
+
+  try {
+    await resend.emails.send({
+      from,
+      to: creatorEmail,
+      subject: `Your group "${groupName}" is live on LitterLink`,
+      text: lines.join("\n"),
+    });
+  } catch {
+    console.error("[resend] Failed to send group created email");
+  }
+}
+
+/**
  * Send an approval or rejection outcome email to an applicant.
  * Errors are swallowed so a mail failure never blocks the admin action.
  */

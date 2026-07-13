@@ -21,8 +21,8 @@ export function Footer() {
               <Link href="/events" className="hover:text-gray-900 transition-colors">
                 Browse events
               </Link>
-              <Link href="/events/create" className="hover:text-gray-900 transition-colors">
-                Host an event
+              <Link href="/groups" className="hover:text-gray-900 transition-colors">
+                Discover Groups
               </Link>
               <Link href="/impact" className="hover:text-gray-900 transition-colors">
                 Impact stats

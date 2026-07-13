@@ -31,8 +31,8 @@ export function GroupCard({ group, className }: GroupCardProps) {
             className="h-12 w-12 shrink-0 rounded-lg border border-gray-100 object-cover"
           />
         ) : (
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-brand/20 bg-brand/10">
-            <Users className="h-5 w-5 text-brand" />
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-accent/20 bg-accent/10">
+            <Users className="h-5 w-5 text-accent" />
           </div>
         )}
 
@@ -40,12 +40,12 @@ export function GroupCard({ group, className }: GroupCardProps) {
           <div className="flex items-center gap-1.5">
             <Link
               href={`/groups/${group.slug}`}
-              className="truncate font-semibold text-gray-900 hover:text-brand transition-colors"
+              className="truncate font-semibold text-gray-900 hover:text-accent transition-colors"
             >
               {group.name}
             </Link>
             {group.creator_is_verified && (
-              <BadgeCheck className="h-4 w-4 shrink-0 text-brand" aria-label="Verified group" />
+              <BadgeCheck className="h-4 w-4 shrink-0 text-accent" aria-label="Verified group" />
             )}
           </div>
           <span className="mt-1 inline-flex w-fit items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
