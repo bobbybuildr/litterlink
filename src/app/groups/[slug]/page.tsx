@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { ArrowLeft, Globe, Mail, Users, Calendar, Pencil, ShieldCheck, MapPin } from "lucide-react";
 import { getGroupBySlug, getEventsByGroupId, getGroupMembers } from "@/lib/events";
+import { GROUP_TYPE_LABELS } from "@/lib/constants";
 import { EventCard } from "@/components/events/EventCard";
 import { JoinGroupButton } from "@/components/groups/JoinGroupButton";
 import { DeleteGroupButton } from "@/components/groups/DeleteGroupButton";
@@ -12,15 +13,6 @@ import { createClient } from "@/lib/supabase/server";
 interface Props {
   params: Promise<{ slug: string }>;
 }
-
-const GROUP_TYPE_LABELS: Record<string, string> = {
-  community: "Community group",
-  school: "School",
-  corporate: "Corporate",
-  council: "Council",
-  charity: "Charity",
-  other: "Organisation",
-};
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
