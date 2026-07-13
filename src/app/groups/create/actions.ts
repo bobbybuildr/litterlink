@@ -133,12 +133,10 @@ export async function createGroup(formData: FormData) {
     );
   }
 
-  // Enrol the creator as an organiser (non-fatal — group is already created)
-  await supabase.from("group_members").insert({
-    group_id: group.id,
-    user_id: user.id,
-    role: "organiser",
-  });
+  // The creator is auto-enrolled as an organiser by the
+  // `on_group_created_enrol_organiser` DB trigger (see migration 0032) —
+  // a client-side insert here would be silently rejected by the
+  // group_members self-insert RLS policy, which only permits role = 'member'.
 
   // Upload logo if provided (non-fatal — group is already created)
   if (logoFile instanceof File && logoFile.size > 0) {

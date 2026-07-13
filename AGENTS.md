@@ -40,11 +40,12 @@ No test suite is configured yet.
 | `src/app/events/create/actions.ts` | `createEvent` |
 | `src/app/events/` | Events listing, detail, create, edit, stats |
 | `src/app/events/[id]/edit/` | Event editing page + `updateEvent` action |
-| `src/app/groups/` | Groups listing (placeholder), group detail, create group |
+| `src/app/groups/` | Groups discovery page (postcode/radius/type search, map, featured group, card grid), group detail, create group |
 | `src/app/become-a-verified-organiser/` | Organiser application form + actions |
 | `src/app/admin/` | Admin panel — organiser applications |
 | `src/components/` | Shared UI components |
-| `src/lib/events.ts` | Data-fetching helpers (typed query wrappers) |
+| `src/lib/events.ts` | Data-fetching helpers (typed query wrappers) — despite the name, also contains group helpers (`getPublishedGroups`, `getFeaturedGroup`, `getGroupBySlug`, etc.) |
+| `src/lib/constants.ts` | Client-safe shared constants (e.g. `GROUP_TYPE_LABELS`) with no server-only imports — safe to import from Client Components |
 | `src/lib/email.ts` | Resend email helpers |
 | `src/lib/ratelimit.ts` | DB-backed rate limiting (event creation, joins, reschedule notifications) |
 | `src/lib/sanitize.ts` | `sanitizeText()` — strips HTML from user input |
@@ -59,7 +60,7 @@ No test suite is configured yet.
 |-------|-------|
 | `profiles` | `is_verified_organiser` BOOLEAN, `is_admin` BOOLEAN |
 | `events` | `group_id` (nullable FK), `organiser_contact_details` (nullable text), `updated_at` (auto-maintained by trigger), `reschedule_notified_at` (nullable), `stats_reminder_sent_at` (nullable); `organiser_id` is nullable (SET NULL on account deletion) |
-| `groups` | `group_type` enum-like text, `created_by` nullable |
+| `groups` | `group_type` enum-like text, `created_by` nullable (SET NULL on account deletion); `location_postcode`/`latitude`/`longitude`/`location_name` for map discovery |
 | `organiser_applications` | status: `pending \| approved \| rejected` |
 | `email_preferences` | per-user opt-in/out, auto-created on profile creation |
 | `events_with_counts` | view — adds `organiser_is_verified`, `group_name`, `group_slug`, `confirmed_count` |
@@ -130,4 +131,4 @@ Actions return `{ error: string | null }` on mutation or call `redirect()` on su
 - Server Components by default; add `"use client"` only for interactivity or browser APIs
 - Props typed inline with interfaces; `className?: string` accepted on most components
 - Use `cn()` for conditional class merging, not string concatenation
-- `EventCard`, `JoinButton`, `ShareUrl`, `EventsMap` are exemplar components for style reference
+- `EventCard`, `JoinButton`, `ShareUrl`, `EventsMap` are exemplar components for style reference; `GroupCard`, `GroupsMap`, `FeaturedGroupCard` mirror the same patterns for groups

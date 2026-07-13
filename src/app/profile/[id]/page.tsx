@@ -208,13 +208,6 @@ export default async function PublicProfilePage({ params }: Props) {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
-      {/* Back */}
-      <Link
-        href="/events"
-        className="mb-8 inline-flex items-center gap-1.5 text-sm text-gray-500 transition-colors hover:text-gray-800"
-      >
-        ← Back to events
-      </Link>
 
       {/* Hero */}
       <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:items-start sm:text-left">

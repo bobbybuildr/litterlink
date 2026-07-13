@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, Globe, Mail, Users, Calendar, Pencil, ShieldCheck, MapPin } from "lucide-react";
+import { ArrowLeft, Globe, Mail, Users, Calendar, Pencil, ShieldCheck, MapPin, Trash, Clock } from "lucide-react";
 import { getGroupBySlug, getEventsByGroupId, getGroupMembers } from "@/lib/events";
 import { GROUP_TYPE_LABELS } from "@/lib/constants";
 import { EventCard } from "@/components/events/EventCard";
@@ -64,6 +64,21 @@ export default async function GroupPage({ params }: Props) {
   );
   const past = events.filter(
     (e) => e.status === "completed" || (e.status !== "cancelled" && new Date(e.starts_at) < now) || e.status === "cancelled"
+  );
+
+  // Impact stats — aggregated from event_stats for this group's completed events
+  const completedEvents = events.filter((e) => e.status === "completed");
+  const { data: statsRows } = completedEvents.length
+    ? await supabase
+        .from("event_stats")
+        .select("bags_collected, actual_attendees, duration_hours")
+        .in("event_id", completedEvents.map((e) => e.id))
+    : { data: [] as { bags_collected: number | null; actual_attendees: number | null; duration_hours: number | null }[] };
+
+  const bagsCollected = (statsRows ?? []).reduce((sum, s) => sum + (s.bags_collected ?? 0), 0);
+  const volunteerSessions = (statsRows ?? []).reduce((sum, s) => sum + (s.actual_attendees ?? 0), 0);
+  const totalHours = Math.round(
+    (statsRows ?? []).reduce((sum, s) => sum + (s.duration_hours ?? 0), 0)
   );
 
   const typeLabel = GROUP_TYPE_LABELS[group.group_type] ?? "Organisation";
@@ -193,6 +208,33 @@ export default async function GroupPage({ params }: Props) {
         )}
       </div>
 
+      {/* Impact stats */}
+      <section className="mb-8">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <GroupImpactCard
+            icon={<Calendar className="h-5 w-5 text-brand" />}
+            value={completedEvents.length.toLocaleString()}
+            label="Events hosted"
+            subLabel="with impact logged"
+          />
+          <GroupImpactCard
+            icon={<Trash className="h-5 w-5 text-brand" />}
+            value={bagsCollected.toLocaleString()}
+            label="Bags collected"
+          />
+          <GroupImpactCard
+            icon={<Users className="h-5 w-5 text-brand" />}
+            value={volunteerSessions.toLocaleString()}
+            label="Volunteer sessions"
+          />
+          <GroupImpactCard
+            icon={<Clock className="h-5 w-5 text-brand" />}
+            value={totalHours.toLocaleString()}
+            label="Hours volunteered"
+          />
+        </div>
+      </section>
+
       {/* Organisers & Members */}
       {members.length > 0 && (
         <div className="rounded-xl border border-gray-200 bg-white p-6 mb-8 space-y-6">
@@ -297,4 +339,29 @@ function MemberChip({ member }: { member: GroupMember }) {
   );
 
   return <Link href={`/profile/${member.username ?? member.user_id}`}>{inner}</Link>;
+}
+
+function GroupImpactCard({
+  icon,
+  value,
+  label,
+  subLabel,
+}: {
+  icon: React.ReactNode;
+  value: string | number;
+  label: string;
+  subLabel?: string;
+}) {
+  return (
+    <div className="flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand/10">
+        {icon}
+      </div>
+      <div>
+        <p className="text-xl font-bold text-gray-900">{value}</p>
+        <p className="text-xs text-gray-500">{label}</p>
+        {subLabel && <p className="text-xs text-gray-400">{subLabel}</p>}
+      </div>
+    </div>
+  );
 }

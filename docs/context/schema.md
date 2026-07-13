@@ -133,6 +133,8 @@ One row per user-group membership. Makes groups joinable.
 
 **DB Trigger:** `enforce_creator_cannot_leave` — BEFORE DELETE, raises `P0001` if `user_id` matches `groups.created_by` for that group
 
+**RLS note:** the self-insert policy restricts `role` to `'member'` only, so a group's creator cannot be enrolled as `'organiser'` via a normal client insert — see the `on_group_created_enrol_organiser` trigger on `groups` below.
+
 ### `organiser_applications`
 
 | Column | Type | Notes |
@@ -200,6 +202,7 @@ Returns distance in kilometres using the Haversine formula. IMMUTABLE. Used for 
 | `enforce_event_capacity` | `event_participants` | BEFORE INSERT — raises `P0001/event_full` if `confirmed_count >= max_attendees` |
 | `events_set_updated_at` | `events` | BEFORE UPDATE — sets `updated_at = now()` |
 | `enforce_creator_cannot_leave` | `group_members` | BEFORE DELETE — raises `P0001` if the row being deleted belongs to the group creator |
+| `on_group_created_enrol_organiser` | `groups` | AFTER INSERT — inserts a `group_members` row for `created_by` with `role = 'organiser'`. Runs `SECURITY DEFINER` to bypass the self-insert RLS policy, which only permits `role = 'member'` |
 
 ## Storage Buckets
 

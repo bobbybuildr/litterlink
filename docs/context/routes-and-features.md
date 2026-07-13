@@ -14,8 +14,8 @@ All routes use the Next.js 16 App Router. There is no Pages Router.
 | `/coming-soon` | `src/app/coming-soon/page.tsx` | Pre-launch holding page — `/`, `/events`, and `/events/*` redirect here when `COMING_SOON=true` |
 | `/events` | `src/app/events/page.tsx` | Browse all published events — postcode search, radius filter, date range, map + card list |
 | `/events/[id]` | `src/app/events/[id]/page.tsx` | Event detail — join/leave, share URL, map pin, photo gallery, participants, post-event stats |
-| `/groups` | `src/app/groups/page.tsx` | Groups landing — "under construction" placeholder page |
-| `/groups/[slug]` | `src/app/groups/[slug]/page.tsx` | Group profile page — logo, description, links, member count, join/leave button, organisers section, members section, upcoming/past events |
+| `/groups` | `src/app/groups/page.tsx` | Browse all groups — postcode search, radius filter, group type filter, interactive map with popups, "Featured Group" showcase (most active in the trailing 30 days, hidden once a search/filter is applied), and a card grid sorted by member count |
+| `/groups/[slug]` | `src/app/groups/[slug]/page.tsx` | Group profile page — logo, description, links, member count, join/leave button, impact stats (events hosted, bags collected, volunteer sessions, hours volunteered), organisers section, members section, upcoming/past events |
 | `/privacy` | `src/app/privacy/page.tsx` | Privacy policy |
 | `/terms` | `src/app/terms/page.tsx` | Terms of service |
 
@@ -63,7 +63,7 @@ All routes use the Next.js 16 App Router. There is no Pages Router.
 | `src/app/admin/applications/actions.ts` | `approveApplication`, `rejectApplication` | `ApproveButton`, `RejectButton` |
 | `src/app/groups/create/actions.ts` | `createGroup` | Create group page |
 | `src/app/groups/[slug]/edit/actions.ts` | `updateGroup` | Edit group page |
-| `src/app/groups/actions.ts` | `joinGroup`, `leaveGroup` | `JoinGroupButton` component |
+| `src/app/groups/actions.ts` | `joinGroup`, `leaveGroup`, `deleteGroup` | `JoinGroupButton`, `DeleteGroupButton` components |
 
 ### Route Protection Logic
 
@@ -82,6 +82,17 @@ Enforced in `src/proxy.ts` (Next.js 16 middleware replacement):
 | `radius` | number (km) | 16 | Search radius |
 | `from` | ISO date string | today | Events starting from |
 | `to` | ISO date string | today + 7 days | Events starting before |
+
+### Search Parameters — `/groups`
+
+| Param | Type | Default | Description |
+|---|---|---|---|
+| `postcode` | string | — | UK postcode to centre the search |
+| `radius` | number (km) | 16 | Search radius |
+| `type` | string | — | Filter by `group_type` (`community` \| `school` \| `corporate` \| `council` \| `charity` \| `other`) |
+| `page` | number | 1 | Pagination for the card list |
+
+When `postcode` or `type` is set, the "Featured Group" card is hidden (only shown on the unfiltered default view).
 
 ### Navigation Structure
 
@@ -178,9 +189,15 @@ Organiser-only form at `/events/[id]/stats`:
 - Verified badge displayed on events and group pages
 
 #### Groups
-- Verified organisers can create groups at `/groups/create` (name, description, type, logo, website, social, contact email)
-- Group profile page at `/groups/[slug]` — shows logo, type, description, links, member count, join/leave button, organisers section, members section (with avatar chips linking to profiles), and upcoming/past events
+- Verified organisers can create groups at `/groups/create` (name, description, type, logo, postcode/display location, website, social, contact email) — creator receives a confirmation email with a shareable group link (`sendGroupCreatedEmail`)
+- `/groups` discovery page — mirrors the `/events` layout:
+  - Postcode + radius search and group-type filter (`GroupsFilter`)
+  - Interactive Leaflet map of all matching groups with popups showing name, type, location, member count, and upcoming event count (`GroupsMap`)
+  - "Featured Group" showcase card (`FeaturedGroupCard`) — the group with the highest recent-activity score (new members, events held, and participants joined in the trailing 30 days, weighted and computed in `getPublishedGroups`/`getFeaturedGroup` in `src/lib/events.ts`); only shown when no postcode/type filter is applied
+  - Card grid (`GroupCard`) — logo, name, verified badge, type, location, member count, upcoming event count, description, and a "View" button; sorted by member count descending; paginated
+- Group profile page at `/groups/[slug]` — shows logo, type, description, links, member count, join/leave button, impact stats (events hosted, bags collected, volunteer sessions, hours volunteered — aggregated from `event_stats` for the group's completed events), organisers section, members section (with avatar chips linking to profiles), and upcoming/past events
 - Group owners can edit groups at `/groups/[slug]/edit` — updates name, slug, description, type, website/social/contact details, and logo changes are published immediately
+- Group owners or admins can permanently delete a group (`deleteGroup` action, `DeleteGroupButton`) — removes the logo from Storage, cascades to `group_members`, and sets `events.group_id` to `NULL` on affiliated events (event history is preserved)
 - Groups can be affiliated with events at creation time
 - Group name and slug appear on `EventCard` and event detail
 - Groups are joinable — `group_members` table with `role` (`'member'` \| `'organiser'`)
@@ -189,6 +206,7 @@ Organiser-only form at `/events/[id]/stats`:
 - Creators cannot leave their own group — enforced at application layer and by a DB trigger (`enforce_creator_cannot_leave`)
 - Self-insert RLS policy restricts `role` to `'member'` only — prevents API-level self-promotion to organiser
 - Rate-limited group joins (10 per user per hour — `isGroupJoinRateLimited` in `src/lib/ratelimit.ts`)
+- Shared `GROUP_TYPE_LABELS` constant lives in `src/lib/constants.ts` (client-safe — no server-only imports) so both Server and Client Components can use it without pulling in the Supabase server client
 
 #### Email Notifications (via Resend, `src/lib/email.ts`)
 - Organiser application submitted → admin notification + applicant confirmation
@@ -198,6 +216,7 @@ Organiser-only form at `/events/[id]/stats`:
 - Event left → notification email
 - Event cancelled → notification to all confirmed participants
 - Event date/time or location changed → notification to all confirmed participants (`sendEventUpdatedEmails`); rate-limited to once per 15 minutes per event (tracked via `events.reschedule_notified_at`)
+- Group created → confirmation email to creator with a shareable group link, encouraging them to invite others to join (`sendGroupCreatedEmail`)
 - In-process rate limiting (60-second cooldown per key) to prevent burst sends
 
 #### Admin Panel
@@ -251,10 +270,8 @@ The following features are absent from the codebase. Do not assume these exist w
 - Downloadable impact reports
 
 #### Groups
-- `/groups` listing page shows an "under construction" placeholder — no browse/search yet
-- No delete group functionality — creators are locked as members until this is built
 - No group invitation system — membership is purely self-service (join/leave)
-- No group-level event creation flow — events are linked to groups at event creation time
+- No group-level event creation flow — events are linked to groups at event creation time (no "create event under this group" shortcut from the group page)
 
 #### Admin / Moderation
 - No event flagging or reporting mechanism
