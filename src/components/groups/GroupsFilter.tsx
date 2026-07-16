@@ -1,8 +1,8 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useRef, useTransition } from "react";
-import { Search, X } from "lucide-react";
+import { useRef, useState, useTransition } from "react";
+import { Loader2, LocateFixed, Search, X } from "lucide-react";
 import { GROUP_TYPE_LABELS } from "@/lib/constants";
 
 const RADIUS_OPTIONS = [
@@ -16,7 +16,10 @@ export function GroupsFilter() {
   const router = useRouter();
   const params = useSearchParams();
   const [isPending, startTransition] = useTransition();
+  const [isLocating, setIsLocating] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
+  const postcodeInputRef = useRef<HTMLInputElement>(null);
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -33,6 +36,56 @@ export function GroupsFilter() {
     });
   }
 
+  async function handleUseMyLocation() {
+    setLocationError(null);
+
+    if (!navigator.geolocation) {
+      setLocationError("Geolocation isn't supported on this device.");
+      return;
+    }
+
+    setIsLocating(true);
+
+    try {
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: false,
+          timeout: 10000,
+          maximumAge: 300000,
+        });
+      });
+
+      const response = await fetch(
+        `/api/reverse-geocode?lat=${encodeURIComponent(String(position.coords.latitude))}&lng=${encodeURIComponent(String(position.coords.longitude))}`
+      );
+
+      const data = (await response.json()) as { postcode?: string; error?: string };
+
+      if (!response.ok || !data.postcode) {
+        setLocationError(data.error ?? "Couldn't find a nearby postcode. Try entering one manually.");
+        return;
+      }
+
+      if (postcodeInputRef.current) {
+        postcodeInputRef.current.value = data.postcode.toUpperCase();
+      }
+    } catch (error) {
+      const maybeGeoError = error as { code?: number };
+
+      if (maybeGeoError.code === 1) {
+        setLocationError("Location permission was denied. You can still enter a postcode.");
+      } else if (maybeGeoError.code === 2) {
+        setLocationError("Your location couldn't be determined. Try again or enter a postcode.");
+      } else if (maybeGeoError.code === 3) {
+        setLocationError("Location request timed out. Please try again.");
+      } else {
+        setLocationError("Couldn't use your location right now. Please try again.");
+      }
+    } finally {
+      setIsLocating(false);
+    }
+  }
+
   return (
     <form
       ref={formRef}
@@ -47,14 +100,35 @@ export function GroupsFilter() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
             <input
+              ref={postcodeInputRef}
               id="postcode"
               name="postcode"
               type="text"
               placeholder="e.g. SW1A 1AA"
+              autoComplete="postal-code"
               defaultValue={params.get("postcode") ?? ""}
-              className="w-full rounded-lg border border-gray-300 bg-white pl-9 pr-3 py-2 text-xs sm:text-sm uppercase placeholder-gray-400 outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+              className="w-full rounded-lg border border-gray-300 bg-white pl-9 pr-32 py-2 text-xs sm:text-sm uppercase placeholder-gray-400 outline-none focus:border-brand focus:ring-1 focus:ring-brand"
             />
+            <button
+              type="button"
+              onClick={handleUseMyLocation}
+              disabled={isLocating || isPending}
+              className="absolute right-1.5 top-1/2 inline-flex -translate-y-1/2 items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-1 text-[11px] font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 sm:text-xs"
+              title="Use my current location"
+            >
+              {isLocating ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <LocateFixed className="h-3.5 w-3.5" />
+              )}
+              {isLocating ? "Locating..." : "Use location"}
+            </button>
           </div>
+          {locationError && (
+            <p role="status" className="mt-1 text-xs text-amber-700">
+              {locationError}
+            </p>
+          )}
         </div>
 
         <div>
@@ -106,7 +180,11 @@ export function GroupsFilter() {
       {(params.get("postcode") || params.get("radius") || params.get("type")) && (
         <button
           type="button"
-          onClick={() => { formRef.current?.reset(); startTransition(() => router.push("/groups")); }}
+          onClick={() => {
+            formRef.current?.reset();
+            setLocationError(null);
+            startTransition(() => router.push("/groups"));
+          }}
           className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-500 hover:border-gray-300 hover:text-gray-800 transition-colors"
           title="Reset all filters"
         >
