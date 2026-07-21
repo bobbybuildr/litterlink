@@ -66,7 +66,7 @@ export default async function GroupPage({ params }: Props) {
   );
   const past = events.filter(
     (e) => e.status === "completed" || (e.status !== "cancelled" && new Date(e.starts_at) < now) || e.status === "cancelled"
-  );
+  ).sort((a, b) => new Date(b.starts_at).getTime() - new Date(a.starts_at).getTime());
 
   // Impact stats — aggregated from event_stats for this group's completed events
   const completedEvents = events.filter((e) => e.status === "completed");

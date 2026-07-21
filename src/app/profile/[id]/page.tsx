@@ -5,7 +5,11 @@ import Link from "next/link";
 import { BadgeCheck, Globe, Calendar, Clock, Trash, Users, CalendarPlus } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { EventCard } from "@/components/events/EventCard";
+import { LatestEventHighlight } from "@/components/events/LatestEventHighlight";
 import type { EventWithCount } from "@/lib/events";
+import type { Database } from "@/types/database";
+
+type EventStatsRow = Database["public"]["Tables"]["event_stats"]["Row"];
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -124,10 +128,17 @@ export default async function PublicProfilePage({ params }: Props) {
   const completedJoinedEvents = joinedEvents.filter((e) => e.status === "completed");
   const completedOrganisedEvents = organisedEvents.filter((e) => e.status === "completed");
 
+  // Completed events this person joined or organised, deduplicated by id
+  const completedEventsById = new Map<string, EventWithCount>();
+  for (const e of [...completedJoinedEvents, ...completedOrganisedEvents]) {
+    completedEventsById.set(e.id, e);
+  }
+  const completedIds = Array.from(completedEventsById.keys());
+
   // Parallel fetches that don't depend on each other
   const [
     { data: attendedStatsRows },
-    { data: completedStatsRows },
+    { data: completedStatsRowsRaw },
     { data: groupMembershipsRaw },
   ] = await Promise.all([
     // Bags collected from completed events they attended
@@ -138,22 +149,14 @@ export default async function PublicProfilePage({ params }: Props) {
           .in("event_id", completedJoinedEvents.map((e) => e.id))
       : Promise.resolve({ data: [] as { bags_collected: number | null }[], error: null }),
 
-    // Total duration from completed events they joined or organised (deduplicated)
-    (() => {
-      const completedIds = Array.from(
-        new Set([
-          ...completedJoinedEvents.map((e) => e.id),
-          ...completedOrganisedEvents.map((e) => e.id),
-        ])
-      );
-
-      return completedIds.length > 0
-        ? supabase
-            .from("event_stats")
-            .select("duration_hours")
-            .in("event_id", completedIds)
-        : Promise.resolve({ data: [] as { duration_hours: number | null }[], error: null });
-    })(),
+    // Full stats for completed events they joined or organised (deduplicated) —
+    // used for total duration and the "latest event" highlight below
+    completedIds.length > 0
+      ? supabase
+          .from("event_stats")
+          .select("*")
+          .in("event_id", completedIds)
+      : Promise.resolve({ data: null, error: null }),
 
     // Groups this person is a member of (with membership role)
     supabase
@@ -163,6 +166,28 @@ export default async function PublicProfilePage({ params }: Props) {
       .order("joined_at", { ascending: false })
       .limit(6),
   ]);
+
+  const completedStatsRows = (completedStatsRowsRaw ?? []) as unknown as EventStatsRow[];
+
+  // Most recent completed event that has stats recorded, for the impact highlight section
+  const latestStatsEvent = completedStatsRows
+    .map((stats) => ({ stats, event: completedEventsById.get(stats.event_id) }))
+    .filter((entry): entry is { stats: EventStatsRow; event: EventWithCount } => !!entry.event)
+    .sort((a, b) => new Date(b.event.starts_at).getTime() - new Date(a.event.starts_at).getTime())[0];
+
+  const { data: latestEventPhotosRaw } = latestStatsEvent
+    ? await supabase
+        .from("event_photos")
+        .select("id, storage_path")
+        .eq("event_id", latestStatsEvent.event.id)
+        .order("created_at", { ascending: true })
+        .limit(6)
+    : { data: [] as { id: string; storage_path: string }[] };
+
+  const latestEventPhotos = (latestEventPhotosRaw ?? []).map((p) => ({
+    id: p.id,
+    url: `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/event-photos/${p.storage_path}`,
+  }));
 
   const groups = ((groupMembershipsRaw ?? []) as {
     role: "member" | "organiser" | null;
@@ -187,13 +212,13 @@ export default async function PublicProfilePage({ params }: Props) {
   const ninetyDaysAgo = new Date(new Date(now).getTime() - 90 * 24 * 60 * 60 * 1000).toISOString();
   const recentlyAttended = joinedEvents.filter(
     (e) => e.starts_at >= ninetyDaysAgo && e.starts_at <= now
-  );
+  ).sort((a, b) => new Date(b.starts_at).getTime() - new Date(a.starts_at).getTime());
 
   const bagsFromAttended = (attendedStatsRows ?? []).reduce(
     (sum, row) => sum + (row.bags_collected ?? 0),
     0
   );
-  const totalHours = (completedStatsRows ?? []).reduce(
+  const totalHours = completedStatsRows.reduce(
     (sum, row) => sum + (row.duration_hours ?? 0),
     0
   );
@@ -293,6 +318,7 @@ export default async function PublicProfilePage({ params }: Props) {
         </div>
       </section>
 
+
       {/* Upcoming organised events */}
       {upcoming.length > 0 && (
         <section className="mt-10">
@@ -313,6 +339,21 @@ export default async function PublicProfilePage({ params }: Props) {
         </section>
       )}
 
+      {/* Latest event impact highlight */}
+      {latestStatsEvent && (
+        <section className="mt-10">
+          <h2 className="mb-4 text-base font-semibold text-gray-800">
+            Latest event attended 
+            <span className="ml-2 text-sm font-normal text-gray-400">with impact logged</span>
+          </h2>
+          <LatestEventHighlight
+            event={latestStatsEvent.event}
+            stats={latestStatsEvent.stats}
+            photos={latestEventPhotos}
+          />
+        </section>
+      )}
+      
       {/* Recently attended events */}
       {recentlyAttended.length > 0 && (
         <section className="mt-10">

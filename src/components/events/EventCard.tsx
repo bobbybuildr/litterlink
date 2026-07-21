@@ -13,7 +13,8 @@ type CardState = "joinable" | "completed" | "cancelled" | "past";
 
 function getCardState(event: EventWithCount): CardState {
   if (event.status === "cancelled") return "cancelled";
-  if (event.status === "completed" || new Date(event.starts_at) < new Date()) {
+  if (event.status === "completed") return "completed";
+  if (new Date(event.starts_at) < new Date()) {
     return "past";
   }
 
@@ -30,25 +31,25 @@ const stateStyles: Record<
   }
 > = {
   joinable: {
-    card: "border-gray-200 bg-white",
+    card: "border-gray-200 border-l-emerald-500 bg-white",
     badge: null,
     badgeIcon: null,
     badgeLabel: null,
   },
   cancelled: {
-    card: "border-red-200 bg-red-50",
+    card: "border-red-200 border-l-red-500 bg-red-50",
     badge: "bg-red-100 text-red-600",
     badgeIcon: <XCircle className="h-3 w-3" />,
     badgeLabel: "Cancelled",
   },
   past: {
-    card: "border-gray-200 bg-gray-50",
+    card: "border-gray-200 border-l-gray-200 bg-gray-50",
     badge: "bg-gray-100 text-gray-600",
     badgeIcon: <Clock className="h-3 w-3" />,
     badgeLabel: "Past event",
   },
   completed: {
-    card: "border-gray-200 bg-gray-50",
+    card: "border-gray-200 border-l-emerald-200 bg-gray-50",
     badge: "bg-gray-100 text-gray-600",
     badgeIcon: <Clock className="h-3 w-3" />,
     badgeLabel: "Past event",
@@ -73,7 +74,7 @@ export function EventCard({ event, className, backHref }: EventCardProps) {
     <Link
       href={href}
       className={cn(
-        "group relative flex flex-col rounded-xl border p-3 shadow-sm transition-shadow hover:shadow-md",
+        "group relative flex flex-col rounded-xl border border-l-4 p-3 shadow-sm transition-shadow hover:shadow-md",
         styles.card,
         className
       )}
