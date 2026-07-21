@@ -8,6 +8,8 @@ import { GROUP_TYPE_LABELS } from "@/lib/constants";
 import { EventCard } from "@/components/events/EventCard";
 import { JoinGroupButton } from "@/components/groups/JoinGroupButton";
 import { DeleteGroupButton } from "@/components/groups/DeleteGroupButton";
+import { GroupsMap } from "@/components/map/GroupsMap";
+import { ShareGroupButton } from "@/components/groups/ShareGroupButton";
 import { createClient } from "@/lib/supabase/server";
 
 interface Props {
@@ -84,6 +86,7 @@ export default async function GroupPage({ params }: Props) {
   const typeLabel = GROUP_TYPE_LABELS[group.group_type] ?? "Organisation";
   const hasLinks = group.website_url || group.social_url || group.contact_email;
   const locationLabel = group.location_name || group.location_postcode;
+  const showMap = group.latitude != null && group.longitude != null;
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
@@ -114,7 +117,7 @@ export default async function GroupPage({ params }: Props) {
 
       {/* Group header */}
       <div className="rounded-xl border border-gray-200 bg-white p-6 mb-8">
-        <div className="flex items-start gap-5">
+        <div className="flex flex-col items-start sm:flex-row sm:justify-between gap-5">
           {group.logo_url ? (
             <div className="shrink-0">
               <Image
@@ -137,7 +140,10 @@ export default async function GroupPage({ params }: Props) {
                 {typeLabel}
               </span>
             </div>
-            <h1 className="text-2xl font-bold text-gray-900">{group.name}</h1>
+            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+              {group.name}
+              <ShareGroupButton title={group.name} />
+            </h1>
             {group.description && (
               <p className="mt-2 text-sm text-gray-600 whitespace-pre-wrap">
                 {group.description}
@@ -153,20 +159,22 @@ export default async function GroupPage({ params }: Props) {
               <Users className="h-4 w-4" />
               {members.length} {members.length === 1 ? "member" : "members"}
             </p>
+            {isMember && <p className="mt-1 text-xs text-gray-500">
+                You are a member of this group.
+              </p>}
           </div>
+          {/* Join / Leave */}
+          {!isOwner && (
+            <div className="shrink-0 flex flex-col items-end gap-2">
+              <JoinGroupButton
+                groupId={group.id}
+                groupSlug={slug}
+                initialIsMember={isMember}
+                isAuthenticated={!!user}
+              />
+            </div>
+          )}
         </div>
-
-        {/* Join / Leave */}
-        {!isOwner && (
-          <div className="mt-5 border-t border-gray-100 pt-5">
-            <JoinGroupButton
-              groupId={group.id}
-              groupSlug={slug}
-              initialIsMember={isMember}
-              isAuthenticated={!!user}
-            />
-          </div>
-        )}
 
         {/* Links */}
         {hasLinks && (
@@ -208,6 +216,19 @@ export default async function GroupPage({ params }: Props) {
         )}
       </div>
 
+      {showMap && (
+        <section className="mb-8 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+          <div className="h-52 sm:h-64">
+            <GroupsMap
+              groups={[group]}
+              centerLat={group.latitude ?? undefined}
+              centerLng={group.longitude ?? undefined}
+              zoom={12}
+            />
+          </div>
+        </section>
+      )}
+
       {/* Impact stats */}
       <section className="mb-8">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -230,7 +251,7 @@ export default async function GroupPage({ params }: Props) {
           <GroupImpactCard
             icon={<Clock className="h-5 w-5 text-brand" />}
             value={totalHours.toLocaleString()}
-            label="Hours volunteered"
+            label="Total event hours"
           />
         </div>
       </section>

@@ -1,14 +1,27 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import type { GroupWithCounts } from "@/lib/events";
 import { GROUP_TYPE_LABELS } from "@/lib/constants";
 
+type GroupMapItem = {
+  id: string;
+  name: string;
+  slug: string;
+  group_type: string;
+  latitude: number | null;
+  longitude: number | null;
+  location_name: string | null;
+  location_postcode: string | null;
+  member_count?: number;
+  upcoming_event_count?: number;
+};
+
 interface GroupsMapProps {
-  groups: GroupWithCounts[];
+  groups: GroupMapItem[];
   centerLat?: number;
   centerLng?: number;
   radiusKm?: number;
+  zoom?: number;
 }
 
 function radiusToZoom(radiusKm?: number): number {
@@ -19,14 +32,16 @@ function radiusToZoom(radiusKm?: number): number {
   return 8;
 }
 
-function popupHtml(group: GroupWithCounts): string {
+function popupHtml(group: GroupMapItem): string {
   const typeLabel = GROUP_TYPE_LABELS[group.group_type] ?? "Organisation";
   const locationLabel = group.location_name ?? group.location_postcode ?? "";
+  const memberCount = group.member_count ?? 0;
+  const upcomingEventCount = group.upcoming_event_count ?? 0;
 
   return `<div style="min-width:170px">
       <strong style="font-size:0.875rem">${group.name}</strong>
       <p style="margin:4px 0 0;font-size:0.75rem;color:#6b7280">${typeLabel}${locationLabel ? ` · ${locationLabel}` : ""}</p>
-      <p style="margin:2px 0 0;font-size:0.75rem;color:#6b7280">${group.member_count} member${group.member_count !== 1 ? "s" : ""} · ${group.upcoming_event_count} upcoming event${group.upcoming_event_count !== 1 ? "s" : ""}</p>
+      <p style="margin:2px 0 0;font-size:0.75rem;color:#6b7280">${memberCount} member${memberCount !== 1 ? "s" : ""} · ${upcomingEventCount} upcoming event${upcomingEventCount !== 1 ? "s" : ""}</p>
       <a href="/groups/${group.slug}" style="display:inline-block;margin-top:8px;font-size:0.75rem;color:#16a34a;font-weight:600">
         View group →
       </a>
@@ -37,7 +52,7 @@ function popupHtml(group: GroupWithCounts): string {
  * Leaflet map of groups, rendered client-side.
  * Lazy-imports Leaflet to avoid SSR issues with window/document.
  */
-export function GroupsMap({ groups, centerLat, centerLng, radiusKm }: GroupsMapProps) {
+export function GroupsMap({ groups, centerLat, centerLng, radiusKm, zoom }: GroupsMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<import("leaflet").Map | null>(null);
 
@@ -62,7 +77,7 @@ export function GroupsMap({ groups, centerLat, centerLng, radiusKm }: GroupsMapP
 
       const defaultLat = centerLat ?? 53.15;
       const defaultLng = centerLng ?? -3.6;
-      const defaultZoom = centerLat != null ? radiusToZoom(radiusKm) : 6;
+      const defaultZoom = zoom ?? (centerLat != null ? radiusToZoom(radiusKm) : 6);
 
       const map = L.map(containerRef.current!).setView(
         [defaultLat, defaultLng],
@@ -115,12 +130,12 @@ export function GroupsMap({ groups, centerLat, centerLng, radiusKm }: GroupsMapP
       });
 
       if (centerLat != null && centerLng != null) {
-        map.setView([centerLat, centerLng], radiusToZoom(radiusKm));
+        map.setView([centerLat, centerLng], zoom ?? radiusToZoom(radiusKm));
       }
     }
 
     updateMarkers();
-  }, [groups, centerLat, centerLng, radiusKm]);
+  }, [groups, centerLat, centerLng, radiusKm, zoom]);
 
   return (
     <div className="relative h-full w-full">

@@ -16,7 +16,7 @@ export default async function SignInPage({ searchParams }: Props) {
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900">Welcome back</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Sign in to join litter-picking events
+            Sign in to join litter-picking events and communities
           </p>
         </div>
 
