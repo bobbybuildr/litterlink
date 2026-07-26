@@ -111,9 +111,14 @@ One row per event (unique on `event_id`). Written when organiser logs impact aft
 | `contact_email` | TEXT \| null | |
 | `group_type` | TEXT | One of: `'community' \| 'school' \| 'corporate' \| 'council' \| 'charity' \| 'other'` |
 | `created_by` | UUID \| null | FK → `profiles` ON DELETE SET NULL |
+| `location_postcode` | TEXT \| null | Canonical UK postcode, mirrors the `events` location approach |
+| `latitude` | DOUBLE PRECISION \| null | From `postcodes.io` geocoding |
+| `longitude` | DOUBLE PRECISION \| null | From `postcodes.io` geocoding |
+| `location_name` | TEXT \| null | Friendly display name (e.g. "Bromsgrove", "Birmingham City Centre") |
 | `created_at` | TIMESTAMPTZ | |
 
-**Indexes:** `slug`, `created_by`
+**Indexes:** `slug`, `created_by`, `(latitude, longitude)`
+
 
 ### `group_members`
 

@@ -16,6 +16,8 @@ All routes use the Next.js 16 App Router. There is no Pages Router.
 | `/events/[id]` | `src/app/events/[id]/page.tsx` | Event detail — join/leave, share URL, map pin, photo gallery, participants, post-event stats |
 | `/groups` | `src/app/groups/page.tsx` | Browse all groups — postcode search, radius filter, group type filter, interactive map with popups, "Featured Group" showcase (most active in the trailing 30 days, hidden once a search/filter is applied), and a card grid sorted by member count |
 | `/groups/[slug]` | `src/app/groups/[slug]/page.tsx` | Group profile page — logo, description, links, member count, join/leave button, impact stats (events hosted, bags collected, volunteer sessions, hours volunteered), organisers section, members section, upcoming/past events |
+| `/impact` | `src/app/impact/page.tsx` | National impact dashboard — collective stats (bags collected, volunteer sessions, events completed, hours), period-filterable recent activity, top areas, top organisers, most active groups, community stats, and a litter-type breakdown |
+| `/profile/[id]` | `src/app/profile/[id]/page.tsx` | Public profile page, keyed by username or user ID (canonicalises to the username URL when one is set) — avatar, bio, social link, verified-organiser badge, impact stats, organised/joined events, and group memberships. Content is gated to signed-in viewers (unauthenticated visitors see a sign-in prompt) |
 | `/privacy` | `src/app/privacy/page.tsx` | Privacy policy |
 | `/terms` | `src/app/terms/page.tsx` | Terms of service |
 
@@ -94,6 +96,17 @@ Enforced in `src/proxy.ts` (Next.js 16 middleware replacement):
 
 When `postcode` or `type` is set, the "Featured Group" card is hidden (only shown on the unfiltered default view).
 
+### Search Parameters — `/impact`
+
+| Param | Type | Default | Description |
+|---|---|---|---|
+| `orgPeriod` | `month` \| `lastMonth` \| `year` \| `90d` \| `all` | `month` | Period filter for the "Top organisers" section |
+| `areaPeriod` | same as above | `month` | Period filter for the "Top areas" section |
+| `statsPeriod` | same as above | `month` | Period filter for the "Recent activity" section |
+| `groupPeriod` | same as above | `month` | Period filter for the "Most active groups" section |
+
+Each section's period pills link to a URL with a `#`-anchor back to that section (scroll position preserved via `scroll={false}`).
+
 ### Navigation Structure
 
 ```
@@ -138,6 +151,7 @@ Footer
 #### Discovery & Map
 - Browse all published/completed events at `/events`
 - Postcode-based geo search with configurable radius
+- "Use my location" geolocation button on the homepage postcode search, `/events` filter, and `/groups` filter — uses the browser Geolocation API and reverse-geocodes the coordinates to a UK postcode via `src/app/api/reverse-geocode/route.ts` (proxies `postcodes.io`'s nearest-postcode lookup); the resolved postcode populates the search field rather than sorting by raw distance. Handles permission-denied, unavailable, and timeout errors with inline messaging; falls back gracefully to manual postcode entry
 - Date range filtering
 - Interactive Leaflet map showing all matching events with popups
 - Card list alongside the map
@@ -170,10 +184,12 @@ Organiser-only form at `/events/[id]/stats`:
 - Quick links to profile and create event
 
 #### Profile
-- Edit display name, home postcode
+- Edit display name, home postcode, username, bio, and social link
 - Upload avatar (JPEG/PNG/WebP, ≤ 5 MB) stored in Supabase Storage
 - Avatar shown in navbar
 - Email preference management (transactional and marketing opt-ins)
+- Public profile page at `/profile/[id]` (accepts a username or a user UUID; redirects to the canonical username URL when one is set) — displays avatar, bio, social link, verified-organiser badge, member-since date, activity stats (events joined/organised with impact logged, bags collected, hours volunteered), upcoming and past organised events, recently attended events, and group memberships. Gated to signed-in viewers — unauthenticated visitors are shown a sign-in/sign-up prompt instead of profile data
+- Organiser names on events, groups, and the impact page link to the organiser's public profile
 - Account deletion — removes personal data, sets FK to null on events/groups, deletes auth user
 
 #### Photos
@@ -207,6 +223,24 @@ Organiser-only form at `/events/[id]/stats`:
 - Self-insert RLS policy restricts `role` to `'member'` only — prevents API-level self-promotion to organiser
 - Rate-limited group joins (10 per user per hour — `isGroupJoinRateLimited` in `src/lib/ratelimit.ts`)
 - Shared `GROUP_TYPE_LABELS` constant lives in `src/lib/constants.ts` (client-safe — no server-only imports) so both Server and Client Components can use it without pulling in the Supabase server client
+
+#### National Impact Page
+- `/impact` — public dashboard visualising aggregate community impact (no auth required)
+- Hero + core stats band: total bags collected, volunteer sessions, events completed, and hours of cleanup (all-time, across all completed events)
+- "Recent activity" section — bags collected and events completed within a selectable period (this month, last month, last 90 days, all time), plus a count of new volunteers
+- "Top areas" — ranks local authority districts (falls back to postcode outcode) by bags collected, with event counts, for the selected period
+- "Top organisers" — ranks users by completed event count (tie-broken by bags/attendees) for the selected period; shows avatar, verified badge, and links to each organiser's public profile
+- "Most active groups" — ranks groups by completed event count and bags collected for the selected period; links to each group's profile
+- "A growing community" — total active groups and verified-organiser counts
+- "What we're finding" — horizontal bar breakdown of litter types recorded across all completed events' stats
+- Each section (recent activity, top areas, top organisers, top groups) has its own independent period filter, driven by `orgPeriod`/`areaPeriod`/`statsPeriod`/`groupPeriod` search params, with anchor-linked pills that preserve scroll position
+- Linked from the site footer
+
+#### Geolocation-Assisted Postcode Search
+- "Use my location" button available on the homepage postcode search (`PostcodeSearch`), the `/events` filter (`EventsFilter`), and the `/groups` filter (`GroupsFilter`)
+- Uses the browser Geolocation API (`navigator.geolocation.getCurrentPosition`) to obtain coordinates, then calls the server-side `/api/reverse-geocode` route, which proxies `postcodes.io`'s nearest-postcode lookup to resolve the coordinates to a UK postcode
+- Resolved postcode is filled into the postcode field (existing manual entry and geocoding-to-lat/lng flow is unchanged)
+- Inline error handling for unsupported browsers, denied permission, unavailable position, and timeouts, with a manual-entry fallback always available
 
 #### Email Notifications (via Resend, `src/lib/email.ts`)
 - Organiser application submitted → admin notification + applicant confirmation
@@ -247,25 +281,22 @@ The following features are absent from the codebase. Do not assume these exist w
 
 #### Social / Community
 - Comment or discussion threads on event pages
-- Public organiser profile pages
 - Following organisers or areas
 - Volunteer reputation / badges
 
 #### Discovery
-- "Events near me" using browser geolocation (currently requires manual postcode entry)
+- True "events near me" sorted by distance using live browser geolocation (geolocation currently resolves to a postcode, which is then used for the existing radius search — not distance-based sorting)
 - Saved/bookmarked events
 - Search by event title or keyword
 - Category/tag filtering (beach, park, street, etc.)
 
 #### Organiser Tools
-- Edit an existing event (only cancel is currently available)
 - Waitlist management
 - Attendee list visible to organiser
 - Co-organiser / team support
 - Recurring event scheduling
 
 #### Impact & Stats
-- Public leaderboard or aggregate community impact statistics
 - `weight_kg` and `area_covered_sqm` columns exist in the schema and TypeScript types but are not exposed in any UI
 - Downloadable impact reports
 
