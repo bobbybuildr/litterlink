@@ -23,6 +23,10 @@ export type EventWithStats = EventWithCount & {
 export type EventPhotoRow =
   Database["public"]["Tables"]["event_photos"]["Row"];
 
+// PostgREST caps unbounded selects at 1000 rows per request — paginate with
+// `.range()` past that so results don't silently truncate.
+const POSTGREST_MAX_ROWS = 1000;
+
 /**
  * Fetch published events for the list/map view, optionally filtered by date range.
  * Radius filtering is intentionally left to the caller so the map can show all pins
@@ -35,21 +39,39 @@ export async function getPublishedEvents(options?: {
 }): Promise<EventWithCount[]> {
   const supabase = await createClient();
 
-  let query = supabase
-    .from("events_with_counts")
-    .select("*")
-    .in("status", ["published", "completed"])
-    .order("starts_at", { ascending: true })
-    .limit(options?.limit ?? 100);
+  function buildQuery(from: number, to: number) {
+    let query = supabase
+      .from("events_with_counts")
+      .select("*")
+      .in("status", ["published", "completed"])
+      .order("starts_at", { ascending: true })
+      .range(from, to);
 
-  if (options?.from) query = query.gte("starts_at", options.from);
-  if (options?.to) query = query.lte("starts_at", `${options.to}T23:59:59`);
+    if (options?.from) query = query.gte("starts_at", options.from);
+    if (options?.to) query = query.lte("starts_at", `${options.to}T23:59:59`);
 
-  const { data, error } = await query;
+    return query;
+  }
 
-  if (error || !data) return [];
+  if (options?.limit) {
+    const { data, error } = await buildQuery(0, options.limit - 1);
+    if (error || !data) return [];
+    return data as EventWithCount[];
+  }
 
-  return data as EventWithCount[];
+  // No explicit limit — fetch every matching row via range-based pagination
+  // so events beyond PostgREST's 1000-row cap don't silently vanish from
+  // search results.
+  const rows: EventWithCount[] = [];
+  let from = 0;
+  for (;;) {
+    const { data, error } = await buildQuery(from, from + POSTGREST_MAX_ROWS - 1);
+    if (error || !data) break;
+    rows.push(...(data as EventWithCount[]));
+    if (data.length < POSTGREST_MAX_ROWS) break;
+    from += POSTGREST_MAX_ROWS;
+  }
+  return rows;
 }
 
 /** Fetch a single event with its stats (for detail page). */
@@ -155,17 +177,16 @@ export type GroupWithCounts = GroupRow & {
   creator_is_verified: boolean;
   member_count: number;
   upcoming_event_count: number;
-  /** Weighted activity score over the trailing `ACTIVITY_WINDOW_DAYS` — see getPublishedGroups. */
+  /** Weighted activity score over the trailing 30 days — computed by the `groups_with_counts` view. */
   activity_score: number;
 };
-
-const ACTIVITY_WINDOW_DAYS = 30;
 
 /**
  * Fetch all groups for the discovery list/map, enriched with the creator's
  * verified-organiser status, member count, upcoming (published) event count,
- * and a recent-activity score. Counts are computed client-side since there's
- * no `groups_with_counts` view yet.
+ * and a recent-activity score. Aggregation happens in Postgres via the
+ * `groups_with_counts` view, so it isn't a full-table scan reduced in
+ * JavaScript and isn't subject to PostgREST's per-request row cap.
  *
  * `activity_score` reflects engagement over the trailing 30 days: new
  * members joined, events that took place, and participants who joined those
@@ -174,88 +195,13 @@ const ACTIVITY_WINDOW_DAYS = 30;
 export async function getPublishedGroups(): Promise<GroupWithCounts[]> {
   const supabase = await createClient();
 
-  const now = new Date();
-  const nowIso = now.toISOString();
-  const since = new Date(now);
-  since.setDate(since.getDate() - ACTIVITY_WINDOW_DAYS);
-  const sinceIso = since.toISOString();
+  const { data, error } = await supabase
+    .from("groups_with_counts")
+    .select("*")
+    .order("created_at", { ascending: false });
 
-  const [{ data: groupRows }, { data: memberRows }, { data: eventRows }] =
-    await Promise.all([
-      supabase
-        .from("groups")
-        .select("*, profiles(is_verified_organiser)")
-        .order("created_at", { ascending: false }),
-      supabase.from("group_members").select("group_id, joined_at"),
-      supabase
-        .from("events")
-        .select("id, group_id, starts_at, status")
-        .not("group_id", "is", null),
-    ]);
-
-  // The hand-written Database type carries no relationship metadata, so the
-  // Supabase client infers `never[]` for the joined select. Cast via unknown.
-  type RawGroupRow = GroupRow & {
-    profiles: { is_verified_organiser: boolean } | null;
-  };
-  type MemberRow = { group_id: string; joined_at: string };
-  type GroupEventRow = { id: string; group_id: string | null; starts_at: string; status: string };
-
-  const members = (memberRows ?? []) as MemberRow[];
-  const groupEvents = (eventRows ?? []) as GroupEventRow[];
-
-  const memberCounts = new Map<string, number>();
-  const recentMemberCounts = new Map<string, number>();
-  for (const row of members) {
-    memberCounts.set(row.group_id, (memberCounts.get(row.group_id) ?? 0) + 1);
-    if (row.joined_at >= sinceIso) {
-      recentMemberCounts.set(row.group_id, (recentMemberCounts.get(row.group_id) ?? 0) + 1);
-    }
-  }
-
-  const eventGroupMap = new Map<string, string>(); // event id -> group id
-  const upcomingEventCounts = new Map<string, number>();
-  const recentEventCounts = new Map<string, number>();
-  for (const row of groupEvents) {
-    if (!row.group_id) continue;
-    eventGroupMap.set(row.id, row.group_id);
-    if (row.status === "published" && row.starts_at >= nowIso) {
-      upcomingEventCounts.set(row.group_id, (upcomingEventCounts.get(row.group_id) ?? 0) + 1);
-    }
-    if (row.status !== "cancelled" && row.starts_at >= sinceIso && row.starts_at <= nowIso) {
-      recentEventCounts.set(row.group_id, (recentEventCounts.get(row.group_id) ?? 0) + 1);
-    }
-  }
-
-  const eventIds = Array.from(eventGroupMap.keys());
-  const { data: participantRows } = eventIds.length
-    ? await supabase
-        .from("event_participants")
-        .select("event_id, joined_at")
-        .in("event_id", eventIds)
-        .eq("status", "confirmed")
-        .gte("joined_at", sinceIso)
-    : { data: [] as { event_id: string; joined_at: string }[] };
-
-  const recentParticipantCounts = new Map<string, number>();
-  for (const row of (participantRows ?? []) as { event_id: string; joined_at: string }[]) {
-    const groupId = eventGroupMap.get(row.event_id);
-    if (!groupId) continue;
-    recentParticipantCounts.set(groupId, (recentParticipantCounts.get(groupId) ?? 0) + 1);
-  }
-
-  return ((groupRows ?? []) as unknown as RawGroupRow[]).map(
-    ({ profiles, ...group }) => ({
-      ...group,
-      creator_is_verified: profiles?.is_verified_organiser ?? false,
-      member_count: memberCounts.get(group.id) ?? 0,
-      upcoming_event_count: upcomingEventCounts.get(group.id) ?? 0,
-      activity_score:
-        (recentMemberCounts.get(group.id) ?? 0) * 3 +
-        (recentEventCounts.get(group.id) ?? 0) * 5 +
-        (recentParticipantCounts.get(group.id) ?? 0) * 2,
-    })
-  );
+  if (error || !data) return [];
+  return data as GroupWithCounts[];
 }
 
 /**
@@ -290,13 +236,23 @@ export async function getEventsByGroupId(
   groupId: string
 ): Promise<EventWithCount[]> {
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("events_with_counts")
-    .select("*")
-    .eq("group_id", groupId)
-    .in("status", ["published", "completed", "cancelled"])
-    .order("starts_at", { ascending: false });
-  return (data ?? []) as EventWithCount[];
+
+  const rows: EventWithCount[] = [];
+  let from = 0;
+  for (;;) {
+    const { data, error } = await supabase
+      .from("events_with_counts")
+      .select("*")
+      .eq("group_id", groupId)
+      .in("status", ["published", "completed", "cancelled"])
+      .order("starts_at", { ascending: false })
+      .range(from, from + POSTGREST_MAX_ROWS - 1);
+    if (error || !data) break;
+    rows.push(...(data as EventWithCount[]));
+    if (data.length < POSTGREST_MAX_ROWS) break;
+    from += POSTGREST_MAX_ROWS;
+  }
+  return rows;
 }
 
 export type GroupMember = {

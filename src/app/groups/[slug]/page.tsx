@@ -68,19 +68,24 @@ export default async function GroupPage({ params }: Props) {
     (e) => e.status === "completed" || (e.status !== "cancelled" && new Date(e.starts_at) < now) || e.status === "cancelled"
   ).sort((a, b) => new Date(b.starts_at).getTime() - new Date(a.starts_at).getTime());
 
-  // Impact stats — aggregated from event_stats for this group's completed events
-  const completedEvents = events.filter((e) => e.status === "completed");
-  const { data: statsRows } = completedEvents.length
-    ? await supabase
-        .from("event_stats")
-        .select("bags_collected, actual_attendees, duration_hours")
-        .in("event_id", completedEvents.map((e) => e.id))
-    : { data: [] as { bags_collected: number | null; actual_attendees: number | null; duration_hours: number | null }[] };
+  // Impact stats — aggregated from event_stats for this group's completed
+  // events. Batched at 1000 ids per request since PostgREST caps results at
+  // 1000 rows regardless of how many ids are passed to `.in()`.
+  const completedEventIds = events.filter((e) => e.status === "completed").map((e) => e.id);
+  const STATS_BATCH_SIZE = 1000;
+  const statsRows: { bags_collected: number | null; actual_attendees: number | null; duration_hours: number | null }[] = [];
+  for (let i = 0; i < completedEventIds.length; i += STATS_BATCH_SIZE) {
+    const { data } = await supabase
+      .from("event_stats")
+      .select("bags_collected, actual_attendees, duration_hours")
+      .in("event_id", completedEventIds.slice(i, i + STATS_BATCH_SIZE));
+    statsRows.push(...(data ?? []));
+  }
 
-  const bagsCollected = (statsRows ?? []).reduce((sum, s) => sum + (s.bags_collected ?? 0), 0);
-  const volunteerSessions = (statsRows ?? []).reduce((sum, s) => sum + (s.actual_attendees ?? 0), 0);
+  const bagsCollected = statsRows.reduce((sum, s) => sum + (s.bags_collected ?? 0), 0);
+  const volunteerSessions = statsRows.reduce((sum, s) => sum + (s.actual_attendees ?? 0), 0);
   const totalHours = Math.round(
-    (statsRows ?? []).reduce((sum, s) => sum + (s.duration_hours ?? 0), 0)
+    statsRows.reduce((sum, s) => sum + (s.duration_hours ?? 0), 0)
   );
 
   const typeLabel = GROUP_TYPE_LABELS[group.group_type] ?? "Organisation";
@@ -234,7 +239,7 @@ export default async function GroupPage({ params }: Props) {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <GroupImpactCard
             icon={<Calendar className="h-5 w-5 text-brand" />}
-            value={completedEvents.length.toLocaleString()}
+            value={completedEventIds.length.toLocaleString()}
             label="Events hosted"
             subLabel="with impact logged"
           />

@@ -140,7 +140,8 @@ async function getImpactData(
 
   const [
     { count: eventCount },
-    { data: statsData },
+    { data: nationalStats },
+    { data: litterTypeRows },
     { count: groupCount },
     { count: verifiedOrgCount },
     { count: recentEventCount, data: recentEvents },
@@ -153,9 +154,13 @@ async function getImpactData(
       .from("events")
       .select("*", { count: "exact", head: true })
       .eq("status", "completed"),
+    // Pre-summed in Postgres — avoids pulling every event_stats row into the
+    // app just to add them up, which silently truncated past 1000 rows.
+    supabase.from("national_impact_stats").select("*").single(),
     supabase
-      .from("event_stats")
-      .select("event_id, bags_collected, actual_attendees, duration_hours, litter_types"),
+      .from("litter_type_counts")
+      .select("*")
+      .order("count", { ascending: false }),
     supabase.from("groups").select("*", { count: "exact", head: true }),
     supabase
       .from("profiles")
@@ -168,19 +173,47 @@ async function getImpactData(
     groupEventsQuery,
   ]);
 
-  const totalBags =
-    statsData?.reduce((sum, s) => sum + (s.bags_collected ?? 0), 0) ?? 0;
-  const totalVolunteers =
-    statsData?.reduce((sum, s) => sum + (s.actual_attendees ?? 0), 0) ?? 0;
-  const totalHours = Math.round(
-    statsData?.reduce((sum, s) => sum + (s.duration_hours ?? 0), 0) ?? 0
+  type NationalStats = {
+    total_bags: number;
+    total_volunteers: number;
+    total_hours: number;
+  };
+  type LitterTypeCount = { litter_type: string; count: number };
+
+  const totalBags = (nationalStats as NationalStats | null)?.total_bags ?? 0;
+  const totalVolunteers = (nationalStats as NationalStats | null)?.total_volunteers ?? 0;
+  const totalHours = Math.round((nationalStats as NationalStats | null)?.total_hours ?? 0);
+
+  // Per-event breakdowns below (top areas/organisers/groups) only need stats
+  // for the events those period-filtered queries actually returned, so scope
+  // the event_stats lookup to just those ids instead of the whole table —
+  // batched to stay under PostgREST's 1000-row cap per request.
+  const relevantEventIds = Array.from(
+    new Set([
+      ...(organiserEventsData ?? []).map((e) => e.id),
+      ...(areaEventsData ?? []).map((e) => e.id),
+      ...(groupEventsData ?? []).map((e) => e.id),
+    ])
   );
+  const STATS_BATCH_SIZE = 1000;
+  const scopedStatsRows: {
+    event_id: string;
+    bags_collected: number | null;
+    actual_attendees: number | null;
+  }[] = [];
+  for (let i = 0; i < relevantEventIds.length; i += STATS_BATCH_SIZE) {
+    const { data } = await supabase
+      .from("event_stats")
+      .select("event_id, bags_collected, actual_attendees")
+      .in("event_id", relevantEventIds.slice(i, i + STATS_BATCH_SIZE));
+    scopedStatsRows.push(...(data ?? []));
+  }
 
   // Top areas: aggregate by the resolved local authority district name, so
   // postcodes sharing one place (e.g. several outcodes within Sandwell) are
   // combined under a single human-readable label rather than split by outcode.
   const statsByEventId = new Map(
-    (statsData ?? []).map((s) => ([
+    scopedStatsRows.map((s) => ([
       s.event_id,
       { bags: s.bags_collected ?? 0, attendees: s.actual_attendees ?? 0 },
     ]))
@@ -335,17 +368,9 @@ async function getImpactData(
     (recentParticipants ?? []).map((p) => p.user_id)
   ).size;
 
-  const litterTypeCounts: Record<string, number> = {};
-  for (const row of statsData ?? []) {
-    for (const type of row.litter_types ?? []) {
-      if (type) {
-        litterTypeCounts[type] = (litterTypeCounts[type] ?? 0) + 1;
-      }
-    }
-  }
-  const sortedLitterTypes = Object.entries(litterTypeCounts).sort(
-    (a, b) => b[1] - a[1]
-  );
+  const sortedLitterTypes: Array<[string, number]> = (
+    (litterTypeRows ?? []) as LitterTypeCount[]
+  ).map((row) => [row.litter_type, row.count]);
 
   return {
     eventCount: eventCount ?? 0,
