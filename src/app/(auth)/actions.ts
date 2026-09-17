@@ -2,14 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { cookies, headers } from "next/headers";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 
+// Use the canonical site URL rather than the (spoofable) Host header.
 async function getSiteUrl() {
-  const headersList = await headers();
-  const host = headersList.get("host") ?? "";
-  const proto = headersList.get("x-forwarded-proto") ?? "https";
-  return `${proto}://${host}`;
+  return process.env.NEXT_PUBLIC_SITE_URL ?? "https://litterlink.co.uk";
 }
 
 export async function signInWithEmail(formData: FormData) {

@@ -13,7 +13,7 @@ The findings below concern resilience, correctness at scale, and maintainability
 | Severity | Count |
 |---|---|
 | Critical | 1 (fixed) |
-| High | 5 (1 fixed) |
+| High | 5 (2 fixed) |
 | Medium | 11 (1 fixed) |
 | Low | 9 |
 
@@ -97,7 +97,7 @@ The failure mode is the worst kind — no error, no warning, just quietly incorr
 3. `getPublishedEvents` in `src/lib/events.ts` no longer caps at 100 rows — it paginates with `.range()` until every matching row is fetched.
 4. `getEventsByGroupId` and the group impact stats query in `src/app/groups/[slug]/page.tsx` now paginate/batch the same way, so a very active group can't silently truncate either.
 
-### H3 — Host header trusted when constructing email links
+### H3 — ~~Host header trusted when constructing email links~~ ✅ Fixed
 
 **Location:** `src/app/(auth)/actions.ts`
 
@@ -112,18 +112,9 @@ async function getSiteUrl() {
 
 This value becomes `emailRedirectTo` for signup confirmation emails and confirmation resends, and the OAuth `redirectTo`. A spoofed `Host` header produces confirmation links pointing at an attacker-controlled domain. Supabase's redirect allow-list is the only mitigation standing between this and link-hijack account takeover.
 
-**Suggested fix**
+**Resolution**
 
-Use the canonical site URL, which is already defined and used in twelve places across `src/lib/email.ts`:
-
-```ts
-async function getSiteUrl() {
-  if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL;
-  // dev fallback only
-  const headersList = await headers();
-  return `http://${headersList.get("host") ?? "localhost:3000"}`;
-}
-```
+`getSiteUrl()` in `src/app/(auth)/actions.ts` now returns `process.env.NEXT_PUBLIC_SITE_URL ?? "https://litterlink.co.uk"`, matching the pattern already used in `src/lib/email.ts` and elsewhere. The `Host`/`X-Forwarded-Proto` headers are no longer read, and the now-unused `headers` import was removed.
 
 ### H4 — No error boundaries anywhere in the app
 
@@ -370,7 +361,7 @@ and a GitHub Actions workflow running lint, typecheck, and tests on every push.
 ## Suggested order of work
 
 1. **C1** — commit `supabase/`. Every other item is reversible; losing the schema is not.
-2. **H1** and **H3** — small, contained changes with genuine privacy and security impact.
+2. **H1** — small, contained change with genuine privacy impact. (**H3** is already fixed.)
 3. **H2** — the impact figures are the product's headline claim and need to be correct.
 4. **M1**, **M4**, **M9** — inexpensive groundwork that makes everything after it safer to change.
 5. **H4** and **H5** — resilience and a regression net before the next feature lands.
