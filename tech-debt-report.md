@@ -13,7 +13,7 @@ The findings below concern resilience, correctness at scale, and maintainability
 | Severity | Count |
 |---|---|
 | Critical | 1 (fixed) |
-| High | 5 (2 fixed) |
+| High | 5 (3 fixed) |
 | Medium | 11 (1 fixed) |
 | Low | 9 |
 
@@ -116,7 +116,7 @@ This value becomes `emailRedirectTo` for signup confirmation emails and confirma
 
 `getSiteUrl()` in `src/app/(auth)/actions.ts` now returns `process.env.NEXT_PUBLIC_SITE_URL ?? "https://litterlink.co.uk"`, matching the pattern already used in `src/lib/email.ts` and elsewhere. The `Host`/`X-Forwarded-Proto` headers are no longer read, and the now-unused `headers` import was removed.
 
-### H4 — No error boundaries anywhere in the app
+### H4 — ~~No error boundaries anywhere in the app~~ ✅ Fixed
 
 **Location:** `src/app/`
 
@@ -124,11 +124,15 @@ The only Next.js special file present is `src/app/not-found.tsx`. There is no `e
 
 A postcodes.io outage, a Supabase connection blip, or any unhandled throw inside a Server Component drops the user on the default Next.js error screen — unbranded, with no recovery action and no telemetry.
 
-**Suggested fix**
+**Resolution**
 
-1. Add `src/app/error.tsx` with a reset button and branded styling.
-2. Add `src/app/global-error.tsx` for root-layout failures.
-3. Consider route-level boundaries for the data-heavy segments: `/events`, `/groups`, `/impact`, `/dashboard`.
+1. Added a shared `src/components/ErrorState.tsx` presentational component (branded, matches the style of `src/app/not-found.tsx`) with an optional retry button.
+2. Added `src/app/error.tsx` as the root-level error boundary, using `ErrorState` and Next.js 16's `retry()` prop (the successor to `reset()`).
+3. Added `src/app/global-error.tsx` for root-layout failures — it defines its own `<html>`/`<body>` and imports `globals.css` directly, as required for `global-error.jsx` in this Next.js version.
+4. Added route-level boundaries for the data-heavy segments: `src/app/events/error.tsx`, `src/app/groups/error.tsx`, `src/app/impact/error.tsx`, `src/app/dashboard/error.tsx`, each with a segment-specific message.
+5. All error boundaries log the caught error via `console.error` in a `useEffect`.
+
+`npm run lint`, `npx tsc --noEmit`, and `npm run build` all pass clean with these files in place.
 
 ### H5 — No test suite
 
@@ -364,5 +368,5 @@ and a GitHub Actions workflow running lint, typecheck, and tests on every push.
 2. **H1** — small, contained change with genuine privacy impact. (**H3** is already fixed.)
 3. **H2** — the impact figures are the product's headline claim and need to be correct.
 4. **M1**, **M4**, **M9** — inexpensive groundwork that makes everything after it safer to change.
-5. **H4** and **H5** — resilience and a regression net before the next feature lands.
+5. **H5** — a regression net before the next feature lands. (**H4** is already fixed.)
 6. Remaining Medium items, then Low.
