@@ -5,11 +5,16 @@ import { Copy, Check, Share2 } from "lucide-react";
 
 interface ShareUrlProps {
   title?: string;
+  /** Canonical URL to display/copy. Falls back to window.location.href if omitted. */
+  url?: string;
 }
 
-export function ShareUrl({ title }: ShareUrlProps) {
+export function ShareUrl({ title, url: urlProp }: ShareUrlProps) {
   const [copied, setCopied] = useState(false);
-  const url = typeof window !== "undefined" ? window.location.href : "";
+  // Prefer the server-provided canonical URL so it's correct on first paint,
+  // instead of relying on window.location.href (which caused a hydration
+  // mismatch that only resolved itself after a later re-render).
+  const url = urlProp ?? (typeof window !== "undefined" ? window.location.href : "");
   const canShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
 
   async function handleShare() {

@@ -61,6 +61,9 @@ export default async function EventDetailPage({ params, searchParams }: Props) {
   const backHref =
     back && /^\/events(\?[^#]*)?$/.test(back) ? back : "/events";
 
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://litterlink.co.uk";
+  const eventUrl = `${siteUrl}/events/${id}`;
+
   const [event, supabase] = await Promise.all([
     getEventById(id),
     createClient(),
@@ -520,7 +523,7 @@ export default async function EventDetailPage({ params, searchParams }: Props) {
           {/* Share */}
           <div className="rounded-xl border border-gray-200 bg-white p-4">
             <p className="text-xs font-medium text-gray-500 mb-2">Invite others to join</p>
-            <ShareUrl title={event.title} />
+            <ShareUrl title={event.title} url={eventUrl} />
           </div>
         </div>
       </div>
