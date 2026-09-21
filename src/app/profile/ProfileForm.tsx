@@ -2,16 +2,20 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import imageCompression from "browser-image-compression";
 import { Camera } from "lucide-react";
 import { updateProfile, type ProfileState } from "./actions";
 import { UrlInput } from "@/components/UrlInput";
+import {
+  IMAGE_UPLOAD_ACCEPT,
+  MAX_IMAGE_SOURCE_BYTES,
+  isSupportedImage,
+  looksHeic,
+  toCompressedWebp,
+} from "@/lib/image";
 
 const compressionOptions = {
   maxSizeMB: 0.25,
   maxWidthOrHeight: 400,
-  useWebWorker: true,
-  fileType: "image/webp",
 };
 
 interface Props {
@@ -41,9 +45,62 @@ export function ProfileForm({ displayName, postcode, avatarUrl, email, username,
   // Local preview of a newly-selected file before saving
   const [preview, setPreview] = useState<string | null>(null);
   const [isCompressing, setIsCompressing] = useState(false);
+  const [fileError, setFileError] = useState<string | null>(null);
   const [localUsername, setLocalUsername] = useState(username ?? "");
   const [usernameError, setUsernameError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Replacing or clearing the preview must release the previous blob URL.
+  function showPreview(url: string | null) {
+    setPreview((previous) => {
+      if (previous?.startsWith("blob:")) URL.revokeObjectURL(previous);
+      return url;
+    });
+  }
+
+  const previewRef = useRef<string | null>(null);
+  previewRef.current = preview;
+  useEffect(() => {
+    return () => {
+      if (previewRef.current?.startsWith("blob:")) URL.revokeObjectURL(previewRef.current);
+    };
+  }, []);
+
+  async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const input = e.target;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    setFileError(null);
+    if (!isSupportedImage(file)) {
+      setFileError("Choose a JPEG, PNG, WebP or HEIC image.");
+      input.value = "";
+      return;
+    }
+    if (file.size > MAX_IMAGE_SOURCE_BYTES) {
+      setFileError("That image is too large (25 MB maximum).");
+      input.value = "";
+      return;
+    }
+
+    // HEIC can't be rendered by most browsers, so wait for the converted version.
+    if (!looksHeic(file)) showPreview(URL.createObjectURL(file));
+    setIsCompressing(true);
+    try {
+      const compressed = await toCompressedWebp(file, compressionOptions, "avatar.webp");
+      const dt = new DataTransfer();
+      dt.items.add(compressed);
+      input.files = dt.files;
+      showPreview(URL.createObjectURL(compressed));
+    } catch {
+      // Clear the input so the oversized original is never submitted.
+      input.value = "";
+      showPreview(null);
+      setFileError("That image could not be processed. Try re-saving it as a JPEG.");
+    } finally {
+      setIsCompressing(false);
+    }
+  }
 
   function validateUsername(value: string) {
     if (value === "") return null;
@@ -54,7 +111,7 @@ export function ProfileForm({ displayName, postcode, avatarUrl, email, username,
 
   // Clear preview once the server confirms the save so the fresh DB URL shows
   useEffect(() => {
-    if (state?.success) setPreview(null);
+    if (state?.success) showPreview(null);
   }, [state?.success]);
 
   const shownAvatar = preview ?? avatarUrl;
@@ -90,29 +147,19 @@ export function ProfileForm({ displayName, postcode, avatarUrl, email, username,
         </button>
 
         <p className="text-xs text-gray-400">
-          {isCompressing ? "Compressing…" : "JPEG, PNG or WebP"}
+          {isCompressing ? "Processing…" : "JPEG, PNG, WebP or HEIC"}
         </p>
+        <div role="alert" aria-live="assertive">
+          {fileError && <p className="text-xs text-red-600">{fileError}</p>}
+        </div>
 
         <input
           ref={fileInputRef}
           type="file"
           name="avatar"
-          accept="image/jpeg,image/png,image/webp"
+          accept={IMAGE_UPLOAD_ACCEPT}
           className="sr-only"
-          onChange={async (e) => {
-            const file = e.target.files?.[0];
-            if (!file) return;
-            setPreview(URL.createObjectURL(file));
-            setIsCompressing(true);
-            try {
-              const compressed = await imageCompression(file, compressionOptions);
-              const dt = new DataTransfer();
-              dt.items.add(new File([compressed], "avatar.webp", { type: "image/webp" }));
-              if (fileInputRef.current) fileInputRef.current.files = dt.files;
-            } finally {
-              setIsCompressing(false);
-            }
-          }}
+          onChange={handleAvatarChange}
         />
       </div>
 
@@ -329,7 +376,7 @@ export function ProfileForm({ displayName, postcode, avatarUrl, email, username,
         disabled={pending || isCompressing}
         className="mt-6 w-full rounded-xl bg-brand py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-dark disabled:opacity-60"
       >
-        {isCompressing ? "Compressing…" : pending ? "Saving…" : "Save changes"}
+        {isCompressing ? "Processing…" : pending ? "Saving…" : "Save changes"}
       </button>
     </form>
   );

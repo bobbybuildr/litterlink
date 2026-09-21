@@ -2,14 +2,18 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, X } from "lucide-react";
+import { Camera, ImageOff, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  IMAGE_UPLOAD_ACCEPT,
+  MAX_IMAGE_SOURCE_BYTES,
+  decodeHeic,
+  isSupportedImage,
+  looksHeic,
+} from "@/lib/image";
 import { uploadEventPhoto } from "@/app/events/actions";
 
 const MAX_PHOTOS = 10;
-const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
-// Ceiling on the source file, before compression — guards against decoding huge images.
-const MAX_SOURCE_BYTES = 25 * 1024 * 1024;
 
 const compressionOptions = {
   maxSizeMB: 1,
@@ -20,8 +24,11 @@ const compressionOptions = {
 
 interface SelectedPhoto {
   key: string;
+  name: string;
   file: File;
-  previewUrl: string;
+  previewUrl: string | null;
+  converting: boolean;
+  failed?: string;
 }
 
 interface PhotoUploadProps {
@@ -39,13 +46,46 @@ export function PhotoUpload({ eventId, existingCount = 0, className }: PhotoUplo
   const router = useRouter();
 
   const remainingSlots = Math.max(0, MAX_PHOTOS - existingCount);
+  const converting = photos.some((p) => p.converting);
+  const uploadable = photos.filter((p) => !p.converting && !p.failed);
 
-  // Live ref so the unmount cleanup revokes the latest preview URLs.
-  const photosRef = useRef(photos);
-  photosRef.current = photos;
+  // Revoke preview URLs centrally as they drop out of the list, and on unmount.
+  const liveUrls = useRef<Set<string>>(new Set());
   useEffect(() => {
-    return () => photosRef.current.forEach((p) => URL.revokeObjectURL(p.previewUrl));
+    const current = new Set(photos.flatMap((p) => (p.previewUrl ? [p.previewUrl] : [])));
+    for (const url of liveUrls.current) {
+      if (!current.has(url)) URL.revokeObjectURL(url);
+    }
+    liveUrls.current = current;
+  }, [photos]);
+  useEffect(() => {
+    const urls = liveUrls.current;
+    return () => urls.forEach((url) => URL.revokeObjectURL(url));
   }, []);
+
+  async function convertHeic(key: string, file: File) {
+    try {
+      const source = await decodeHeic(file);
+      const previewUrl = URL.createObjectURL(source);
+      setPhotos((current) =>
+        current.map((p) =>
+          p.key === key ? { ...p, file: source, previewUrl, converting: false } : p
+        )
+      );
+    } catch {
+      setPhotos((current) =>
+        current.map((p) =>
+          p.key === key
+            ? {
+                ...p,
+                converting: false,
+                failed: `${p.name}: could not be read — try sharing it as a JPEG instead.`,
+              }
+            : p
+        )
+      );
+    }
+  }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const picked = Array.from(e.target.files ?? []);
@@ -53,19 +93,20 @@ export function PhotoUpload({ eventId, existingCount = 0, className }: PhotoUplo
     e.target.value = "";
     if (!picked.length) return;
 
-    const current = photosRef.current;
-    const seen = new Set(current.map((p) => p.key));
-    const next = [...current];
+    const seen = new Set(photos.map((p) => p.key));
+    const next = [...photos];
     const skipped: string[] = [];
+    const queued: SelectedPhoto[] = [];
 
     for (const file of picked) {
       const key = `${file.name}:${file.size}:${file.lastModified}`;
       if (seen.has(key)) continue;
-      if (!ALLOWED_TYPES.has(file.type)) {
-        skipped.push(`${file.name}: must be a JPEG, PNG or WebP image.`);
+      const heic = looksHeic(file);
+      if (!isSupportedImage(file)) {
+        skipped.push(`${file.name}: must be a JPEG, PNG, WebP or HEIC image.`);
         continue;
       }
-      if (file.size > MAX_SOURCE_BYTES) {
+      if (file.size > MAX_IMAGE_SOURCE_BYTES) {
         skipped.push(`${file.name}: is too large (25 MB maximum).`);
         continue;
       }
@@ -78,43 +119,39 @@ export function PhotoUpload({ eventId, existingCount = 0, className }: PhotoUplo
         break;
       }
       seen.add(key);
-      next.push({ key, file, previewUrl: URL.createObjectURL(file) });
+      const entry: SelectedPhoto = {
+        key,
+        name: file.name,
+        file,
+        previewUrl: heic ? null : URL.createObjectURL(file),
+        converting: heic,
+      };
+      next.push(entry);
+      if (heic) queued.push(entry);
     }
 
     setSuccess(null);
     setError(skipped.length ? [...new Set(skipped)].join(" ") : null);
     setPhotos(next);
+    queued.forEach((p) => void convertHeic(p.key, p.file));
   }
 
   function removePhoto(key: string) {
-    const target = photosRef.current.find((p) => p.key === key);
-    if (target) URL.revokeObjectURL(target.previewUrl);
-    setPhotos(photosRef.current.filter((p) => p.key !== key));
+    setPhotos((current) => current.filter((p) => p.key !== key));
     setError(null);
   }
 
   function clearPhotos() {
-    photosRef.current.forEach((p) => URL.revokeObjectURL(p.previewUrl));
     setPhotos([]);
     setError(null);
-  }
-
-  // Drops the given keys from the selection, revoking their preview URLs.
-  function discard(keys: Set<string>) {
-    const remaining: SelectedPhoto[] = [];
-    for (const photo of photosRef.current) {
-      if (keys.has(photo.key)) URL.revokeObjectURL(photo.previewUrl);
-      else remaining.push(photo);
-    }
-    setPhotos(remaining);
   }
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
     setSuccess(null);
-    if (!photos.length) return;
-    if (photos.length > remainingSlots) {
+    if (!uploadable.length || converting) return;
+    if (uploadable.length > remainingSlots) {
       setError(`Only ${remainingSlots} photo${remainingSlots === 1 ? "" : "s"} can be added to this event.`);
       return;
     }
@@ -126,14 +163,14 @@ export function PhotoUpload({ eventId, existingCount = 0, className }: PhotoUplo
         const problems: string[] = [];
         let count = 0;
 
-        for (const { key, file } of photos) {
+        for (const { key, file, name } of uploadable) {
           try {
             const compressed = await imageCompression(file, compressionOptions);
             formData.append("photos", compressed, file.name);
             formData.append("keys", key);
             count++;
           } catch {
-            problems.push(`${file.name}: could not be processed — try re-saving it as a JPEG.`);
+            problems.push(`${name}: could not be processed — try re-saving it as a JPEG.`);
           }
           setPrepared((n) => n + 1);
         }
@@ -147,7 +184,7 @@ export function PhotoUpload({ eventId, existingCount = 0, className }: PhotoUplo
         const uploadedKeys = new Set(result.uploaded);
 
         if (uploadedKeys.size) {
-          discard(uploadedKeys);
+          setPhotos((current) => current.filter((p) => !uploadedKeys.has(p.key)));
           router.refresh();
         }
 
@@ -180,7 +217,7 @@ export function PhotoUpload({ eventId, existingCount = 0, className }: PhotoUplo
         <input
           name="photos"
           type="file"
-          accept="image/jpeg,image/png,image/webp"
+          accept={IMAGE_UPLOAD_ACCEPT}
           multiple
           disabled={isPending || photos.length >= remainingSlots}
           onChange={handleFileChange}
@@ -189,7 +226,7 @@ export function PhotoUpload({ eventId, existingCount = 0, className }: PhotoUplo
         <p className="mt-1.5 text-xs text-gray-400">
           {remainingSlots === 0
             ? `This event already has the maximum of ${MAX_PHOTOS} photos.`
-            : `JPEG, PNG or WebP — add photos one at a time or in batches, up to ${remainingSlots} more.`}
+            : `JPEG, PNG, WebP or iPhone HEIC. Add up to ${remainingSlots} more.`}
         </p>
 
         {photos.length > 0 && (
@@ -210,17 +247,38 @@ export function PhotoUpload({ eventId, existingCount = 0, className }: PhotoUplo
             <ul className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-5">
               {photos.map((photo) => (
                 <li key={photo.key} className="group relative aspect-square">
-                  {/* eslint-disable-next-line @next/next/no-img-element -- next/image cannot load blob: preview URLs */}
-                  <img
-                    src={photo.previewUrl}
-                    alt={photo.file.name}
-                    className="h-full w-full rounded-lg border border-gray-200 object-cover"
-                  />
+                  {photo.previewUrl ? (
+                    /* eslint-disable-next-line @next/next/no-img-element -- next/image cannot load blob: preview URLs */
+                    <img
+                      src={photo.previewUrl}
+                      alt={photo.name}
+                      className="h-full w-full rounded-lg border border-gray-200 object-cover"
+                    />
+                  ) : (
+                    <div
+                      title={photo.failed ?? photo.name}
+                      className={cn(
+                        "flex h-full w-full flex-col items-center justify-center gap-1 rounded-lg border px-1 text-center",
+                        photo.failed
+                          ? "border-red-200 bg-red-50 text-red-600"
+                          : "border-gray-200 bg-gray-50 text-gray-400"
+                      )}
+                    >
+                      {photo.converting ? (
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-transparent" />
+                      ) : (
+                        <ImageOff className="h-4 w-4" />
+                      )}
+                      <span className="w-full truncate text-[10px]">
+                        {photo.converting ? "Converting…" : "Unreadable"}
+                      </span>
+                    </div>
+                  )}
                   <button
                     type="button"
                     onClick={() => removePhoto(photo.key)}
                     disabled={isPending}
-                    aria-label={`Remove ${photo.file.name}`}
+                    aria-label={`Remove ${photo.name}`}
                     className="absolute -right-1.5 -top-1.5 rounded-full bg-gray-900/80 p-1 text-white transition-opacity hover:bg-gray-900 disabled:opacity-50 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
                   >
                     <X className="h-3 w-3" />
@@ -239,16 +297,23 @@ export function PhotoUpload({ eventId, existingCount = 0, className }: PhotoUplo
         </div>
         <button
           type="submit"
-          disabled={photos.length === 0 || photos.length > remainingSlots || isPending}
+          disabled={
+            uploadable.length === 0 ||
+            converting ||
+            isPending ||
+            uploadable.length > remainingSlots
+          }
           className="mt-3 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {isPending
-            ? prepared < photos.length
-              ? `Preparing ${prepared + 1} of ${photos.length}…`
+            ? prepared < uploadable.length
+              ? `Preparing ${prepared + 1} of ${uploadable.length}…`
               : "Uploading…"
-            : photos.length > 0
-              ? `Upload ${photos.length} ${photos.length === 1 ? "photo" : "photos"}`
-              : "Upload"}
+            : converting
+              ? "Converting photos…"
+              : uploadable.length > 0
+                ? `Upload ${uploadable.length} ${uploadable.length === 1 ? "photo" : "photos"}`
+                : "Upload"}
         </button>
       </form>
     </div>

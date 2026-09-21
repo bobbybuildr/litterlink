@@ -2,14 +2,18 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import imageCompression from "browser-image-compression";
 import { Camera, X, Users } from "lucide-react";
+import {
+  IMAGE_UPLOAD_ACCEPT,
+  MAX_IMAGE_SOURCE_BYTES,
+  isSupportedImage,
+  looksHeic,
+  toCompressedWebp,
+} from "@/lib/image";
 
 const compressionOptions = {
   maxSizeMB: 0.25,
   maxWidthOrHeight: 400,
-  useWebWorker: true,
-  fileType: "image/webp" as const,
 };
 
 interface LogoUploadInputProps {
@@ -22,10 +26,27 @@ export function LogoUploadInput({ initialLogoUrl }: LogoUploadInputProps = {}) {
   const [isCompressing, setIsCompressing] = useState(false);
   const isCompressingRef = useRef(false);
   const [removed, setRemoved] = useState(false);
+  const [fileError, setFileError] = useState<string | null>(null);
 
   useEffect(() => {
     isCompressingRef.current = isCompressing;
   }, [isCompressing]);
+
+  // Replacing or clearing the preview must release the previous blob URL.
+  function showPreview(url: string | null) {
+    setPreview((previous) => {
+      if (previous) URL.revokeObjectURL(previous);
+      return url;
+    });
+  }
+
+  const previewRef = useRef<string | null>(null);
+  previewRef.current = preview;
+  useEffect(() => {
+    return () => {
+      if (previewRef.current) URL.revokeObjectURL(previewRef.current);
+    };
+  }, []);
 
   // Block form submission while compression is in progress
   useEffect(() => {
@@ -44,17 +65,37 @@ export function LogoUploadInput({ initialLogoUrl }: LogoUploadInputProps = {}) {
   }, []);
 
   async function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file || !inputRef.current) return;
+    const input = e.target;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    setFileError(null);
+    if (!isSupportedImage(file)) {
+      setFileError("Choose a JPEG, PNG, WebP or HEIC image.");
+      input.value = "";
+      return;
+    }
+    if (file.size > MAX_IMAGE_SOURCE_BYTES) {
+      setFileError("That image is too large (25 MB maximum).");
+      input.value = "";
+      return;
+    }
 
     setRemoved(false);
-    setPreview(URL.createObjectURL(file));
+    // HEIC can't be rendered by most browsers, so wait for the converted version.
+    if (!looksHeic(file)) showPreview(URL.createObjectURL(file));
     setIsCompressing(true);
     try {
-      const compressed = await imageCompression(file, compressionOptions);
+      const compressed = await toCompressedWebp(file, compressionOptions, "logo.webp");
       const dt = new DataTransfer();
-      dt.items.add(new File([compressed], "logo.webp", { type: "image/webp" }));
-      inputRef.current.files = dt.files;
+      dt.items.add(compressed);
+      input.files = dt.files;
+      showPreview(URL.createObjectURL(compressed));
+    } catch {
+      // Clear the input so the unprocessed original is never submitted.
+      input.value = "";
+      showPreview(null);
+      setFileError("That image could not be processed. Try re-saving it as a JPEG.");
     } finally {
       setIsCompressing(false);
     }
@@ -62,7 +103,8 @@ export function LogoUploadInput({ initialLogoUrl }: LogoUploadInputProps = {}) {
 
   function handleRemove() {
     setRemoved(true);
-    setPreview(null);
+    setFileError(null);
+    showPreview(null);
     if (inputRef.current) inputRef.current.value = "";
   }
 
@@ -103,8 +145,11 @@ export function LogoUploadInput({ initialLogoUrl }: LogoUploadInputProps = {}) {
 
         <div className="flex flex-col justify-center gap-1.5 pt-1">
           <p className="text-xs text-gray-400">
-            {isCompressing ? "Compressing…" : "JPEG, PNG or WebP"}
+            {isCompressing ? "Processing…" : "JPEG, PNG, WebP or HEIC"}
           </p>
+          <div role="alert" aria-live="assertive">
+            {fileError && <p className="text-xs text-red-600">{fileError}</p>}
+          </div>
           {shownLogo && (
             <button
               type="button"
@@ -128,7 +173,7 @@ export function LogoUploadInput({ initialLogoUrl }: LogoUploadInputProps = {}) {
         id="logo"
         name="logo"
         type="file"
-        accept="image/jpeg,image/png,image/webp"
+        accept={IMAGE_UPLOAD_ACCEPT}
         disabled={isCompressing}
         onChange={handleChange}
         className="sr-only"
