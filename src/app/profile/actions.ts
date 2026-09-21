@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { geocodePostcode } from "@/lib/geocode";
 import { sanitizeText } from "@/lib/sanitize";
+import { validateHttpUrl } from "@/lib/url";
 
 export type ProfileState = { error?: string; success?: boolean } | null;
 
@@ -43,9 +44,8 @@ export async function updateProfile(
   }
 
   // Validate social URL
-  if (socialUrl !== null && !/^https?:\/\//.test(socialUrl)) {
-    return { error: "Website or social link must start with http:// or https://." };
-  }
+  const socialUrlError = validateHttpUrl(socialUrl, "Website or social link");
+  if (socialUrlError) return { error: socialUrlError };
 
   // Validate postcode if one was provided
   if (postcode) {

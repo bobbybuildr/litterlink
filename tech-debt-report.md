@@ -14,7 +14,7 @@ The findings below concern resilience, correctness at scale, and maintainability
 |---|---|
 | Critical | 1 (fixed) |
 | High | 5 (3 fixed) |
-| Medium | 11 (1 fixed) |
+| Medium | 11 (2 fixed) |
 | Low | 9 |
 
 ---
@@ -176,7 +176,7 @@ One service-role HTTP request per confirmed participant, unbounded by attendee c
 
 Store `email` on `profiles`, populated by the existing `on_auth_user_created` trigger, and read it in a single query. Alternatively batch via one service-role query against `auth.users`.
 
-### M3 — No server-side URL scheme validation on group links
+### M3 — ~~No server-side URL scheme validation on group links~~ ✅ Fixed
 
 **Location:** `src/app/groups/create/actions.ts`, `src/app/groups/[slug]/edit/actions.ts`
 
@@ -194,9 +194,9 @@ if (socialUrl !== null && !/^https?:\/\//.test(socialUrl)) {
 }
 ```
 
-**Suggested fix**
+**Resolution**
 
-Extract that check into a shared `validateHttpUrl()` helper and apply it to `website_url` and `social_url` in both group actions.
+Added `validateHttpUrl()` in `src/lib/url.ts` and applied it to `website_url` and `social_url` in both `src/app/groups/create/actions.ts` and `src/app/groups/[slug]/edit/actions.ts`. `src/app/profile/actions.ts` was also switched to the shared helper, replacing its inline regex check.
 
 ### M4 — Substantial duplicated logic
 

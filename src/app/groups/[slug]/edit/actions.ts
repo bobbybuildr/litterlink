@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { geocodePostcode } from "@/lib/geocode";
 import { sanitizeText } from "@/lib/sanitize";
+import { validateHttpUrl } from "@/lib/url";
 
 const LOCATION_NAME_MAX = 100;
 
@@ -76,6 +77,11 @@ export async function updateGroup(
   const removeLogo = formData.get("remove_logo") === "1";
 
   if (!name) return fail("Group name is required.", formData);
+
+  const websiteUrlError = validateHttpUrl(websiteUrl, "Website URL");
+  if (websiteUrlError) return fail(websiteUrlError, formData);
+  const socialUrlError = validateHttpUrl(socialUrl, "Social URL");
+  if (socialUrlError) return fail(socialUrlError, formData);
 
   if (!postcode) return fail("Postcode is required.", formData);
   if (!locationName) return fail("Display location is required.", formData);

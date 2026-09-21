@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { geocodePostcode } from "@/lib/geocode";
 import { sanitizeText } from "@/lib/sanitize";
 import { sendGroupCreatedEmail } from "@/lib/email";
+import { validateHttpUrl } from "@/lib/url";
 
 const LOCATION_NAME_MAX = 100;
 
@@ -78,6 +79,15 @@ export async function createGroup(formData: FormData) {
         `Display location must be ${LOCATION_NAME_MAX} characters or fewer.`
       )}`
     );
+  }
+
+  const websiteUrlError = validateHttpUrl(websiteUrl, "Website URL");
+  if (websiteUrlError) {
+    redirect(`/groups/create?error=${encodeURIComponent(websiteUrlError)}`);
+  }
+  const socialUrlError = validateHttpUrl(socialUrl, "Social URL");
+  if (socialUrlError) {
+    redirect(`/groups/create?error=${encodeURIComponent(socialUrlError)}`);
   }
 
   const slug = slugify(name);
