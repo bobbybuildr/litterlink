@@ -27,7 +27,7 @@ No test suite is configured yet.
 - **Map**: `react-leaflet` + `leaflet` (must be `"use client"`, use dynamic import to avoid SSR)
 - **Geocoding**: UK postcodes via `postcodes.io` — server-side only (`@/lib/geocode`)
 - **Email**: `resend` v6.9 — all sending logic in `@/lib/email`
-- **Image compression**: `browser-image-compression` v2 — client-side, used before uploads
+- **Image uploads**: all client-side via `@/lib/image` — `heic-to` decodes HEIC → JPEG, then `browser-image-compression` → WebP. Buckets only ever receive `image/webp`
 
 ### Key directories
 
@@ -35,7 +35,7 @@ No test suite is configured yet.
 |------|---------|
 | `src/app/` | App Router pages and layouts |
 | `src/app/(auth)/actions.ts` | Sign-in / sign-up / sign-out Server Actions |
-| `src/app/events/actions.ts` | `joinEvent`, `leaveEvent`, `cancelEvent` |
+| `src/app/events/actions.ts` | `joinEvent`, `leaveEvent`, `cancelEvent`, `uploadEventPhoto`, `deleteEventPhoto` |
 | `src/app/events/[id]/edit/actions.ts` | `updateEvent` — edit an existing event |
 | `src/app/events/create/actions.ts` | `createEvent` |
 | `src/app/events/` | Events listing, detail, create, edit, stats |
@@ -46,6 +46,7 @@ No test suite is configured yet.
 | `src/components/` | Shared UI components |
 | `src/lib/events.ts` | Data-fetching helpers (typed query wrappers) — despite the name, also contains group helpers (`getPublishedGroups`, `getFeaturedGroup`, `getGroupBySlug`, etc.) |
 | `src/lib/constants.ts` | Client-safe shared constants (e.g. `GROUP_TYPE_LABELS`) with no server-only imports — safe to import from Client Components |
+| `src/lib/image.ts` | Client-side image pipeline — HEIC decoding + WebP compression, shared by event photo, avatar and group logo uploads |
 | `src/lib/email.ts` | Resend email helpers |
 | `src/lib/ratelimit.ts` | DB-backed rate limiting (event creation, joins, reschedule notifications) |
 | `src/lib/sanitize.ts` | `sanitizeText()` — strips HTML from user input |

@@ -56,7 +56,7 @@ All routes use the Next.js 16 App Router. There is no Pages Router.
 | File | Exported Actions | Used By |
 |---|---|---|
 | `src/app/(auth)/actions.ts` | `signInWithEmail`, `signUpWithEmail`, `signInWithGoogle`, `signOut` | Sign-in / sign-up pages, `SignOutButton` |
-| `src/app/events/actions.ts` | `joinEvent`, `leaveEvent`, `cancelEvent` | `JoinButton` component, event detail page |
+| `src/app/events/actions.ts` | `joinEvent`, `leaveEvent`, `cancelEvent`, `uploadEventPhoto`, `deleteEventPhoto` | `JoinButton` component, event detail page, `PhotoUpload`, `EventPhotosGallery` |
 | `src/app/events/[id]/edit/actions.ts` | `updateEvent` | Edit event page |
 | `src/app/events/create/actions.ts` | `createEvent` | Create event page |
 | `src/app/events/[id]/stats/actions.ts` | `submitStats` | Stats page |
@@ -185,7 +185,7 @@ Organiser-only form at `/events/[id]/stats`:
 
 #### Profile
 - Edit display name, home postcode, username, bio, and social link
-- Upload avatar (JPEG/PNG/WebP, ≤ 5 MB) stored in Supabase Storage
+- Upload avatar (JPEG/PNG/WebP/HEIC in, normalised to WebP client-side, ≤ 5 MB server-side) stored in Supabase Storage as `{user_id}/avatar.webp`
 - Avatar shown in navbar
 - Email preference management (transactional and marketing opt-ins)
 - Public profile page at `/profile/[id]` (accepts a username or a user UUID; redirects to the canonical username URL when one is set) — displays avatar, bio, social link, verified-organiser badge, member-since date, activity stats (events joined/organised with impact logged, bags collected, hours volunteered), upcoming and past organised events, recently attended events, and group memberships. Gated to signed-in viewers — unauthenticated visitors are shown a sign-in/sign-up prompt instead of profile data
@@ -193,8 +193,38 @@ Organiser-only form at `/events/[id]/stats`:
 - Account deletion — removes personal data, sets FK to null on events/groups, deletes auth user
 
 #### Photos
-- Completed events show a photo gallery (`EventPhotosGallery`)
-- Participants can upload photos to completed events (`PhotoUpload` component, stored in `event-photos` bucket)
+- Completed events show a photo gallery (`EventPhotosGallery`) — lazy-loaded thumbnails linking to the full-size image; the organiser sees a delete control on each
+- **Organisers only** can upload photos, and only once the event status is `completed` (`PhotoUpload` component, stored in the `event-photos` bucket under `{event_id}/{user_id}/{uuid}.webp`)
+- Hard cap of **10 photos per event**, enforced at three layers: the client disables the picker at the remaining-slot count, the `uploadEventPhoto` action re-checks the live count, and a DB trigger (`check_event_photo_limit`) raises if exceeded
+- Selection accumulates across multiple picks — choosing files in several passes appends rather than replacing, with de-duplication on `name:size:lastModified`
+- Thumbnail previews before upload, with per-photo removal and "Clear all"
+- `uploadEventPhoto` returns per-file results (`{ error, uploaded, failed }`) keyed to each selection, so a partial batch failure clears the photos that succeeded and leaves only the failures selected for retry
+- Storage objects are rolled back if the `event_photos` row insert fails
+
+#### Image Uploads (shared pipeline)
+
+All three upload surfaces — event photos, profile avatars, and group logos — share `src/lib/image.ts`.
+
+| Export | Purpose |
+|---|---|
+| `IMAGE_UPLOAD_ACCEPT` | `accept` attribute value covering JPEG, PNG, WebP and HEIC/HEIF |
+| `MAX_IMAGE_SOURCE_BYTES` | 25 MB ceiling on the *source* file, checked before decoding |
+| `isSupportedImage(file)` | Type/extension guard used at selection time |
+| `looksHeic(file)` | HEIC detection — checks the `.heic`/`.heif` extension as well as MIME, because HEIC frequently arrives with an empty `file.type` |
+| `decodeHeic(file)` | Decodes HEIC → JPEG via `heic-to`; anything not actually HEIC passes through untouched |
+| `toCompressedWebp(file, opts, name)` | Decodes HEIC if needed, then compresses to WebP |
+
+Pipeline: `HEIC → heic-to (libheif) → JPEG → browser-image-compression → WebP → upload`.
+
+Key consequences:
+
+- **Everything is normalised to WebP in the browser**, so the `event-photos`, `avatars` and `group-logos` buckets only ever receive `image/webp`. Adding new input formats requires no bucket, MIME or RLS change. The server-side `allowedTypes` checks stay narrow (jpeg/png/webp) deliberately, as backstops against a direct POST
+- `heic-to` and `browser-image-compression` are both **dynamically imported**, so neither ships in the initial bundle — libheif only downloads when a HEIC is actually picked
+- HEIC cannot be rendered by most browsers, so previews wait for the converted version; non-HEIC files preview immediately
+- Compression failures are caught per file, the file input is cleared so an unprocessed original can never be submitted, and the user gets an inline message
+- Compression targets: 1 MB / 1600 px for event photos, 0.25 MB / 400 px for avatars and logos
+- Server actions cap uploads at 5 MB per file; `next.config.ts` raises the Server Action `bodySizeLimit` to `11mb` to accommodate a full 10-photo batch
+- If a CSP without `unsafe-eval` is ever introduced, the `heic-to` import must switch to `heic-to/csp`
 
 #### Verified Organiser System
 - Any user can apply at `/become-a-verified-organiser`
@@ -212,7 +242,7 @@ Organiser-only form at `/events/[id]/stats`:
   - "Featured Group" showcase card (`FeaturedGroupCard`) — the group with the highest recent-activity score (new members, events held, and participants joined in the trailing 30 days, weighted and computed in `getPublishedGroups`/`getFeaturedGroup` in `src/lib/events.ts`); only shown when no postcode/type filter is applied
   - Card grid (`GroupCard`) — logo, name, verified badge, type, location, member count, upcoming event count, description, and a "View" button; sorted by member count descending; paginated
 - Group profile page at `/groups/[slug]` — shows logo, type, description, links, member count, join/leave button, impact stats (events hosted, bags collected, volunteer sessions, hours volunteered — aggregated from `event_stats` for the group's completed events), organisers section, members section (with avatar chips linking to profiles), and upcoming/past events
-- Group owners can edit groups at `/groups/[slug]/edit` — updates name, slug, description, type, website/social/contact details, and logo changes are published immediately
+- Group owners can edit groups at `/groups/[slug]/edit` — updates name, slug, description, type, website/social/contact details, and logo changes are published immediately (`LogoUploadInput` is shared between the create and edit forms; logos are stored in the `group-logos` bucket as `{group_id}/logo.webp`)
 - Group owners or admins can permanently delete a group (`deleteGroup` action, `DeleteGroupButton`) — removes the logo from Storage, cascades to `group_members`, and sets `events.group_id` to `NULL` on affiliated events (event history is preserved)
 - Groups can be affiliated with events at creation time
 - Group name and slug appear on `EventCard` and event detail

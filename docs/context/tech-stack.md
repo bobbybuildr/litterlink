@@ -75,9 +75,29 @@ import { createClient } from "@/lib/supabase/client";  // Client Components only
 
 - **`lucide-react` v1** — tree-shakeable SVG icons as React components
 
-## Image Compression
+## Image Handling
 
-- **`browser-image-compression` v2** — client-side image compression before upload (used in photo and avatar upload flows)
+- **`browser-image-compression` v2** — client-side compression before upload
+- **`heic-to` v1.5** — client-side HEIC/HEIF decoding (libheif via WASM), for iPhone photos
+- **`src/lib/image.ts`** — shared pipeline for all three upload surfaces (event photos, avatars, group logos):
+  `HEIC → heic-to → JPEG → browser-image-compression → WebP → upload`
+
+| Export | Purpose |
+|---|---|
+| `IMAGE_UPLOAD_ACCEPT` | `accept` value covering JPEG, PNG, WebP and HEIC/HEIF |
+| `MAX_IMAGE_SOURCE_BYTES` | 25 MB ceiling on the *source* file, checked before decoding |
+| `isSupportedImage(file)` | Type/extension guard used at selection time |
+| `looksHeic(file)` | Checks the `.heic`/`.heif` extension as well as MIME — HEIC frequently has an empty `file.type` |
+| `decodeHeic(file)` | HEIC → JPEG; anything not actually HEIC passes through untouched |
+| `toCompressedWebp(file, opts, name)` | Decodes HEIC if needed, then compresses to WebP |
+
+Rules:
+
+- Everything is normalised to **WebP in the browser**, so the `event-photos`, `avatars` and `group-logos` buckets only ever receive `image/webp`. New input formats need no bucket, MIME or RLS change; keep the server-side `allowedTypes` checks narrow as backstops against a direct POST
+- Both libraries are **dynamically imported** — libheif only downloads when a HEIC is actually picked
+- Always catch compression failures and clear the file input, so an unprocessed original can never be submitted
+- HEIC can't be rendered by most browsers — wait for the converted file before showing a preview
+- If a CSP without `unsafe-eval` is added, switch the `heic-to` import to `heic-to/csp`
 
 ## Analytics
 
@@ -164,6 +184,7 @@ Mutation actions return `{ error: string | null }`. On success, they call `reval
 | `src/components/` | Shared UI components |
 | `src/lib/events.ts` | Data-fetching helpers (typed Supabase query wrappers) |
 | `src/lib/geocode.ts` | `postcodes.io` geocoding helper |
+| `src/lib/image.ts` | Client-side image pipeline — HEIC decoding + WebP compression, shared by all upload surfaces |
 | `src/lib/email.ts` | Resend email sending helpers |
 | `src/lib/ratelimit.ts` | DB-backed rate limiting for event creation and joining |
 | `src/lib/sanitize.ts` | HTML-strip sanitizer for user input |
