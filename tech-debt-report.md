@@ -14,7 +14,7 @@ The findings below concern resilience, correctness at scale, and maintainability
 |---|---|
 | Critical | 1 (fixed) |
 | High | 5 (3 fixed) |
-| Medium | 11 (2 fixed) |
+| Medium | 11 (3 fixed) |
 | Low | 9 |
 
 ---
@@ -152,15 +152,22 @@ Untested surface includes every authorisation branch in every Server Action, the
 
 ## Medium
 
-### M1 — Environment variables are unvalidated
+### M1 — ~~Environment variables are unvalidated~~ ✅ Fixed
 
 **Location:** `src/lib/supabase/server.ts`, `client.ts`, `middleware.ts`, plus `SUPABASE_SECRET_KEY` in four action files
 
 Six files use `process.env.X!` non-null assertions. A missing secret surfaces as an opaque runtime failure deep inside a Server Action rather than as a startup error.
 
-**Suggested fix**
+**Resolution**
 
-Create `src/lib/env.ts` that validates every required variable at module load and exports typed values. Import it from the Supabase client factories so it runs early.
+Rather than one unrestricted `src/lib/env.ts` shared by both browser and server code, the validated variables are split by trust boundary:
+
+1. `src/lib/env/public.ts` (`publicEnv`) validates only `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY` at module load. It has no server-only import, so it's safe to use from the browser client, the server client, and middleware.
+2. `src/lib/env/server.ts` (`serverEnv`) validates `SUPABASE_SECRET_KEY` and starts with `import "server-only"`, so importing it from anything reachable by the browser is a build-time error, not just a convention.
+3. `src/lib/supabase/client.ts`, `server.ts`, and `middleware.ts` now read from `publicEnv` instead of `process.env.X!`.
+4. `src/lib/supabase/admin.ts` adds a `createAdminClient()` factory built on `publicEnv` + `serverEnv`, replacing the four separate inline `createServiceClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SECRET_KEY!)` call sites in `src/app/admin/applications/actions.ts`, `src/app/events/actions.ts`, `src/app/events/[id]/edit/actions.ts`, and `src/app/profile/actions.ts`.
+
+A missing variable now throws `Missing required environment variable: X` the first time the relevant module loads, rather than surfacing as an opaque runtime failure deep inside a Server Action.
 
 ### M2 — N+1 privileged API calls when cancelling an event
 
@@ -367,6 +374,6 @@ and a GitHub Actions workflow running lint, typecheck, and tests on every push.
 1. **C1** — commit `supabase/`. Every other item is reversible; losing the schema is not.
 2. **H1** — small, contained change with genuine privacy impact. (**H3** is already fixed.)
 3. **H2** — the impact figures are the product's headline claim and need to be correct.
-4. **M1**, **M4**, **M9** — inexpensive groundwork that makes everything after it safer to change.
+4. **M4**, **M9** — inexpensive groundwork that makes everything after it safer to change. (**M1** is already fixed.)
 5. **H5** — a regression net before the next feature lands. (**H4** is already fixed.)
 6. Remaining Medium items, then Low.

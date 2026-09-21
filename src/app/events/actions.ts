@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { createClient as createServiceClient } from "@supabase/supabase-js";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEventJoinedEmail, sendEventLeftEmail, sendEventCancelledEmails } from "@/lib/email";
 import { isJoinRateLimited } from "@/lib/ratelimit";
 export async function joinEvent(eventId: string) {
@@ -179,10 +179,7 @@ export async function cancelEvent(eventId: string) {
   if (participants?.length) {
     const participantIds = participants.map((p) => p.user_id);
 
-    const admin = createServiceClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SECRET_KEY!
-    );
+    const admin = createAdminClient();
 
     const [profileResults, emailResults] = await Promise.all([
       supabase

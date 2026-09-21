@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { createClient as createServiceClient } from "@supabase/supabase-js";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { geocodePostcode } from "@/lib/geocode";
 import { sanitizeText } from "@/lib/sanitize";
 import { validateHttpUrl } from "@/lib/url";
@@ -188,10 +188,7 @@ export async function deleteAccount(
   // 5. Delete the auth user via the service role client.
   //    This removes the row from auth.users, which cascades to public.profiles
   //    and all tables that reference it with ON DELETE CASCADE.
-  const adminClient = createServiceClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SECRET_KEY!,
-  );
+  const adminClient = createAdminClient();
 
   const { error: deleteError } = await adminClient.auth.admin.deleteUser(user.id);
 

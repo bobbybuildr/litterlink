@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { createClient as createServiceClient } from "@supabase/supabase-js";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { geocodePostcode } from "@/lib/geocode";
 import { sanitizeText } from "@/lib/sanitize";
 import { sendEventUpdatedEmails } from "@/lib/email";
@@ -225,10 +225,7 @@ export async function updateEvent(
     if (participantRows?.length) {
       const participantIds = participantRows.map((p) => p.user_id);
 
-      const admin = createServiceClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SECRET_KEY!
-      );
+      const admin = createAdminClient();
 
       const [profileResults, emailResults] = await Promise.all([
         supabase

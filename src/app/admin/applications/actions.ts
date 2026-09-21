@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { createClient as createServiceClient } from "@supabase/supabase-js";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { sendApplicationOutcomeEmail } from "@/lib/email";
 
 async function getAdminOrRedirect() {
@@ -56,10 +56,7 @@ export async function approveApplication(applicationId: string) {
   if (profileError) return { error: "Failed to update profile." };
 
   // Send outcome email — fetch the applicant's email via service-role client
-  const admin = createServiceClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SECRET_KEY!
-  );
+  const admin = createAdminClient();
   const { data: userData } = await admin.auth.admin.getUserById(
     application.user_id
   );
@@ -102,10 +99,7 @@ export async function rejectApplication(applicationId: string) {
   if (appError) return { error: "Failed to update application." };
 
   // Send outcome email
-  const admin = createServiceClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SECRET_KEY!
-  );
+  const admin = createAdminClient();
   const { data: userData } = await admin.auth.admin.getUserById(
     application.user_id
   );
