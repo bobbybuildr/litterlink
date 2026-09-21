@@ -340,7 +340,7 @@ export default async function EventDetailPage({ params, searchParams }: Props) {
 
           {/* Organiser: upload photos */}
           {isOrganiser && isCompleted && (
-            <PhotoUpload eventId={id} />
+            <PhotoUpload eventId={id} existingCount={photoData.length} />
           )}
           {/* Participants */}
           {participants.length > 0 && (

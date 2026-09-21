@@ -46,9 +46,9 @@ export function EventPhotosGallery({ photos: initialPhotos, isOrganiser, classNa
   return (
     <div className={cn("space-y-3", className)}>
       <h2 className="font-semibold text-gray-900">Event photos</h2>
-      {deleteError && (
-        <p className="text-sm text-red-600">{deleteError}</p>
-      )}
+      <div role="alert" aria-live="assertive">
+        {deleteError && <p className="text-sm text-red-600">{deleteError}</p>}
+      </div>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {photos.map((photo) => (
           <div key={photo.id} className="relative group overflow-hidden rounded-lg border border-gray-200">
@@ -71,7 +71,7 @@ export function EventPhotosGallery({ photos: initialPhotos, isOrganiser, classNa
                 onClick={() => handleDelete(photo.id)}
                 disabled={deletingIds.has(photo.id)}
                 aria-label="Delete photo"
-                className="absolute top-1.5 right-1.5 flex items-center justify-center rounded-md bg-black/60 p-1.5 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 disabled:cursor-not-allowed"
+                className="absolute top-1.5 right-1.5 flex items-center justify-center rounded-md bg-black/60 p-1.5 text-white transition-opacity hover:bg-red-600 disabled:cursor-not-allowed sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
               >
                 {deletingIds.has(photo.id) ? (
                   <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />

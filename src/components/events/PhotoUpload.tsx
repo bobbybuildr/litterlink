@@ -1,10 +1,15 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Camera } from "lucide-react";
+import { Camera, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { uploadEventPhoto } from "@/app/events/actions";
+
+const MAX_PHOTOS = 10;
+const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+// Ceiling on the source file, before compression — guards against decoding huge images.
+const MAX_SOURCE_BYTES = 25 * 1024 * 1024;
 
 const compressionOptions = {
   maxSizeMB: 1,
@@ -13,55 +18,154 @@ const compressionOptions = {
   fileType: "image/webp",
 };
 
+interface SelectedPhoto {
+  key: string;
+  file: File;
+  previewUrl: string;
+}
+
 interface PhotoUploadProps {
   eventId: string;
+  existingCount?: number;
   className?: string;
 }
 
-export function PhotoUpload({ eventId, className }: PhotoUploadProps) {
+export function PhotoUpload({ eventId, existingCount = 0, className }: PhotoUploadProps) {
+  const [photos, setPhotos] = useState<SelectedPhoto[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
-  const [selectedCount, setSelectedCount] = useState(0);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [prepared, setPrepared] = useState(0);
   const [isPending, startTransition] = useTransition();
-  const formRef = useRef<HTMLFormElement>(null);
   const router = useRouter();
 
+  const remainingSlots = Math.max(0, MAX_PHOTOS - existingCount);
+
+  // Live ref so the unmount cleanup revokes the latest preview URLs.
+  const photosRef = useRef(photos);
+  photosRef.current = photos;
+  useEffect(() => {
+    return () => photosRef.current.forEach((p) => URL.revokeObjectURL(p.previewUrl));
+  }, []);
+
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const count = e.target.files?.length ?? 0;
-    setSelectedCount(count);
-    if (count > 10) {
-      setError("You can select at most 10 photos at a time.");
-    } else {
-      setError(null);
+    const picked = Array.from(e.target.files ?? []);
+    // Clearing the input lets a removed file be picked again.
+    e.target.value = "";
+    if (!picked.length) return;
+
+    const current = photosRef.current;
+    const seen = new Set(current.map((p) => p.key));
+    const next = [...current];
+    const skipped: string[] = [];
+
+    for (const file of picked) {
+      const key = `${file.name}:${file.size}:${file.lastModified}`;
+      if (seen.has(key)) continue;
+      if (!ALLOWED_TYPES.has(file.type)) {
+        skipped.push(`${file.name}: must be a JPEG, PNG or WebP image.`);
+        continue;
+      }
+      if (file.size > MAX_SOURCE_BYTES) {
+        skipped.push(`${file.name}: is too large (25 MB maximum).`);
+        continue;
+      }
+      if (next.length >= remainingSlots) {
+        skipped.push(
+          remainingSlots === 0
+            ? `This event already has the maximum of ${MAX_PHOTOS} photos.`
+            : `Only ${remainingSlots} photo${remainingSlots === 1 ? "" : "s"} can be added to this event.`
+        );
+        break;
+      }
+      seen.add(key);
+      next.push({ key, file, previewUrl: URL.createObjectURL(file) });
     }
+
+    setSuccess(null);
+    setError(skipped.length ? [...new Set(skipped)].join(" ") : null);
+    setPhotos(next);
+  }
+
+  function removePhoto(key: string) {
+    const target = photosRef.current.find((p) => p.key === key);
+    if (target) URL.revokeObjectURL(target.previewUrl);
+    setPhotos(photosRef.current.filter((p) => p.key !== key));
+    setError(null);
+  }
+
+  function clearPhotos() {
+    photosRef.current.forEach((p) => URL.revokeObjectURL(p.previewUrl));
+    setPhotos([]);
+    setError(null);
+  }
+
+  // Drops the given keys from the selection, revoking their preview URLs.
+  function discard(keys: Set<string>) {
+    const remaining: SelectedPhoto[] = [];
+    for (const photo of photosRef.current) {
+      if (keys.has(photo.key)) URL.revokeObjectURL(photo.previewUrl);
+      else remaining.push(photo);
+    }
+    setPhotos(remaining);
   }
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
-    setSuccess(false);
-    const files = Array.from(
-      (e.currentTarget.elements.namedItem("photos") as HTMLInputElement).files ?? []
-    );
-    if (files.length > 10) {
-      setError("You can select at most 10 photos at a time.");
+    setSuccess(null);
+    if (!photos.length) return;
+    if (photos.length > remainingSlots) {
+      setError(`Only ${remainingSlots} photo${remainingSlots === 1 ? "" : "s"} can be added to this event.`);
       return;
     }
+
     startTransition(async () => {
-      const { default: imageCompression } = await import("browser-image-compression");
-      const formData = new FormData();
-      for (const file of files) {
-        const compressed = await imageCompression(file, compressionOptions);
-        formData.append("photos", compressed, file.name);
-      }
-      const result = await uploadEventPhoto(eventId, formData);
-      if (result.error) {
-        setError(result.error);
-      } else {
-        setSuccess(true);
-        setSelectedCount(0);
-        formRef.current?.reset();
-        router.refresh();
+      try {
+        const { default: imageCompression } = await import("browser-image-compression");
+        const formData = new FormData();
+        const problems: string[] = [];
+        let count = 0;
+
+        for (const { key, file } of photos) {
+          try {
+            const compressed = await imageCompression(file, compressionOptions);
+            formData.append("photos", compressed, file.name);
+            formData.append("keys", key);
+            count++;
+          } catch {
+            problems.push(`${file.name}: could not be processed — try re-saving it as a JPEG.`);
+          }
+          setPrepared((n) => n + 1);
+        }
+
+        if (!count) {
+          setError(problems.join(" ") || "None of the selected photos could be processed.");
+          return;
+        }
+
+        const result = await uploadEventPhoto(eventId, formData);
+        const uploadedKeys = new Set(result.uploaded);
+
+        if (uploadedKeys.size) {
+          discard(uploadedKeys);
+          router.refresh();
+        }
+
+        problems.push(...result.failed.map((f) => f.message));
+        if (!uploadedKeys.size && !result.failed.length && result.error) {
+          problems.push(result.error);
+        }
+
+        if (problems.length) setError(problems.join(" "));
+        if (uploadedKeys.size) {
+          setSuccess(
+            `${uploadedKeys.size} photo${uploadedKeys.size === 1 ? "" : "s"} uploaded successfully.`
+          );
+        }
+      } catch {
+        setError("Something went wrong while uploading. Please try again.");
+      } finally {
+        setPrepared(0);
       }
     });
   }
@@ -72,29 +176,78 @@ export function PhotoUpload({ eventId, className }: PhotoUploadProps) {
         <Camera className="h-4 w-4" />
         Upload photos
       </h2>
-      <form ref={formRef} onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit}>
         <input
           name="photos"
           type="file"
           accept="image/jpeg,image/png,image/webp"
           multiple
+          disabled={isPending || photos.length >= remainingSlots}
           onChange={handleFileChange}
-          className="block w-full text-sm text-gray-500 file:mr-3 file:rounded-lg file:border-0 file:bg-gray-100 file:px-3 file:py-1.5 file:text-sm file:font-medium hover:file:bg-gray-200"
+          className="block w-full text-sm hover:cursor-pointer text-gray-500 file:mr-3 file:rounded-lg file:border-0 file:bg-gray-100 file:px-3 file:py-1.5 file:text-sm file:font-medium hover:file:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
         />
-        <p className="mt-1.5 text-xs text-gray-400">JPEG, PNG or WebP</p>
-        {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
-        {success && (
-          <p className="mt-2 text-sm text-emerald-700">Photos uploaded successfully.</p>
+        <p className="mt-1.5 text-xs text-gray-400">
+          {remainingSlots === 0
+            ? `This event already has the maximum of ${MAX_PHOTOS} photos.`
+            : `JPEG, PNG or WebP — add photos one at a time or in batches, up to ${remainingSlots} more.`}
+        </p>
+
+        {photos.length > 0 && (
+          <>
+            <div className="mt-3 flex items-center justify-between">
+              <p className="text-xs font-medium text-gray-500">
+                {photos.length} of {remainingSlots} selected
+              </p>
+              <button
+                type="button"
+                onClick={clearPhotos}
+                disabled={isPending}
+                className="text-xs font-medium text-gray-500 hover:text-gray-800 disabled:opacity-50 transition-colors"
+              >
+                Clear all
+              </button>
+            </div>
+            <ul className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-5">
+              {photos.map((photo) => (
+                <li key={photo.key} className="group relative aspect-square">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- next/image cannot load blob: preview URLs */}
+                  <img
+                    src={photo.previewUrl}
+                    alt={photo.file.name}
+                    className="h-full w-full rounded-lg border border-gray-200 object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removePhoto(photo.key)}
+                    disabled={isPending}
+                    aria-label={`Remove ${photo.file.name}`}
+                    className="absolute -right-1.5 -top-1.5 rounded-full bg-gray-900/80 p-1 text-white transition-opacity hover:bg-gray-900 disabled:opacity-50 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </>
         )}
+
+        <div role="alert" aria-live="assertive">
+          {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+        </div>
+        <div role="status" aria-live="polite">
+          {success && <p className="mt-2 text-sm text-emerald-700">{success}</p>}
+        </div>
         <button
           type="submit"
-          disabled={selectedCount === 0 || selectedCount > 10 || isPending}
+          disabled={photos.length === 0 || photos.length > remainingSlots || isPending}
           className="mt-3 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {isPending
-            ? "Uploading…"
-            : selectedCount > 0
-              ? `Upload ${selectedCount} ${selectedCount === 1 ? "photo" : "photos"}`
+            ? prepared < photos.length
+              ? `Preparing ${prepared + 1} of ${photos.length}…`
+              : "Uploading…"
+            : photos.length > 0
+              ? `Upload ${photos.length} ${photos.length === 1 ? "photo" : "photos"}`
               : "Upload"}
         </button>
       </form>

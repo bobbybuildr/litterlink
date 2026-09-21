@@ -221,13 +221,24 @@ export async function cancelEvent(eventId: string) {
   return { error: null };
 }
 
-export async function uploadEventPhoto(eventId: string, formData: FormData) {
+interface PhotoUploadResult {
+  error: string | null;
+  uploaded: string[];
+  failed: { key: string; message: string }[];
+}
+
+export async function uploadEventPhoto(
+  eventId: string,
+  formData: FormData
+): Promise<PhotoUploadResult> {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) return { error: "Not authenticated." };
+  const fail = (error: string): PhotoUploadResult => ({ error, uploaded: [], failed: [] });
+
+  if (!user) return fail("Not authenticated.");
 
   // Authorisation: only the event organiser may upload photos
   const { data: event, error: fetchError } = await supabase
@@ -236,39 +247,44 @@ export async function uploadEventPhoto(eventId: string, formData: FormData) {
     .eq("id", eventId)
     .single();
 
-  if (fetchError || !event) return { error: "Event not found." };
+  if (fetchError || !event) return fail("Event not found.");
   if (event.organiser_id !== user.id)
-    return { error: "Only the organiser can upload photos." };
+    return fail("Only the organiser can upload photos.");
   if (event.status !== "completed")
-    return { error: "Photos can only be uploaded once the event is completed." };
+    return fail("Photos can only be uploaded once the event is completed.");
 
+  // Client sends a parallel "keys" entry per file so results can be mapped back.
   const files = formData.getAll("photos") as File[];
-  const validFiles = files.filter((f) => f instanceof File && f.size > 0);
-  if (!validFiles.length) return { error: "No files selected." };
+  const keys = formData.getAll("keys").map(String);
+  const items = files
+    .map((file, i) => ({ file, key: keys[i] ?? String(i) }))
+    .filter(({ file }) => file instanceof File && file.size > 0);
+  if (!items.length) return fail("No files selected.");
 
   const { count: existingCount, error: countError } = await supabase
     .from("event_photos")
     .select("*", { count: "exact", head: true })
     .eq("event_id", eventId);
-  if (countError) return { error: "Could not verify photo count." };
+  if (countError) return fail("Could not verify photo count.");
   const MAX_PHOTOS = 10;
   if ((existingCount ?? 0) >= MAX_PHOTOS)
-    return { error: "This event already has the maximum of 10 photos." };
+    return fail("This event already has the maximum of 10 photos.");
   const remaining = MAX_PHOTOS - (existingCount ?? 0);
-  if (validFiles.length > remaining)
-    return { error: `Only ${remaining} more photo${remaining === 1 ? "" : "s"} can be added to this event.` };
+  if (items.length > remaining)
+    return fail(`Only ${remaining} more photo${remaining === 1 ? "" : "s"} can be added to this event.`);
 
   const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
   const MAX_BYTES = 5 * 1024 * 1024; // 5 MB
-  const errors: string[] = [];
+  const uploaded: string[] = [];
+  const failed: { key: string; message: string }[] = [];
 
-  for (const file of validFiles) {
+  for (const { file, key } of items) {
     if (!allowedTypes.has(file.type)) {
-      errors.push(`${file.name}: unsupported file type.`);
+      failed.push({ key, message: `${file.name}: unsupported file type.` });
       continue;
     }
     if (file.size > MAX_BYTES) {
-      errors.push(`${file.name}: exceeds the 5 MB limit.`);
+      failed.push({ key, message: `${file.name}: exceeds the 5 MB limit.` });
       continue;
     }
 
@@ -280,7 +296,7 @@ export async function uploadEventPhoto(eventId: string, formData: FormData) {
       .upload(storagePath, file, { contentType: "image/webp" });
 
     if (uploadError) {
-      errors.push(`${file.name}: upload failed.`);
+      failed.push({ key, message: `${file.name}: upload failed.` });
       continue;
     }
 
@@ -293,12 +309,19 @@ export async function uploadEventPhoto(eventId: string, formData: FormData) {
     if (dbError) {
       // Roll back the storage object if the DB row fails
       await supabase.storage.from("event-photos").remove([storagePath]);
-      errors.push(`${file.name}: failed to save.`);
+      failed.push({ key, message: `${file.name}: failed to save.` });
+      continue;
     }
+
+    uploaded.push(key);
   }
 
   revalidatePath(`/events/${eventId}`);
-  return { error: errors.length ? errors.join(" ") : null };
+  return {
+    error: failed.length ? failed.map((f) => f.message).join(" ") : null,
+    uploaded,
+    failed,
+  };
 }
 
 export async function deleteEventPhoto(photoId: string) {
