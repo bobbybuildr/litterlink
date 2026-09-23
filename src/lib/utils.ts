@@ -5,6 +5,11 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/** Strips whitespace and upper-cases, so "sw1a 1aa" and "SW1A1AA" compare equal. */
+export function normalisePostcode(postcode: string): string {
+  return postcode.replace(/\s+/g, "").toUpperCase();
+}
+
 /**
  * Converts a UTC ISO string to a "YYYY-MM-DDTHH:MM" string expressed in
  * Europe/London local time, suitable for a datetime-local input's value.

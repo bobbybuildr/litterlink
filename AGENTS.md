@@ -1,7 +1,11 @@
 <!-- BEGIN:nextjs-agent-rules -->
+
 # This is NOT the Next.js you know
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
 <!-- END:nextjs-agent-rules -->
 
 # LitterLink — Workspace Instructions
@@ -25,7 +29,7 @@ No test suite is configured yet.
 - **Styling**: Tailwind CSS v4, `cn()` from `@/lib/utils` (clsx + tailwind-merge)
 - **Icons**: `lucide-react`
 - **Map**: `react-leaflet` + `leaflet` (must be `"use client"`, use dynamic import to avoid SSR)
-- **Geocoding**: UK postcodes via `postcodes.io` — server-side only (`@/lib/geocode`)
+- **Geocoding**: UK postcodes via `postcodes.io` — server-side only (`@/lib/geocode`, `import "server-only"`). The browser goes through `/api/geocode` and `/api/reverse-geocode`; browser-side wrappers live in `@/lib/geolocation`
 - **Email**: `resend` v6.9 — all sending logic in `@/lib/email`
 - **Image uploads**: all client-side via `@/lib/image` — `heic-to` decodes HEIC → JPEG, then `browser-image-compression` → WebP. Buckets only ever receive `image/webp`
 
@@ -45,7 +49,8 @@ No test suite is configured yet.
 | `src/app/admin/` | Admin panel — organiser applications |
 | `src/components/` | Shared UI components |
 | `src/lib/events.ts` | Data-fetching helpers (typed query wrappers) — despite the name, also contains group helpers (`getPublishedGroups`, `getFeaturedGroup`, `getGroupBySlug`, etc.) |
-| `src/lib/constants.ts` | Client-safe shared constants (e.g. `GROUP_TYPE_LABELS`) with no server-only imports — safe to import from Client Components |
+| `src/lib/constants.ts` | Client-safe shared constants (e.g. `GROUP_TYPE_LABELS`, `UK_POSTCODE_PATTERN`) with no server-only imports — safe to import from Client Components |
+| `src/lib/geolocation.ts` | Browser-side location helpers — Geolocation API wrapper, shared error copy, and `lookupPostcode`/`lookupNearestPostcode` calls to the `/api` geocoding routes |
 | `src/lib/image.ts` | Client-side image pipeline — HEIC decoding + WebP compression, shared by event photo, avatar and group logo uploads |
 | `src/lib/email.ts` | Resend email helpers |
 | `src/lib/ratelimit.ts` | DB-backed rate limiting (event creation, joins, reschedule notifications) |
@@ -60,7 +65,7 @@ No test suite is configured yet.
 | Table | Notes |
 |-------|-------|
 | `profiles` | `is_verified_organiser` BOOLEAN, `is_admin` BOOLEAN |
-| `events` | `group_id` (nullable FK), `organiser_contact_details` (nullable text), `updated_at` (auto-maintained by trigger), `reschedule_notified_at` (nullable), `stats_reminder_sent_at` (nullable); `organiser_id` is nullable (SET NULL on account deletion) |
+| `events` | `group_id` (nullable FK), `organiser_contact_details` (nullable text), `updated_at` (auto-maintained by trigger), `reschedule_notified_at` (nullable), `stats_reminder_sent_at` (nullable); `organiser_id` is nullable (SET NULL on account deletion). `location_postcode` is **NOT NULL** — map/device-selected meeting points are reverse-geocoded server-side to fill it, along with `location_outcode` and `location_admin_district`. `latitude`/`longitude` hold the organiser's exact meeting point for map/device selections, or the postcode centroid for typed postcodes |
 | `groups` | `group_type` enum-like text, `created_by` nullable (SET NULL on account deletion); `location_postcode`/`latitude`/`longitude`/`location_name` for map discovery |
 | `organiser_applications` | status: `pending \| approved \| rejected` |
 | `email_preferences` | per-user opt-in/out, auto-created on profile creation |
@@ -133,3 +138,4 @@ Actions return `{ error: string | null }` on mutation or call `redirect()` on su
 - Props typed inline with interfaces; `className?: string` accepted on most components
 - Use `cn()` for conditional class merging, not string concatenation
 - `EventCard`, `JoinButton`, `ShareUrl`, `EventsMap` are exemplar components for style reference; `GroupCard`, `GroupsMap`, `FeaturedGroupCard` mirror the same patterns for groups
+- `EventLocationPicker` (`src/components/events/`) is the shared event-location section for the create and edit forms: postcode input, "Use my current location", and a click-to-pick `LocationPickerMap`. It emits hidden `latitude`, `longitude` and `location_mode` (`postcode` | `pin`) fields; the server action re-resolves the postcode metadata via `resolveEventLocation()` and never trusts those hidden values for postcode/outcode/admin-district

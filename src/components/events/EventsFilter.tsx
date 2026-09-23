@@ -3,6 +3,13 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import { Loader2, LocateFixed, Search, X } from "lucide-react";
+import {
+  GEOLOCATION_UNSUPPORTED_MESSAGE,
+  geolocationErrorMessage,
+  isGeolocationSupported,
+  lookupNearestPostcode,
+  requestCurrentPosition,
+} from "@/lib/geolocation";
 
 const RADIUS_OPTIONS = [
   { label: "5 mi", value: "8" },
@@ -45,48 +52,30 @@ export function EventsFilter({ defaultFrom, defaultTo }: EventsFilterProps = {})
   async function handleUseMyLocation() {
     setLocationError(null);
 
-    if (!navigator.geolocation) {
-      setLocationError("Geolocation isn\'t supported on this device.");
+    if (!isGeolocationSupported()) {
+      setLocationError(GEOLOCATION_UNSUPPORTED_MESSAGE);
       return;
     }
 
     setIsLocating(true);
 
     try {
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: false,
-          timeout: 10000,
-          maximumAge: 300000,
-        });
-      });
-
-      const response = await fetch(
-        `/api/reverse-geocode?lat=${encodeURIComponent(String(position.coords.latitude))}&lng=${encodeURIComponent(String(position.coords.longitude))}`
+      const position = await requestCurrentPosition();
+      const result = await lookupNearestPostcode(
+        position.coords.latitude,
+        position.coords.longitude
       );
 
-      const data = (await response.json()) as { postcode?: string; error?: string };
-
-      if (!response.ok || !data.postcode) {
-        setLocationError(data.error ?? "Couldn\'t find a nearby postcode. Try entering one manually.");
+      if (!result.ok) {
+        setLocationError(result.error);
         return;
       }
 
       if (postcodeInputRef.current) {
-        postcodeInputRef.current.value = data.postcode.toUpperCase();
+        postcodeInputRef.current.value = result.postcode;
       }
     } catch (error) {
-      const maybeGeoError = error as { code?: number };
-
-      if (maybeGeoError.code === 1) {
-        setLocationError("Location permission was denied. You can still enter a postcode.");
-      } else if (maybeGeoError.code === 2) {
-        setLocationError("Your location couldn\'t be determined. Try again or enter a postcode.");
-      } else if (maybeGeoError.code === 3) {
-        setLocationError("Location request timed out. Please try again.");
-      } else {
-        setLocationError("Couldn\'t use your location right now. Please try again.");
-      }
+      setLocationError(geolocationErrorMessage(error));
     } finally {
       setIsLocating(false);
     }

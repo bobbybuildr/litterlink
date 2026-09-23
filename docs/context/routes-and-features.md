@@ -38,7 +38,7 @@ All routes use the Next.js 16 App Router. There is no Pages Router.
 | `/dashboard` | `src/app/dashboard/page.tsx` | Personal dashboard — upcoming/past joined events, organised events, groups, verified-organiser badge |
 | `/profile` | `src/app/profile/page.tsx` | Edit display name, postcode, avatar, email preferences; delete account |
 | `/events/create` | `src/app/events/create/page.tsx` | Create a new litter-pick event (requires auth; verified organisers can link a group) |
-| `/events/[id]/edit` | `src/app/events/[id]/edit/page.tsx` | Edit a published event — title, description, date/time, location, capacity, contact details (organiser only; redirects to event detail if started/completed/cancelled) |
+| `/events/[id]/edit` | `src/app/events/[id]/edit/page.tsx` | Edit a published event — title, description, date/time, location (postcode, current location, or map pin), capacity, contact details (organiser only; redirects to event detail if started/completed/cancelled) |
 | `/events/[id]/stats` | `src/app/events/[id]/stats/page.tsx` | Log post-event impact data (organiser only — returns 404 for other users) |
 | `/become-a-verified-organiser` | `src/app/become-a-verified-organiser/page.tsx` | Apply for verified-organiser status; shows existing application status |
 | `/groups/create` | `src/app/groups/create/page.tsx` | Create a new group (verified organisers only) |
@@ -66,6 +66,15 @@ All routes use the Next.js 16 App Router. There is no Pages Router.
 | `src/app/groups/create/actions.ts` | `createGroup` | Create group page |
 | `src/app/groups/[slug]/edit/actions.ts` | `updateGroup` | Edit group page |
 | `src/app/groups/actions.ts` | `joinGroup`, `leaveGroup`, `deleteGroup` | `JoinGroupButton`, `DeleteGroupButton` components |
+
+### API Route Handlers
+
+| Route | File | Description |
+|---|---|---|
+| `GET /api/geocode?postcode=` | `src/app/api/geocode/route.ts` | UK postcode → `{ postcode, latitude, longitude, outcode, adminDistrict }`. 400 on a malformed postcode, 404 if `postcodes.io` doesn't recognise it |
+| `GET /api/reverse-geocode?lat=&lng=` | `src/app/api/reverse-geocode/route.ts` | Coordinates → nearest UK postcode, same response shape. 400 on invalid coordinates, 404 when no UK postcode is nearby |
+
+Both are thin server-side proxies over `src/lib/geocode.ts` so `postcodes.io` is never called from the browser. The coordinates they return are the **postcode centroid**, not the caller's own point.
 
 ### Route Protection Logic
 
@@ -139,7 +148,14 @@ Footer
 - Route protection (unauthenticated redirect to `/sign-in`)
 
 #### Events
-- Create a new litter-pick event with title, description, UK postcode (geocoded to lat/lng), address label, start/end times, max attendees, optional organiser contact details, and optional group affiliation
+- Create a new litter-pick event with title, description, location, start/end times, max attendees, optional organiser contact details, and optional group affiliation
+- **Event location selection** (`EventLocationPicker`, shared by the create and edit forms) — the organiser never needs to know the postcode of a beach, park or woodland. Three interchangeable approaches:
+  1. **Type a UK postcode** — geocoded to its centroid, as before
+  2. **"Use my current location"** — browser Geolocation API, then reverse-geocoded to the nearest postcode
+  3. **Click/tap the map** — `LocationPickerMap` drops a draggable marker; the point is reverse-geocoded to the nearest postcode
+  The most recent selection always wins (older in-flight lookups are discarded), and the form cannot be submitted while a lookup is unresolved. Geolocation permission-denied, unavailable, timeout and "no UK postcode nearby" cases all show an inline message and fall back to manual postcode entry.
+- `events.location_postcode` is **never nullable** — map and device selections resolve the postcode, outcode and admin district server-side via `postcodes.io`, so postcode-radius search and `/impact` area aggregation keep working. For map/device selections the organiser's **exact coordinates** are stored as the event's `latitude`/`longitude`; only typed postcodes store the postcode centroid
+- `address_label` remains a free-text, human-facing meeting point description (e.g. "Meet by the lifeguard station")
 - Rate-limited event creation (5 per user per 24 hours — `src/lib/ratelimit.ts`)
 - Input sanitization via `src/lib/sanitize.ts` (strips HTML tags)
 - Events default to `published` status on creation
@@ -151,7 +167,7 @@ Footer
 #### Discovery & Map
 - Browse all published/completed events at `/events`
 - Postcode-based geo search with configurable radius
-- "Use my location" geolocation button on the homepage postcode search, `/events` filter, and `/groups` filter — uses the browser Geolocation API and reverse-geocodes the coordinates to a UK postcode via `src/app/api/reverse-geocode/route.ts` (proxies `postcodes.io`'s nearest-postcode lookup); the resolved postcode populates the search field rather than sorting by raw distance. Handles permission-denied, unavailable, and timeout errors with inline messaging; falls back gracefully to manual postcode entry
+- "Use my location" geolocation button on the homepage postcode search, `/events` filter, and `/groups` filter — uses the browser Geolocation API and reverse-geocodes the coordinates to a UK postcode via `src/app/api/reverse-geocode/route.ts` (proxies `postcodes.io`'s nearest-postcode lookup, falling back to a 20 km wide search); the resolved postcode populates the search field rather than sorting by raw distance. Handles permission-denied, unavailable, and timeout errors with inline messaging; falls back gracefully to manual postcode entry. Shared implementation lives in `src/lib/geolocation.ts`
 - Date range filtering
 - Interactive Leaflet map showing all matching events with popups
 - Card list alongside the map

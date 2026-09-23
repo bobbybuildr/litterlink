@@ -1,13 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-
-interface PostcodesIoNearestResult {
-  postcode?: string;
-}
-
-interface PostcodesIoNearestResponse {
-  status?: number;
-  result?: PostcodesIoNearestResult[];
-}
+import { NO_UK_POSTCODE_MESSAGE, reverseGeocode } from "@/lib/geocode";
 
 function parseCoordinate(value: string | null): number | null {
   if (!value) return null;
@@ -16,6 +8,13 @@ function parseCoordinate(value: string | null): number | null {
   return parsed;
 }
 
+/**
+ * Server-side proxy for coordinates → nearest UK postcode lookups.
+ *
+ * Responds with `{ postcode, latitude, longitude, outcode, adminDistrict }`
+ * where the coordinates are the *postcode centroid* — callers that started from
+ * a user-chosen point must keep their own coordinates as the meeting point.
+ */
 export async function GET(request: NextRequest) {
   const lat = parseCoordinate(request.nextUrl.searchParams.get("lat"));
   const lng = parseCoordinate(request.nextUrl.searchParams.get("lng"));
@@ -27,36 +26,11 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const endpoint = `https://api.postcodes.io/postcodes?lon=${encodeURIComponent(String(lng))}&lat=${encodeURIComponent(String(lat))}`;
+  const geo = await reverseGeocode(lat, lng);
 
-  try {
-    const res = await fetch(endpoint, { next: { revalidate: 3600 } });
-
-    if (!res.ok) {
-      return NextResponse.json(
-        { error: "Could not resolve postcode from location." },
-        { status: 502 }
-      );
-    }
-
-    const json = (await res.json()) as PostcodesIoNearestResponse;
-    const nearestPostcode =
-      json.status === 200 && Array.isArray(json.result)
-        ? json.result[0]?.postcode ?? null
-        : null;
-
-    if (!nearestPostcode) {
-      return NextResponse.json(
-        { error: "No nearby postcode found for this location." },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({ postcode: nearestPostcode.toUpperCase() });
-  } catch {
-    return NextResponse.json(
-      { error: "Location lookup failed. Please try again." },
-      { status: 500 }
-    );
+  if (!geo) {
+    return NextResponse.json({ error: NO_UK_POSTCODE_MESSAGE }, { status: 404 });
   }
+
+  return NextResponse.json(geo);
 }

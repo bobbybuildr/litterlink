@@ -4,10 +4,15 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { geocodePostcode } from "@/lib/geocode";
+import {
+  LOCATION_MOVE_THRESHOLD_METRES,
+  distanceMetres,
+  resolveEventLocation,
+} from "@/lib/geocode";
 import { sanitizeText } from "@/lib/sanitize";
 import { sendEventUpdatedEmails } from "@/lib/email";
 import { isRescheduleNotificationRateLimited } from "@/lib/ratelimit";
+import { normalisePostcode } from "@/lib/utils";
 
 const TITLE_MAX = 120;
 const DESC_MAX = 2000;
@@ -29,6 +34,12 @@ function extractFields(formData: FormData): Record<string, string> {
 
 function fail(error: string, formData: FormData): EditEventState {
   return { error, fields: extractFields(formData) };
+}
+
+function parseCoordinate(value: FormDataEntryValue | null): number | null {
+  if (typeof value !== "string" || value.trim() === "") return null;
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 /**
@@ -114,9 +125,20 @@ export async function updateEvent(
       (formData.get("organiser_contact_details") as string) ?? ""
     ) || null;
 
+  // The organiser either typed a postcode or dropped a pin (map / device location).
+  const usePin = formData.get("location_mode") === "pin";
+  const submittedLatitude = parseCoordinate(formData.get("latitude"));
+  const submittedLongitude = parseCoordinate(formData.get("longitude"));
+
   // Validate required fields
-  if (!title || !postcode || !startsAt) {
+  if (!title || !startsAt) {
     return fail("Please fill in all required fields.", formData);
+  }
+  if (!usePin && !postcode) {
+    return fail(
+      "Please enter a postcode, use your current location, or choose the meeting point on the map.",
+      formData
+    );
   }
   if (title.length > TITLE_MAX)
     return fail(`Title must be ${TITLE_MAX} characters or fewer.`, formData);
@@ -167,29 +189,57 @@ export async function updateEvent(
         new Date(endsAtUTC).getTime() !== new Date(existing.ends_at).getTime()
       : existing.ends_at !== null);
 
+  // Resolve the location server-side — client-supplied postcode metadata is never
+  // trusted — but skip the lookup entirely when the organiser left the location
+  // alone, so an unchanged pin is never snapped back to the postcode centroid.
+  let lat = existing.latitude;
+  let lng = existing.longitude;
+  let storedPostcode = existing.location_postcode;
+  let outcode = existing.location_outcode;
+  let adminDistrict = existing.location_admin_district;
+
+  const pinUnmoved =
+    usePin &&
+    submittedLatitude !== null &&
+    submittedLongitude !== null &&
+    distanceMetres(
+      submittedLatitude,
+      submittedLongitude,
+      existing.latitude,
+      existing.longitude
+    ) <= LOCATION_MOVE_THRESHOLD_METRES;
+
+  const postcodeUnchanged =
+    !usePin &&
+    normalisePostcode(postcode) ===
+      normalisePostcode(existing.location_postcode);
+
+  if (!pinUnmoved && !postcodeUnchanged) {
+    const resolved = await resolveEventLocation({
+      usePin,
+      postcode,
+      latitude: submittedLatitude,
+      longitude: submittedLongitude,
+    });
+    if (!resolved.ok) return fail(resolved.error, formData);
+
+    lat = resolved.location.latitude;
+    lng = resolved.location.longitude;
+    storedPostcode = resolved.location.postcode;
+    outcode = resolved.location.outcode;
+    adminDistrict = resolved.location.adminDistrict;
+  }
+
+  // Reformatting a postcode ("sw1a1aa" → "SW1A 1AA") or nudging the pin a few
+  // metres is not a location change worth emailing participants about.
   const locationChanged =
-    postcode !== existing.location_postcode ||
+    normalisePostcode(storedPostcode) !==
+      normalisePostcode(existing.location_postcode) ||
+    distanceMetres(lat, lng, existing.latitude, existing.longitude) >
+      LOCATION_MOVE_THRESHOLD_METRES ||
     (addressLabel ?? "") !== (existing.address_label ?? "");
 
   const shouldNotify = dateTimeChanged || locationChanged;
-
-  // Re-geocode only if postcode changed
-  let lat = existing.latitude;
-  let lng = existing.longitude;
-  let outcode = existing.location_outcode;
-  let adminDistrict = existing.location_admin_district;
-  if (postcode !== existing.location_postcode) {
-    const geo = await geocodePostcode(postcode);
-    if (!geo)
-      return fail(
-        `Postcode "${postcode}" wasn't recognised. Please enter a valid UK postcode.`,
-        formData
-      );
-    lat = geo.latitude;
-    lng = geo.longitude;
-    outcode = geo.outcode;
-    adminDistrict = geo.adminDistrict;
-  }
 
   const { error } = await supabase
     .from("events")
@@ -200,7 +250,7 @@ export async function updateEvent(
       starts_at: startsAtUTC,
       ends_at: endsAtUTC,
       max_attendees: maxAttendees,
-      location_postcode: postcode,
+      location_postcode: storedPostcode,
       latitude: lat,
       longitude: lng,
       location_outcode: outcode,
@@ -259,7 +309,7 @@ export async function updateEvent(
         startsAt: startsAtUTC,
         endsAt: endsAtUTC,
         addressLabel,
-        postcode,
+        postcode: storedPostcode,
         dateTimeChanged,
         locationChanged,
       });

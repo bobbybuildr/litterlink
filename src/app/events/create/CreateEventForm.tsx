@@ -1,9 +1,10 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { createEvent } from "./actions";
 import type { CreateEventState } from "./actions";
 import { SubmitButton } from "./SubmitButton";
+import { EventLocationPicker } from "@/components/events/EventLocationPicker";
 import type { GroupRow } from "@/lib/events";
 
 interface CreateEventFormProps {
@@ -25,6 +26,8 @@ export function CreateEventForm({
   );
 
   const f = state.fields ?? initialFields;
+
+  const [isLocationReady, setIsLocationReady] = useState(true);
 
   const errorRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -109,35 +112,15 @@ export function CreateEventForm({
         />
       </Field>
 
-      {/* Postcode + meeting point */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Postcode *" htmlFor="postcode" hint="UK postcodes only">
-          <input
-            id="postcode"
-            name="postcode"
-            type="text"
-            required
-            defaultValue={f?.postcode ?? ""}
-            placeholder="SW1A 1AA"
-            className={`${inputCls} uppercase`}
-          />
-        </Field>
-        <Field
-          label="Meeting point"
-          htmlFor="address_label"
-          hint="e.g. 'Outside Tesco, High Street'"
-        >
-          <input
-            id="address_label"
-            name="address_label"
-            type="text"
-            maxLength={200}
-            defaultValue={f?.address_label ?? ""}
-            placeholder="Outside the old library"
-            className={inputCls}
-          />
-        </Field>
-      </div>
+      {/* Event location */}
+      <EventLocationPicker
+        defaultPostcode={f?.postcode}
+        defaultLatitude={f?.latitude}
+        defaultLongitude={f?.longitude}
+        defaultMode={f?.location_mode}
+        defaultAddressLabel={f?.address_label}
+        onReadyChange={setIsLocationReady}
+      />
 
       {/* Date/time */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -214,7 +197,7 @@ export function CreateEventForm({
       </label>
 
       <div className="flex flex-col sm:flex-row items-center gap-4 pt-2">
-        <SubmitButton />
+        <SubmitButton disabled={!isLocationReady} />
         <p className="text-xs text-gray-400">
           Your event will be visible to everyone immediately.
         </p>

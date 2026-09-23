@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { updateEvent } from "./actions";
 import type { EditEventState } from "./actions";
+import { EventLocationPicker } from "@/components/events/EventLocationPicker";
 import { FormSubmitButton } from "@/components/FormSubmitButton";
 
 interface EditEventFormProps {
@@ -12,6 +13,8 @@ interface EditEventFormProps {
     title: string;
     description: string;
     postcode: string;
+    latitude: number;
+    longitude: number;
     address_label: string;
     starts_at: string; // "YYYY-MM-DDTHH:MM" in Europe/London
     ends_at: string;   // "YYYY-MM-DDTHH:MM" in Europe/London, or ""
@@ -28,6 +31,8 @@ export function EditEventForm({ eventId, minDatetime, defaultValues }: EditEvent
   );
 
   const f = state.fields;
+
+  const [isLocationReady, setIsLocationReady] = useState(true);
 
   const errorRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -74,35 +79,15 @@ export function EditEventForm({ eventId, minDatetime, defaultValues }: EditEvent
         />
       </Field>
 
-      {/* Postcode + meeting point */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Postcode *" htmlFor="postcode" hint="UK postcodes only">
-          <input
-            id="postcode"
-            name="postcode"
-            type="text"
-            required
-            defaultValue={f?.postcode ?? defaultValues.postcode}
-            placeholder="SW1A 1AA"
-            className={`${inputCls} uppercase`}
-          />
-        </Field>
-        <Field
-          label="Meeting point"
-          htmlFor="address_label"
-          hint="e.g. 'Outside Tesco, High Street'"
-        >
-          <input
-            id="address_label"
-            name="address_label"
-            type="text"
-            maxLength={200}
-            defaultValue={f?.address_label ?? defaultValues.address_label}
-            placeholder="Outside the old library"
-            className={inputCls}
-          />
-        </Field>
-      </div>
+      {/* Event location */}
+      <EventLocationPicker
+        defaultPostcode={f?.postcode ?? defaultValues.postcode}
+        defaultLatitude={f?.latitude ?? defaultValues.latitude}
+        defaultLongitude={f?.longitude ?? defaultValues.longitude}
+        defaultMode={f?.location_mode}
+        defaultAddressLabel={f?.address_label ?? defaultValues.address_label}
+        onReadyChange={setIsLocationReady}
+      />
 
       {/* Date/time */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -170,12 +155,13 @@ export function EditEventForm({ eventId, minDatetime, defaultValues }: EditEvent
       <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center">
         <FormSubmitButton
           pendingText="Saving…"
+          disabled={!isLocationReady}
           className="rounded-lg bg-brand px-5 py-2 text-sm font-medium text-white hover:bg-brand/90 transition-colors"
         >
           Save changes
         </FormSubmitButton>
         <p className="text-xs text-gray-400">
-          If you change the date or time, confirmed participants will be notified by email.
+          If you change the date, time or location, confirmed participants will be notified by email.
         </p>
       </div>
     </form>

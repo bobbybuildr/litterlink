@@ -8,6 +8,7 @@ interface EventsMapProps {
   centerLat?: number;
   centerLng?: number;
   radiusKm?: number;
+  zoom?: number;
 }
 
 function radiusToZoom(radiusKm?: number): number {
@@ -22,7 +23,7 @@ function radiusToZoom(radiusKm?: number): number {
  * Leaflet map rendered client-side.
  * Lazy-imports Leaflet to avoid SSR issues with window/document.
  */
-export function EventsMap({ events, centerLat, centerLng, radiusKm }: EventsMapProps) {
+export function EventsMap({ events, centerLat, centerLng, radiusKm, zoom }: EventsMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<import("leaflet").Map | null>(null);
   // const hintRef = useRef<HTMLDivElement>(null);
@@ -49,7 +50,7 @@ export function EventsMap({ events, centerLat, centerLng, radiusKm }: EventsMapP
 
       const defaultLat = centerLat ?? 53.15;
       const defaultLng = centerLng ?? -3.6;
-      const defaultZoom = centerLat != null ? radiusToZoom(radiusKm) : 6;
+      const defaultZoom = zoom ?? (centerLat != null ? radiusToZoom(radiusKm) : 6);
 
       const map = L.map(containerRef.current!).setView(
         [defaultLat, defaultLng],
@@ -177,12 +178,12 @@ export function EventsMap({ events, centerLat, centerLng, radiusKm }: EventsMapP
       });
 
       if (centerLat != null && centerLng != null) {
-        map.setView([centerLat, centerLng], radiusToZoom(radiusKm));
+        map.setView([centerLat, centerLng], zoom ?? radiusToZoom(radiusKm));
       }
     }
 
     updateMarkers();
-  }, [events, centerLat, centerLng, radiusKm]);
+  }, [events, centerLat, centerLng, radiusKm, zoom]);
 
   return (
     <div className="relative h-full w-full">

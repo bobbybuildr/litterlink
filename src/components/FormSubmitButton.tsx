@@ -6,15 +6,16 @@ import { cn } from "@/lib/utils";
 interface FormSubmitButtonProps {
   children: React.ReactNode;
   pendingText?: string;
+  disabled?: boolean;
   className?: string;
 }
 
-export function FormSubmitButton({ children, pendingText, className }: FormSubmitButtonProps) {
+export function FormSubmitButton({ children, pendingText, disabled, className }: FormSubmitButtonProps) {
   const { pending } = useFormStatus();
   return (
     <button
       type="submit"
-      disabled={pending}
+      disabled={pending || disabled}
       className={cn("disabled:opacity-60 disabled:cursor-not-allowed", className)}
     >
       {pending && pendingText ? pendingText : children}

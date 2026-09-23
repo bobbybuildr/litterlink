@@ -50,16 +50,22 @@ import { createClient } from "@/lib/supabase/client";  // Client Components only
 
 - **`react-leaflet` v5** + **`leaflet` v1.9.4**
 - Must be used inside a `"use client"` component
-- Must be dynamically imported (no SSR) — `next/dynamic` with `ssr: false`
+- Must be dynamically imported (no SSR) — `next/dynamic` with `ssr: false`, or (as in `EventsMap`/`GroupsMap`) by `await import("leaflet")` inside `useEffect`
 - Leaflet default marker icons require a manual fix (broken in Webpack/Turbopack)
+- `LocationPickerMap` is the click/tap-to-pick map used by `EventLocationPicker`; it has `scrollWheelZoom: false` so the page keeps scrolling over the map, and only recentres when the selected point is off-screen or the zoom is too low to place a pin accurately
 
 ## Geocoding
 
-- **`postcodes.io`** public REST API — UK postcodes only
-- Server-side only (`src/lib/geocode.ts`)
-- Strips whitespace, uppercases, and URL-encodes the postcode before the request
-- Uses `next: { revalidate: 86400 }` — responses cached for 24 hours via Next.js fetch cache
-- Returns `{ latitude, longitude, postcode }` or `null` on failure
+- **`postcodes.io`** public REST API — UK postcodes only, no international geocoding
+- Server-side only (`src/lib/geocode.ts`, which starts with `import "server-only"`). The browser reaches it through two route handlers:
+  - `GET /api/geocode?postcode=` — postcode → coordinates
+  - `GET /api/reverse-geocode?lat=&lng=` — coordinates → nearest UK postcode
+- Both routes respond with `{ postcode, latitude, longitude, outcode, adminDistrict }`, where the coordinates are the **postcode centroid** — callers that started from a user-chosen point must keep their own coordinates as the meeting point
+- `geocodePostcode(postcode)` strips whitespace, uppercases and URL-encodes before the request; cached with `next: { revalidate: 86400 }`
+- `reverseGeocode(lat, lng)` looks up the nearest postcode within 2 km, then falls back to `postcodes.io`'s 20 km `wideSearch` so beaches, moorland and large parks still resolve; coordinates are rounded to 4 dp in the upstream URL for cache reuse; cached for 1 hour
+- `resolveEventLocation({ usePin, postcode, latitude, longitude })` is the single entry point used by the event create and edit actions. Client-supplied postcode/outcode/admin-district values are never trusted — the server always re-resolves them
+- `distanceMetres()` and `LOCATION_MOVE_THRESHOLD_METRES` (25 m) decide whether a location has meaningfully moved
+- `src/lib/geolocation.ts` holds the browser-side counterparts: `requestCurrentPosition()`, `geolocationErrorMessage()`, `lookupPostcode()` and `lookupNearestPostcode()`. Shared by the homepage search, the `/events` and `/groups` filters, and `EventLocationPicker`
 
 ## Email
 

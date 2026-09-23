@@ -27,7 +27,7 @@ export default async function EditEventPage({ params }: Props) {
   const { data: event } = await supabase
     .from("events")
     .select(
-      "organiser_id, status, title, description, location_postcode, address_label, starts_at, ends_at, max_attendees, organiser_contact_details, updated_at"
+      "organiser_id, status, title, description, location_postcode, latitude, longitude, address_label, starts_at, ends_at, max_attendees, organiser_contact_details, updated_at"
     )
     .eq("id", id)
     .single();
@@ -46,6 +46,8 @@ export default async function EditEventPage({ params }: Props) {
     title: event.title,
     description: event.description ?? "",
     postcode: event.location_postcode,
+    latitude: event.latitude,
+    longitude: event.longitude,
     address_label: event.address_label ?? "",
     starts_at: utcToLondonDatetimeLocal(event.starts_at),
     ends_at: event.ends_at ? utcToLondonDatetimeLocal(event.ends_at) : "",

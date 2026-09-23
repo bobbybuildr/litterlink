@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { geocodePostcode } from "@/lib/geocode";
+import { resolveEventLocation } from "@/lib/geocode";
 import { sendEventCreatedEmail } from "@/lib/email";
 import { sanitizeText } from "@/lib/sanitize";
 import { isEventCreationRateLimited } from "@/lib/ratelimit";
@@ -27,6 +27,12 @@ function extractFields(formData: FormData): Record<string, string> {
 
 function fail(error: string, formData: FormData): CreateEventState {
   return { error, fields: extractFields(formData) };
+}
+
+function parseCoordinate(value: FormDataEntryValue | null): number | null {
+  if (typeof value !== "string" || value.trim() === "") return null;
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 /**
@@ -80,6 +86,11 @@ export async function createEvent(
   const organiserContactDetails =
     sanitizeText((formData.get("organiser_contact_details") as string) ?? "") || null;
 
+  // The organiser either typed a postcode or dropped a pin (map / device location).
+  const usePin = formData.get("location_mode") === "pin";
+  const latitude = parseCoordinate(formData.get("latitude"));
+  const longitude = parseCoordinate(formData.get("longitude"));
+
   // Length validation
   if (title.length > TITLE_MAX) {
     return fail(`Event title must be ${TITLE_MAX} characters or fewer.`, formData);
@@ -95,8 +106,14 @@ export async function createEvent(
   }
 
   // Validate required fields
-  if (!title || !postcode || !startsAt) {
+  if (!title || !startsAt) {
     return fail("Please fill in all required fields.", formData);
+  }
+  if (!usePin && !postcode) {
+    return fail(
+      "Please enter a postcode, use your current location, or choose the meeting point on the map.",
+      formData,
+    );
   }
 
   // Server-side date validation (client min attribute can be bypassed)
@@ -136,11 +153,17 @@ export async function createEvent(
     }
   }
 
-  // Geocode the postcode
-  const geo = await geocodePostcode(postcode);
-  if (!geo) {
-    return fail(`Postcode "${postcode}" wasn't recognised. Please enter a valid UK postcode.`, formData);
+  // Resolve the location server-side — client-supplied postcode metadata is never trusted
+  const resolved = await resolveEventLocation({
+    usePin,
+    postcode,
+    latitude,
+    longitude,
+  });
+  if (!resolved.ok) {
+    return fail(resolved.error, formData);
   }
+  const location = resolved.location;
 
   const { data: event, error } = await supabase
     .from("events")
@@ -149,11 +172,11 @@ export async function createEvent(
       group_id: groupId,
       title,
       description,
-      location_postcode: geo.postcode,
-      latitude: geo.latitude,
-      longitude: geo.longitude,
-      location_outcode: geo.outcode,
-      location_admin_district: geo.adminDistrict,
+      location_postcode: location.postcode,
+      latitude: location.latitude,
+      longitude: location.longitude,
+      location_outcode: location.outcode,
+      location_admin_district: location.adminDistrict,
       address_label: addressLabel,
       starts_at: startsAtUTC,
       ends_at: endsAtUTC,
@@ -192,7 +215,7 @@ export async function createEvent(
       startsAt: startsAtUTC,
       endsAt: endsAtUTC,
       addressLabel,
-      postcode: geo.postcode,
+      postcode: location.postcode,
     });
   }
 

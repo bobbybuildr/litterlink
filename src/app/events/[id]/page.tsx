@@ -517,6 +517,7 @@ export default async function EventDetailPage({ params, searchParams }: Props) {
               events={[event]}
               centerLat={event.latitude}
               centerLng={event.longitude}
+              zoom={15}
             />
           </div>
 

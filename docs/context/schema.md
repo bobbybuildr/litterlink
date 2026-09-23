@@ -33,9 +33,9 @@ Auto-created on sign-up via a `on_auth_user_created` trigger (reads `raw_user_me
 | `group_id` | UUID \| null | FK → `groups` ON DELETE SET NULL |
 | `title` | TEXT | |
 | `description` | TEXT \| null | |
-| `location_postcode` | TEXT | Normalised canonical UK postcode |
-| `latitude` | FLOAT | From `postcodes.io` geocoding |
-| `longitude` | FLOAT | From `postcodes.io` geocoding |
+| `location_postcode` | TEXT | Normalised canonical UK postcode. Always required — when the organiser picks a point on the map or uses their device location, it is reverse-geocoded server-side instead of being typed. |
+| `latitude` | FLOAT | The event's meeting point. Postcode centroid when a postcode was typed; the organiser's exact map/device coordinates when a pin was dropped. |
+| `longitude` | FLOAT | As above. |
 | `address_label` | TEXT \| null | Human-readable location name |
 | `starts_at` | TIMESTAMPTZ | |
 | `ends_at` | TIMESTAMPTZ \| null | |
