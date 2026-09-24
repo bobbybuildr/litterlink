@@ -30,7 +30,6 @@ export interface Database {
           username: string | null;
           bio: string | null;
           social_url: string | null;
-          public_visibility: boolean;
           created_at: string;
         };
         Insert: {
@@ -43,7 +42,6 @@ export interface Database {
           username?: string | null;
           bio?: string | null;
           social_url?: string | null;
-          public_visibility?: boolean;
           created_at?: string;
         };
         Update: {
@@ -56,7 +54,6 @@ export interface Database {
           username?: string | null;
           bio?: string | null;
           social_url?: string | null;
-          public_visibility?: boolean;
           created_at?: string;
         };
         Relationships: [];

@@ -13,7 +13,7 @@ The findings below concern resilience, correctness at scale, and maintainability
 | Severity | Count |
 |---|---|
 | Critical | 1 (fixed) |
-| High | 5 (3 fixed) |
+| High | 5 (4 fixed) |
 | Medium | 11 (3 fixed) |
 | Low | 9 |
 
@@ -53,7 +53,7 @@ The database schema existed only on one local disk and in the live Supabase proj
 
 ## High
 
-### H1 — `public_visibility` privacy opt-out is never enforced
+### H1 — ~~`public_visibility` privacy opt-out is never enforced~~ ✅ Fixed
 
 **Location:** `src/app/profile/[id]/page.tsx`, `supabase/migrations/0023_public_profiles.sql`
 
@@ -74,6 +74,14 @@ A user who opts out of public visibility still has their full profile, bio, soci
    -- profiles: restrict public read of opted-out profiles to the owner
    ```
 4. Expose the toggle in `src/app/profile/ProfileForm.tsx` — there is currently no UI to set it.
+
+**Resolution**
+
+The opt-out was removed rather than enforced. Impact stats are recorded against events and groups regardless, and every identifying profile field (username, bio, avatar, social link) is already optional, so a visibility flag added little.
+
+1. Added `supabase/migrations/0034_drop_profile_public_visibility.sql`, dropping the `public_visibility` column from `profiles`.
+2. Removed `public_visibility` from the `profiles` Row/Insert/Update types in `src/types/database.ts`.
+3. Added a bullet to section 5 of `src/app/privacy/page.tsx` stating that profile pages are visible to signed-in users and which fields are optional, so the policy no longer implies a hidden-profile option.
 
 ### H2 — ~~Silent row-limit truncation corrupts aggregate statistics~~ ✅ Fixed
 
@@ -372,7 +380,7 @@ and a GitHub Actions workflow running lint, typecheck, and tests on every push.
 ## Suggested order of work
 
 1. **C1** — commit `supabase/`. Every other item is reversible; losing the schema is not.
-2. **H1** — small, contained change with genuine privacy impact. (**H3** is already fixed.)
+2. ~~**H1**~~ — fixed by removing the opt-out. (**H3** is already fixed.)
 3. **H2** — the impact figures are the product's headline claim and need to be correct.
 4. **M4**, **M9** — inexpensive groundwork that makes everything after it safer to change. (**M1** is already fixed.)
 5. **H5** — a regression net before the next feature lands. (**H4** is already fixed.)

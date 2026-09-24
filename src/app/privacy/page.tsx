@@ -7,14 +7,14 @@ export const metadata: Metadata = {
     "How LitterLink collects, uses, shares, and protects personal data.",
 };
 
-const lastUpdated = "2026-04-03";
+const lastUpdated = "2026-09-24";
 
 export default function PrivacyPage() {
   return (
     <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
       <div className="rounded-3xl border border-brand/15 bg-brand/5 p-8 shadow-sm">
         <p className="text-sm font-medium text-brand">
-          Last updated <time dateTime={lastUpdated}>3 April 2026</time>
+          Last updated <time dateTime={lastUpdated}>24 September 2026</time>
         </p>
         <h1 className="mt-3 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
           Privacy Policy
@@ -145,6 +145,7 @@ export default function PrivacyPage() {
             information you are comfortable sharing.
           </p>
           <PolicyList>
+            <li>Your profile page — display name, username, avatar, bio, social link, organiser status, join date, events you have organised or attended, your impact statistics, and group memberships — is visible to other signed-in users. Profile fields such as bio, username, avatar and social link are optional; leave them blank if you prefer not to share them.</li>
             <li>If you organise an event, your display name, organiser status, event details, organiser contact details, event statistics, and any event photos may be visible on public event pages.</li>
             <li>If you join an event, your display name and joined date may be shown on the event page to other visitors.</li>
             <li>If you create a group, the group name, description, logo, website, social links, contact email address, and associated events may be public.</li>
