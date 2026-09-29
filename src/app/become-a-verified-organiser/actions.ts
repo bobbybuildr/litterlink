@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { sendApplicationEmails } from "@/lib/email";
 import { fail, type FormState } from "@/lib/forms";
+import { readFormFields } from "@/lib/input";
 
 export async function submitOrganiserApplication(
   _prevState: FormState,
@@ -16,15 +17,20 @@ export async function submitOrganiserApplication(
 
   if (!user) redirect("/sign-in");
 
-  const motivation = (formData.get("motivation") as string).trim();
-  const experience = (formData.get("experience") as string).trim() || null;
-  const organisationName =
-    (formData.get("organisation_name") as string).trim() || null;
-  const socialLinks = (formData.get("social_links") as string).trim() || null;
+  const input = readFormFields(formData, {
+    motivation: { type: "multiline", label: "Motivation", max: 2000, required: true },
+    experience: { type: "multiline", label: "Experience", max: 2000 },
+    organisation_name: { type: "text", label: "Organisation name", max: 200 },
+    social_links: { type: "text", label: "Social links", max: 500 },
+  });
+  if (!input.ok) return fail(input.error, formData);
 
-  if (!motivation) {
-    return fail("Please tell us your motivation for becoming an organiser.", formData);
-  }
+  const {
+    motivation,
+    experience,
+    organisation_name: organisationName,
+    social_links: socialLinks,
+  } = input.values;
 
   // Fetch display_name for the confirmation email
   const { data: profile } = await supabase

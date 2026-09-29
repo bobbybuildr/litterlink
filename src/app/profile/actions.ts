@@ -5,9 +5,11 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { geocodePostcode } from "@/lib/geocode";
-import { sanitizeText } from "@/lib/sanitize";
-import { validateHttpUrl } from "@/lib/url";
+import { readFormFields } from "@/lib/input";
 import { validateImageUpload } from "@/lib/uploads";
+
+const DISPLAY_NAME_MAX = 60;
+const BIO_MAX = 300;
 
 export type ProfileState = { error?: string; success?: boolean } | null;
 
@@ -22,12 +24,17 @@ export async function updateProfile(
 
   if (!user) return { error: "Not signed in." };
 
-  const displayName = sanitizeText((formData.get("display_name") as string) ?? "") || null;
-  const postcode = (formData.get("postcode") as string)?.trim().toUpperCase();
+  const input = readFormFields(formData, {
+    display_name: { type: "text", label: "Display name", max: DISPLAY_NAME_MAX },
+    postcode: { type: "postcode", label: "Postcode" },
+    bio: { type: "multiline", label: "Bio", max: BIO_MAX },
+    social_url: { type: "url", label: "Website or social link" },
+  });
+  if (!input.ok) return { error: input.error };
+
+  const { display_name: displayName, postcode, bio, social_url: socialUrl } = input.values;
   const usernameRaw = (formData.get("username") as string)?.trim().toLowerCase();
   const username = usernameRaw || null;
-  const bio = sanitizeText((formData.get("bio") as string) ?? "") || null;
-  const socialUrl = (formData.get("social_url") as string)?.trim() || null;
 
   // Validate username format
   if (username !== null) {
@@ -35,15 +42,6 @@ export async function updateProfile(
       return { error: "Username must be 3–30 characters and contain only lowercase letters, digits, and underscores." };
     }
   }
-
-  // Validate bio length
-  if (bio !== null && bio.length > 300) {
-    return { error: "Bio must be 300 characters or fewer." };
-  }
-
-  // Validate social URL
-  const socialUrlError = validateHttpUrl(socialUrl, "Website or social link");
-  if (socialUrlError) return { error: socialUrlError };
 
   // Validate postcode if one was provided
   if (postcode) {
@@ -84,8 +82,8 @@ export async function updateProfile(
   const { error } = await supabase
     .from("profiles")
     .update({
-      display_name: displayName || null,
-      postcode: postcode || null,
+      display_name: displayName,
+      postcode,
       username,
       bio,
       social_url: socialUrl,

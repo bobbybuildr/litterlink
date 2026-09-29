@@ -9,7 +9,7 @@ import {
   distanceMetres,
   resolveEventLocation,
 } from "@/lib/geocode";
-import { sanitizeText } from "@/lib/sanitize";
+import { readFormFields } from "@/lib/input";
 import { sendEventUpdatedEmails } from "@/lib/email";
 import { isRescheduleNotificationRateLimited } from "@/lib/ratelimit";
 import { normalisePostcode } from "@/lib/utils";
@@ -66,11 +66,22 @@ export async function updateEvent(
     .eq("status", "confirmed");
 
   // Parse inputs
-  const title = sanitizeText((formData.get("title") as string) ?? "");
-  const description =
-    sanitizeText((formData.get("description") as string) ?? "") || null;
-  const addressLabel =
-    sanitizeText((formData.get("address_label") as string) ?? "") || null;
+  const input = readFormFields(formData, {
+    title: { type: "text", label: "Event title", max: TITLE_MAX, required: true },
+    description: { type: "multiline", label: "Description", max: DESC_MAX },
+    address_label: { type: "text", label: "Meeting point", max: ADDRESS_MAX },
+    organiser_contact_details: { type: "multiline", label: "Contact details", max: CONTACT_MAX },
+    postcode: { type: "postcode", label: "Postcode" },
+  });
+  if (!input.ok) return fail(input.error, formData);
+
+  const {
+    title,
+    description,
+    address_label: addressLabel,
+    organiser_contact_details: organiserContactDetails,
+  } = input.values;
+  const postcode = input.values.postcode ?? "";
   const startsAt = formData.get("starts_at") as string;
   const endsAt = (formData.get("ends_at") as string) || null;
   const maxAttendeesRaw = formData.get("max_attendees") as string;
@@ -78,13 +89,6 @@ export async function updateEvent(
     maxAttendeesRaw && maxAttendeesRaw.trim() !== ""
       ? parseInt(maxAttendeesRaw, 10)
       : null;
-  const postcode = sanitizeText(
-    (formData.get("postcode") as string) ?? ""
-  ).toUpperCase();
-  const organiserContactDetails =
-    sanitizeText(
-      (formData.get("organiser_contact_details") as string) ?? ""
-    ) || null;
 
   // The organiser either typed a postcode or dropped a pin (map / device location).
   const usePin = formData.get("location_mode") === "pin";
@@ -92,7 +96,7 @@ export async function updateEvent(
   const submittedLongitude = parseCoordinate(formData.get("longitude"));
 
   // Validate required fields
-  if (!title || !startsAt) {
+  if (!startsAt) {
     return fail("Please fill in all required fields.", formData);
   }
   if (!usePin && !postcode) {
@@ -101,23 +105,6 @@ export async function updateEvent(
       formData
     );
   }
-  if (title.length > TITLE_MAX)
-    return fail(`Title must be ${TITLE_MAX} characters or fewer.`, formData);
-  if (description && description.length > DESC_MAX)
-    return fail(
-      `Description must be ${DESC_MAX} characters or fewer.`,
-      formData
-    );
-  if (addressLabel && addressLabel.length > ADDRESS_MAX)
-    return fail(
-      `Meeting point must be ${ADDRESS_MAX} characters or fewer.`,
-      formData
-    );
-  if (organiserContactDetails && organiserContactDetails.length > CONTACT_MAX)
-    return fail(
-      `Contact details must be ${CONTACT_MAX} characters or fewer.`,
-      formData
-    );
   if (isNaN(new Date(startsAt).getTime()))
     return fail("Invalid start date.", formData);
 

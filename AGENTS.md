@@ -54,7 +54,8 @@ No test suite is configured yet.
 | `src/lib/image.ts` | Client-side image pipeline — HEIC decoding + WebP compression, shared by event photo, avatar and group logo uploads |
 | `src/lib/email.ts` | Resend email helpers |
 | `src/lib/ratelimit.ts` | DB-backed rate limiting (event creation, joins, reschedule notifications) |
-| `src/lib/sanitize.ts` | `sanitizeText()` — strips HTML from user input |
+| `src/lib/input.ts` | `readFormFields()` — the single entry point for free-text form fields (see Input handling below) |
+| `src/lib/html.ts` | `escapeHtml()` — for the few raw-HTML sinks (Leaflet popups) |
 | `src/lib/supabase/` | Supabase client factories |
 | `src/types/database.ts` | Hand-written DB types — update when schema changes |
 | `supabase/migrations/` | SQL migration files |
@@ -131,6 +132,23 @@ export async function myAction(formData: FormData) {
 ```
 
 Actions return `{ error: string | null }` on mutation or call `redirect()` on success.
+
+### Input handling
+
+LitterLink never accepts HTML. User text is stored as plain text, exactly as typed after normalisation, and escaped when it is output. Input is **not** HTML-stripped.
+
+- **Free-text fields** must be read with `readFormFields(formData, schema)` from `@/lib/input`, never with `formData.get()` directly. Each field declares a type:
+  | Type | Use for | Behaviour |
+  |------|---------|-----------|
+  | `text` | single-line inputs (titles, names, labels) | NFC, strips control/bidi chars, collapses whitespace, trims; `max` required |
+  | `multiline` | `<textarea>` fields | as `text` but keeps line breaks (max one blank line); `max` required |
+  | `email` | contact emails | `text` normalisation + WHATWG email pattern, max 254 |
+  | `url` | website/social links | must be `http://` or `https://` and parse as a URL, max 500 |
+  | `postcode` | UK postcodes | `text` normalisation + upper-case, max 10; existence is checked by geocoding |
+  Match `max` to the input's `maxLength`. Empty optional fields return `null`; `required: true` fields are typed `string`.
+- **Enums, numbers, dates, checkboxes and identifiers** (e.g. `username`) are validated in the action against an explicit set, range or pattern.
+- **Passwords and auth emails** go to Supabase Auth unmodified.
+- **Output**: JSX escapes automatically. Any HTML built as a string (e.g. Leaflet `bindPopup`) must wrap user values in `escapeHtml()` from `@/lib/html`. Never use `dangerouslySetInnerHTML` with user data. Emails are sent as plain `text`.
 
 ## Component Conventions
 

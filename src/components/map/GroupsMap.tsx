@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { GROUP_TYPE_LABELS } from "@/lib/constants";
+import { escapeHtml } from "@/lib/html";
 
 type GroupMapItem = {
   id: string;
@@ -34,15 +35,15 @@ function radiusToZoom(radiusKm?: number): number {
 
 function popupHtml(group: GroupMapItem): string {
   const typeLabel = GROUP_TYPE_LABELS[group.group_type] ?? "Organisation";
-  const locationLabel = group.location_name ?? group.location_postcode ?? "";
+  const locationLabel = escapeHtml(group.location_name ?? group.location_postcode ?? "");
   const memberCount = group.member_count ?? 0;
   const upcomingEventCount = group.upcoming_event_count ?? 0;
 
   return `<div style="min-width:170px">
-      <strong style="font-size:0.875rem">${group.name}</strong>
+      <strong style="font-size:0.875rem">${escapeHtml(group.name)}</strong>
       <p style="margin:4px 0 0;font-size:0.75rem;color:#6b7280">${typeLabel}${locationLabel ? ` · ${locationLabel}` : ""}</p>
       <p style="margin:2px 0 0;font-size:0.75rem;color:#6b7280">${memberCount} member${memberCount !== 1 ? "s" : ""} · ${upcomingEventCount} upcoming event${upcomingEventCount !== 1 ? "s" : ""}</p>
-      <a href="/groups/${group.slug}" style="display:inline-block;margin-top:8px;font-size:0.75rem;color:#16a34a;font-weight:600">
+      <a href="/groups/${encodeURIComponent(group.slug)}" style="display:inline-block;margin-top:8px;font-size:0.75rem;color:#16a34a;font-weight:600">
         View group →
       </a>
     </div>`;

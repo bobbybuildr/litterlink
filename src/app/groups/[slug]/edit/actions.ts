@@ -4,12 +4,13 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { geocodePostcode } from "@/lib/geocode";
-import { sanitizeText } from "@/lib/sanitize";
-import { validateHttpUrl } from "@/lib/url";
+import { readFormFields } from "@/lib/input";
 import { slugify } from "@/lib/slug";
 import { fail, type FormState } from "@/lib/forms";
 import { validateImageUpload } from "@/lib/uploads";
 
+const NAME_MAX = 120;
+const DESC_MAX = 2000;
 const LOCATION_NAME_MAX = 100;
 
 export type EditGroupState = FormState;
@@ -34,40 +35,34 @@ export async function updateGroup(
   if (fetchError || !existing) return { error: "Group not found." };
   if (existing.created_by !== user.id) return { error: "Not authorised." };
 
-  const name = sanitizeText((formData.get("name") as string) ?? "").trim();
-  const description =
-    sanitizeText((formData.get("description") as string) ?? "").trim() || null;
+  const input = readFormFields(formData, {
+    name: { type: "text", label: "Group name", max: NAME_MAX, required: true },
+    description: { type: "multiline", label: "Description", max: DESC_MAX },
+    website_url: { type: "url", label: "Website URL" },
+    social_url: { type: "url", label: "Social URL" },
+    contact_email: { type: "email", label: "Contact email" },
+    postcode: { type: "postcode", label: "Postcode", required: true },
+    location_name: {
+      type: "text",
+      label: "Display location",
+      max: LOCATION_NAME_MAX,
+      required: true,
+    },
+  });
+  if (!input.ok) return fail(input.error, formData);
+
+  const {
+    name,
+    description,
+    website_url: websiteUrl,
+    social_url: socialUrl,
+    contact_email: contactEmail,
+    postcode,
+    location_name: locationName,
+  } = input.values;
   const groupType = (formData.get("group_type") as string | null)?.trim() ?? "";
-  const websiteUrl =
-    (formData.get("website_url") as string | null)?.trim() || null;
-  const socialUrl =
-    (formData.get("social_url") as string | null)?.trim() || null;
-  const contactEmail =
-    sanitizeText((formData.get("contact_email") as string) ?? "").trim() ||
-    null;
-  const postcode = sanitizeText((formData.get("postcode") as string) ?? "")
-    .toUpperCase()
-    .trim();
-  const locationName = sanitizeText(
-    (formData.get("location_name") as string) ?? ""
-  ).trim();
   const logoFile = formData.get("logo") as File | null;
   const removeLogo = formData.get("remove_logo") === "1";
-
-  if (!name) return fail("Group name is required.", formData);
-
-  const websiteUrlError = validateHttpUrl(websiteUrl, "Website URL");
-  if (websiteUrlError) return fail(websiteUrlError, formData);
-  const socialUrlError = validateHttpUrl(socialUrl, "Social URL");
-  if (socialUrlError) return fail(socialUrlError, formData);
-
-  if (!postcode) return fail("Postcode is required.", formData);
-  if (!locationName) return fail("Display location is required.", formData);
-  if (locationName.length > LOCATION_NAME_MAX)
-    return fail(
-      `Display location must be ${LOCATION_NAME_MAX} characters or fewer.`,
-      formData
-    );
 
   const validGroupTypes = [
     "community",

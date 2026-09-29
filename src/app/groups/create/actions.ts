@@ -3,13 +3,14 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { geocodePostcode } from "@/lib/geocode";
-import { sanitizeText } from "@/lib/sanitize";
 import { sendGroupCreatedEmail } from "@/lib/email";
-import { validateHttpUrl } from "@/lib/url";
+import { readFormFields } from "@/lib/input";
 import { slugify } from "@/lib/slug";
 import { validateImageUpload } from "@/lib/uploads";
 import { fail, type FormState } from "@/lib/forms";
 
+const NAME_MAX = 120;
+const DESC_MAX = 2000;
 const LOCATION_NAME_MAX = 100;
 
 export async function createGroup(
@@ -34,37 +35,38 @@ export async function createGroup(
     redirect("/become-a-verified-organiser");
   }
 
-  const name = (formData.get("name") as string).trim();
-  const description = (formData.get("description") as string).trim() || null;
-  const groupType = (formData.get("group_type") as string | null)?.trim() || "";
-  const websiteUrl = (formData.get("website_url") as string | null)?.trim() || null;
-  const socialUrl = (formData.get("social_url") as string | null)?.trim() || null;
-  const contactEmail = (formData.get("contact_email") as string | null)?.trim() || null;
-  const postcode = sanitizeText((formData.get("postcode") as string) ?? "").toUpperCase().trim();
-  const locationName = sanitizeText((formData.get("location_name") as string) ?? "").trim();
-  const logoFile = formData.get("logo") as File | null;
+  const input = readFormFields(formData, {
+    name: { type: "text", label: "Group name", max: NAME_MAX, required: true },
+    description: { type: "multiline", label: "Description", max: DESC_MAX },
+    postcode: { type: "postcode", label: "Postcode", required: true },
+    location_name: {
+      type: "text",
+      label: "Display location",
+      max: LOCATION_NAME_MAX,
+      required: true,
+    },
+    website_url: { type: "url", label: "Website URL" },
+    social_url: { type: "url", label: "Social URL" },
+    contact_email: { type: "email", label: "Contact email" },
+  });
+  if (!input.ok) return fail(input.error, formData);
 
-  if (!name) return fail("Group name is required.", formData);
+  const {
+    name,
+    description,
+    postcode,
+    location_name: locationName,
+    website_url: websiteUrl,
+    social_url: socialUrl,
+    contact_email: contactEmail,
+  } = input.values;
+  const groupType = (formData.get("group_type") as string | null)?.trim() || "";
+  const logoFile = formData.get("logo") as File | null;
 
   const validGroupTypes = ["community", "school", "corporate", "council", "charity", "other"];
   if (!groupType || !validGroupTypes.includes(groupType)) {
     return fail("Please select a group type.", formData);
   }
-
-  if (!postcode) return fail("Postcode is required.", formData);
-
-  if (!locationName) return fail("Display location is required.", formData);
-  if (locationName.length > LOCATION_NAME_MAX) {
-    return fail(
-      `Display location must be ${LOCATION_NAME_MAX} characters or fewer.`,
-      formData
-    );
-  }
-
-  const websiteUrlError = validateHttpUrl(websiteUrl, "Website URL");
-  if (websiteUrlError) return fail(websiteUrlError, formData);
-  const socialUrlError = validateHttpUrl(socialUrl, "Social URL");
-  if (socialUrlError) return fail(socialUrlError, formData);
 
   const slug = slugify(name);
 

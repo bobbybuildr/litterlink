@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { readFormFields } from "@/lib/input";
 
 // Use the canonical site URL rather than the (spoofable) Host header.
 async function getSiteUrl() {
@@ -43,7 +44,14 @@ export async function signUpWithEmail(formData: FormData) {
 
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
-  const displayName = formData.get("display_name") as string;
+
+  const input = readFormFields(formData, {
+    display_name: { type: "text", label: "Your name", max: 60, required: true },
+  });
+  if (!input.ok) {
+    redirect(`/sign-up?error=${encodeURIComponent(input.error)}`);
+  }
+  const displayName = input.values.display_name;
 
   // Capture email preferences from sign-up form (stored in metadata, applied on callback)
   const eventNotifications = formData.get("event_notifications") === "on";

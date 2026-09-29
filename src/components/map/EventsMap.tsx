@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import type { EventWithCount } from "@/lib/events";
+import { escapeHtml } from "@/lib/html";
 
 interface EventsMapProps {
   events: EventWithCount[];
@@ -17,6 +18,25 @@ function radiusToZoom(radiusKm?: number): number {
   if (radiusKm <= 20) return 11;
   if (radiusKm <= 50) return 9;
   return 8;
+}
+
+function popupHtml(event: EventWithCount): string {
+  const date = new Date(event.starts_at).toLocaleDateString("en-GB", {
+    timeZone: "Europe/London",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  return `<div style="min-width:160px">
+      <strong style="font-size:0.875rem">${escapeHtml(event.title)}</strong>
+      <p style="margin:4px 0 0;font-size:0.75rem;color:#6b7280">${date}</p>
+      <p style="margin:2px 0 0;font-size:0.75rem;color:#6b7280">${escapeHtml(event.address_label ?? event.location_postcode)}</p>
+      <a href="/events/${encodeURIComponent(event.id)}" style="display:inline-block;margin-top:8px;font-size:0.75rem;color:#16a34a;font-weight:600">
+        View event →
+      </a>
+    </div>`;
 }
 
 /**
@@ -65,26 +85,9 @@ export function EventsMap({ events, centerLat, centerLng, radiusKm, zoom }: Even
       }).addTo(map);
 
       events.forEach((event) => {
-        const date = new Date(event.starts_at).toLocaleDateString("en-GB", {
-          timeZone: "Europe/London",
-          day: "numeric",
-          month: "short",
-          hour: "2-digit",
-          minute: "2-digit",
-        });
-
         L.marker([event.latitude, event.longitude])
           .addTo(map)
-          .bindPopup(
-            `<div style="min-width:160px">
-              <strong style="font-size:0.875rem">${event.title}</strong>
-              <p style="margin:4px 0 0;font-size:0.75rem;color:#6b7280">${date}</p>
-              <p style="margin:2px 0 0;font-size:0.75rem;color:#6b7280">${event.address_label ?? event.location_postcode}</p>
-              <a href="/events/${event.id}" style="display:inline-block;margin-top:8px;font-size:0.75rem;color:#16a34a;font-weight:600">
-                View event →
-              </a>
-            </div>`
-          );
+          .bindPopup(popupHtml(event));
       });
 
       // Mobile gesture handling: disabled for now, may re-enable later.
@@ -155,26 +158,9 @@ export function EventsMap({ events, centerLat, centerLng, radiusKm, zoom }: Even
       });
 
       events.forEach((event) => {
-        const date = new Date(event.starts_at).toLocaleDateString("en-GB", {
-          timeZone: "Europe/London",
-          day: "numeric",
-          month: "short",
-          hour: "2-digit",
-          minute: "2-digit",
-        });
-
         L.marker([event.latitude, event.longitude])
           .addTo(map)
-          .bindPopup(
-            `<div style="min-width:160px">
-              <strong style="font-size:0.875rem">${event.title}</strong>
-              <p style="margin:4px 0 0;font-size:0.75rem;color:#6b7280">${date}</p>
-              <p style="margin:2px 0 0;font-size:0.75rem;color:#6b7280">${event.address_label ?? event.location_postcode}</p>
-              <a href="/events/${event.id}" style="display:inline-block;margin-top:8px;font-size:0.75rem;color:#16a34a;font-weight:600">
-                View event →
-              </a>
-            </div>`
-          );
+          .bindPopup(popupHtml(event));
       });
 
       if (centerLat != null && centerLng != null) {

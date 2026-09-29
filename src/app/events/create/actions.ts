@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { resolveEventLocation } from "@/lib/geocode";
 import { sendEventCreatedEmail } from "@/lib/email";
-import { sanitizeText } from "@/lib/sanitize";
+import { readFormFields } from "@/lib/input";
 import { isEventCreationRateLimited } from "@/lib/ratelimit";
 import { londonToUTC } from "@/lib/datetime";
 import { fail, type FormState } from "@/lib/forms";
@@ -37,10 +37,22 @@ export async function createEvent(
     return fail("You've created too many events recently. Please wait before creating another.", formData);
   }
 
-  const postcode = sanitizeText((formData.get("postcode") as string) ?? "").toUpperCase();
-  const title = sanitizeText((formData.get("title") as string) ?? "");
-  const description = sanitizeText((formData.get("description") as string) ?? "") || null;
-  const addressLabel = sanitizeText((formData.get("address_label") as string) ?? "") || null;
+  const input = readFormFields(formData, {
+    title: { type: "text", label: "Event title", max: TITLE_MAX, required: true },
+    description: { type: "multiline", label: "Description", max: DESC_MAX },
+    address_label: { type: "text", label: "Meeting point", max: ADDRESS_MAX },
+    organiser_contact_details: { type: "multiline", label: "Contact details", max: CONTACT_MAX },
+    postcode: { type: "postcode", label: "Postcode" },
+  });
+  if (!input.ok) return fail(input.error, formData);
+
+  const {
+    title,
+    description,
+    address_label: addressLabel,
+    organiser_contact_details: organiserContactDetails,
+  } = input.values;
+  const postcode = input.values.postcode ?? "";
   const startsAt = formData.get("starts_at") as string;
   const endsAt = (formData.get("ends_at") as string) || null;
   const maxAttendees = formData.get("max_attendees")
@@ -48,30 +60,13 @@ export async function createEvent(
     : null;
   const rawGroupId = (formData.get("group_id") as string | null) ?? null;
   const groupId = rawGroupId && rawGroupId !== "" ? rawGroupId : null;
-  const organiserContactDetails =
-    sanitizeText((formData.get("organiser_contact_details") as string) ?? "") || null;
 
   // The organiser either typed a postcode or dropped a pin (map / device location).
   const usePin = formData.get("location_mode") === "pin";
   const latitude = parseCoordinate(formData.get("latitude"));
   const longitude = parseCoordinate(formData.get("longitude"));
 
-  // Length validation
-  if (title.length > TITLE_MAX) {
-    return fail(`Event title must be ${TITLE_MAX} characters or fewer.`, formData);
-  }
-  if (description && description.length > DESC_MAX) {
-    return fail(`Description must be ${DESC_MAX} characters or fewer.`, formData);
-  }
-  if (addressLabel && addressLabel.length > ADDRESS_MAX) {
-    return fail(`Meeting point must be ${ADDRESS_MAX} characters or fewer.`, formData);
-  }
-  if (organiserContactDetails && organiserContactDetails.length > CONTACT_MAX) {
-    return fail(`Contact details must be ${CONTACT_MAX} characters or fewer.`, formData);
-  }
-
-  // Validate required fields
-  if (!title || !startsAt) {
+  if (!startsAt) {
     return fail("Please fill in all required fields.", formData);
   }
   if (!usePin && !postcode) {

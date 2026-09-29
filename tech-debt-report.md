@@ -14,7 +14,7 @@ The findings below concern resilience, correctness at scale, and maintainability
 |---|---|
 | Critical | 1 (fixed) |
 | High | 5 (4 fixed) |
-| Medium | 11 (7 fixed) |
+| Medium | 11 (8 fixed) |
 | Low | 9 |
 
 ---
@@ -152,7 +152,7 @@ Untested surface includes every authorisation branch in every Server Action, the
 
 **Suggested fix**
 
-1. Add Vitest and cover the pure functions in `src/lib/` first — `londonToUTC`, `haversineKm`, `sanitizeText`, `slugify`, `isRescheduleNotificationRateLimited`. Fast wins, no mocking required.
+1. Add Vitest and cover the pure functions in `src/lib/` first — `londonToUTC`, `haversineKm`, `readFormFields`, `escapeHtml`, `slugify`, `isRescheduleNotificationRateLimited`. Fast wins, no mocking required.
 2. Add Playwright for the critical flows: sign up, create event, join event, leave event, submit stats.
 3. Wire both into a GitHub Actions workflow alongside `lint` and `tsc --noEmit`.
 
@@ -338,7 +338,7 @@ Every `/groups` request reads all groups, all `group_members`, and all group-lin
 
 Added the `groups_with_counts` view in `supabase/migrations/0033_impact_and_group_aggregation_views.sql`, mirroring the `events_with_counts` pattern with `security_invoker = true`. `getPublishedGroups()` in `src/lib/events.ts` now does a single `select("*")` against the view instead of three unbounded table reads reduced in JavaScript, resolving the truncation risk noted in H2 as well.
 
-### M11 — `sanitizeText` is naive and applied inconsistently
+### M11 — ~~`sanitizeText` is naive and applied inconsistently~~ ✅ Fixed
 
 **Location:** `src/lib/sanitize.ts`, `src/app/groups/create/actions.ts`
 
@@ -351,6 +351,17 @@ Mishandles unclosed tags and `>` characters inside attribute values. More signif
 **Suggested fix**
 
 Apply `sanitizeText` uniformly to all free-text fields, or drop it in favour of a well-tested library. Document the policy so new fields are not missed.
+
+**Resolution**
+
+The review found the tag-stripping was the wrong defence as well as uneven. LitterLink never accepts HTML, so user text is now stored as plain text and escaped at output. Input is validated by field type.
+
+- **Real XSS sink fixed.** `EventsMap` and `GroupsMap` built Leaflet popups by interpolating `event.title`, `address_label`, `group.name` and `location_name` into raw HTML. `sanitizeText` did not protect this: an unclosed tag such as `<img src=x onerror=alert(1)//` passes the regex, and group names on create were never sanitized. Both maps now use `escapeHtml()` from the new `src/lib/html.ts`. This also covers any rows already in the database.
+- **Stripping removed.** `src/lib/sanitize.ts` is deleted. Stripping `<…>` also damaged real text like "kids < 10 > adults".
+- **Field-type policy.** `readFormFields(formData, schema)` in the new `src/lib/input.ts` is now the only way actions read free-text fields. Each field declares `text`, `multiline`, `email`, `url` or `postcode`, and `text`/`multiline` must set a `max`. The helper normalises the value (NFC, removes control and bidi-override characters, handles whitespace per type), then checks required, length and format, and returns the first error.
+- **Applied everywhere.** Every free-text field in event create/edit, group create/edit, profile, stats, organiser application and sign-up `display_name` now goes through it. Several caps that were only enforced client-side are now also checked on the server: group name/description, display name, application fields, URLs. Group `contact_email` is now format-checked.
+- **Consolidated.** `validateHttpUrl` (`src/lib/url.ts`) is folded into the `url` field type and the file is deleted.
+- **Documented.** The policy is written up under "Input handling" in `AGENTS.md`: which field types exist, what enums/numbers/identifiers and passwords do instead, and the output-escaping rule for raw-HTML sinks.
 
 ---
 

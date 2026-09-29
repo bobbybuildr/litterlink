@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { extractFields, type FormState } from "@/lib/forms";
+import { readFormFields } from "@/lib/input";
 
 const MAX_BAGS_COLLECTED = 300;
 const MAX_ACTUAL_ATTENDEES = 500;
@@ -69,8 +70,16 @@ export async function submitStats(
   const severity = formData.get("hotspot_severity")
     ? parseInt(formData.get("hotspot_severity") as string, 10)
     : null;
-  const notableBrands = (formData.get("notable_brands") as string | null)?.trim() || null;
-  const notes = (formData.get("notes") as string | null)?.trim() || null;
+  const input = readFormFields(formData, {
+    notable_brands: {
+      type: "multiline",
+      label: "Notable brands",
+      max: MAX_NOTABLE_BRANDS_LENGTH,
+    },
+    notes: { type: "multiline", label: "Notes", max: MAX_NOTES_LENGTH },
+  });
+  if (!input.ok) return fail(input.error, formData);
+  const { notable_brands: notableBrands, notes } = input.values;
 
   if (bags !== null && (!Number.isInteger(bags) || bags < 0 || bags > MAX_BAGS_COLLECTED)) {
     return fail(`Bags collected must be between 0 and ${MAX_BAGS_COLLECTED}.`, formData);
@@ -98,17 +107,6 @@ export async function submitStats(
     (!Number.isInteger(severity) || severity < MIN_SEVERITY || severity > MAX_SEVERITY)
   ) {
     return fail("Hotspot severity must be between 1 and 5.", formData);
-  }
-
-  if (notableBrands !== null && notableBrands.length > MAX_NOTABLE_BRANDS_LENGTH) {
-    return fail(
-      `Notable brands must be ${MAX_NOTABLE_BRANDS_LENGTH} characters or fewer.`,
-      formData
-    );
-  }
-
-  if (notes !== null && notes.length > MAX_NOTES_LENGTH) {
-    return fail(`Notes must be ${MAX_NOTES_LENGTH} characters or fewer.`, formData);
   }
 
   const { data: existingStats } = await supabase
