@@ -6,19 +6,10 @@ import { geocodePostcode } from "@/lib/geocode";
 import { sanitizeText } from "@/lib/sanitize";
 import { sendGroupCreatedEmail } from "@/lib/email";
 import { validateHttpUrl } from "@/lib/url";
+import { slugify } from "@/lib/slug";
+import { validateImageUpload } from "@/lib/uploads";
 
 const LOCATION_NAME_MAX = 100;
-
-/** Convert a name to a URL-safe slug. */
-function slugify(name: string): string {
-  return name
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .slice(0, 80);
-}
 
 export async function createGroup(formData: FormData) {
   const supabase = await createClient();
@@ -150,10 +141,7 @@ export async function createGroup(formData: FormData) {
 
   // Upload logo if provided (non-fatal — group is already created)
   if (logoFile instanceof File && logoFile.size > 0) {
-    const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
-    const MAX_BYTES = 5 * 1024 * 1024; // 5 MB
-
-    if (allowedTypes.has(logoFile.type) && logoFile.size <= MAX_BYTES) {
+    if (!validateImageUpload(logoFile)) {
       const ext = logoFile.name.split(".").pop()?.toLowerCase() ?? "jpg";
       const storagePath = `${group.id}/logo.${ext}`;
 

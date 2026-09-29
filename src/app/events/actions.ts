@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEventJoinedEmail, sendEventLeftEmail, sendEventCancelledEmails } from "@/lib/email";
 import { isJoinRateLimited } from "@/lib/ratelimit";
+import { validateImageUpload } from "@/lib/uploads";
+
 export async function joinEvent(eventId: string) {
   const supabase = await createClient();
   const {
@@ -270,18 +272,13 @@ export async function uploadEventPhoto(
   if (items.length > remaining)
     return fail(`Only ${remaining} more photo${remaining === 1 ? "" : "s"} can be added to this event.`);
 
-  const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
-  const MAX_BYTES = 5 * 1024 * 1024; // 5 MB
   const uploaded: string[] = [];
   const failed: { key: string; message: string }[] = [];
 
   for (const { file, key } of items) {
-    if (!allowedTypes.has(file.type)) {
-      failed.push({ key, message: `${file.name}: unsupported file type.` });
-      continue;
-    }
-    if (file.size > MAX_BYTES) {
-      failed.push({ key, message: `${file.name}: exceeds the 5 MB limit.` });
+    const fileError = validateImageUpload(file, file.name);
+    if (fileError) {
+      failed.push({ key, message: fileError });
       continue;
     }
 

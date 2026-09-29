@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { CreateEventForm } from "./CreateEventForm";
 import type { GroupRow } from "@/lib/events";
-import { utcToLondonDatetimeLocal } from "@/lib/utils";
+import { utcToLondonDatetimeLocal } from "@/lib/datetime";
 
 export const metadata: Metadata = {
   title: "Create a Litter Pick",

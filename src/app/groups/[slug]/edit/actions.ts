@@ -6,35 +6,13 @@ import { createClient } from "@/lib/supabase/server";
 import { geocodePostcode } from "@/lib/geocode";
 import { sanitizeText } from "@/lib/sanitize";
 import { validateHttpUrl } from "@/lib/url";
+import { slugify } from "@/lib/slug";
+import { fail, type FormState } from "@/lib/forms";
+import { validateImageUpload } from "@/lib/uploads";
 
 const LOCATION_NAME_MAX = 100;
 
-export type EditGroupState = {
-  error: string | null;
-  fields?: Record<string, string>;
-};
-
-function slugify(name: string): string {
-  return name
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .slice(0, 80);
-}
-
-function extractFields(formData: FormData): Record<string, string> {
-  const fields: Record<string, string> = {};
-  formData.forEach((value, key) => {
-    if (typeof value === "string") fields[key] = value;
-  });
-  return fields;
-}
-
-function fail(error: string, formData: FormData): EditGroupState {
-  return { error, fields: extractFields(formData) };
-}
+export type EditGroupState = FormState;
 
 export async function updateGroup(
   groupId: string,
@@ -176,10 +154,7 @@ export async function updateGroup(
       .update({ logo_url: null })
       .eq("id", groupId);
   } else if (logoFile instanceof File && logoFile.size > 0) {
-    const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
-    const MAX_BYTES = 5 * 1024 * 1024;
-
-    if (allowedTypes.has(logoFile.type) && logoFile.size <= MAX_BYTES) {
+    if (!validateImageUpload(logoFile)) {
       const ext =
         logoFile.name.split(".").pop()?.toLowerCase() ?? "webp";
       const storagePath = `${groupId}/logo.${ext}`;

@@ -7,11 +7,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { geocodePostcode } from "@/lib/geocode";
 import { sanitizeText } from "@/lib/sanitize";
 import { validateHttpUrl } from "@/lib/url";
+import { validateImageUpload } from "@/lib/uploads";
 
 export type ProfileState = { error?: string; success?: boolean } | null;
-
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
-const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
 
 export async function updateProfile(
   _prev: ProfileState,
@@ -60,12 +58,8 @@ export async function updateProfile(
   const avatarFile = formData.get("avatar") as File | null;
 
   if (avatarFile && avatarFile.size > 0) {
-    if (!ALLOWED_TYPES.includes(avatarFile.type)) {
-      return { error: "Avatar must be a JPEG, PNG, or WebP image." };
-    }
-    if (avatarFile.size > MAX_SIZE_BYTES) {
-      return { error: "Avatar must be under 5 MB." };
-    }
+    const avatarError = validateImageUpload(avatarFile, "Avatar");
+    if (avatarError) return { error: avatarError };
 
     // Normalise extension: image/jpeg → jpg
     const ext = avatarFile.type.split("/")[1].replace("jpeg", "jpg");

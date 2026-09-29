@@ -14,7 +14,7 @@ The findings below concern resilience, correctness at scale, and maintainability
 |---|---|
 | Critical | 1 (fixed) |
 | High | 5 (4 fixed) |
-| Medium | 11 (3 fixed) |
+| Medium | 11 (4 fixed) |
 | Low | 9 |
 
 ---
@@ -213,7 +213,7 @@ if (socialUrl !== null && !/^https?:\/\//.test(socialUrl)) {
 
 Added `validateHttpUrl()` in `src/lib/url.ts` and applied it to `website_url` and `social_url` in both `src/app/groups/create/actions.ts` and `src/app/groups/[slug]/edit/actions.ts`. `src/app/profile/actions.ts` was also switched to the shared helper, replacing its inline regex check.
 
-### M4 — Substantial duplicated logic
+### M4 — ~~Substantial duplicated logic~~ ✅ Fixed
 
 | Duplicated | Locations |
 |---|---|
@@ -230,6 +230,14 @@ Added `validateHttpUrl()` in `src/lib/url.ts` and applied it to `website_url` an
 - `src/lib/forms.ts` — `extractFields`, `fail`
 - `src/lib/uploads.ts` — `ALLOWED_IMAGE_TYPES`, `MAX_IMAGE_BYTES`, `validateImageUpload()`
 - Import `GROUP_TYPE_LABELS` from `src/lib/constants.ts` in the dashboard
+
+**Resolution**
+
+1. `src/lib/datetime.ts` now holds `londonToUTC` alongside `utcToLondonDatetimeLocal` (moved out of `src/lib/utils.ts`); `londonToUTC` reuses `utcToLondonDatetimeLocal` for the Europe/London formatting.
+2. `src/lib/slug.ts` exports `slugify`, used by both group create and edit actions.
+3. `src/lib/forms.ts` exports `FormState`, `extractFields` and `fail`. `CreateEventState`, `EditEventState` and `EditGroupState` are now aliases of `FormState`.
+4. `src/lib/uploads.ts` exports `ALLOWED_IMAGE_TYPES`, `MAX_IMAGE_BYTES` and `validateImageUpload(file, label)`, used by event photo, group logo (create/edit) and avatar uploads.
+5. `src/app/dashboard/page.tsx` imports `GROUP_TYPE_LABELS` from `src/lib/constants.ts`. Dashboard group cards now show "Community group" rather than "Community", matching the rest of the app.
 
 ### M5 — Inconsistent Server Action error contracts
 

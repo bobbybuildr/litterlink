@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { EditEventForm } from "./EditEventForm";
-import { utcToLondonDatetimeLocal } from "@/lib/utils";
+import { utcToLondonDatetimeLocal } from "@/lib/datetime";
 
 interface Props {
   params: Promise<{ id: string }>;

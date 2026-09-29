@@ -5,6 +5,7 @@ import { BadgeCheck, Calendar, CalendarPlus, ClipboardList, Clock, Trash, UserPe
 import { createClient } from "@/lib/supabase/server";
 import { EventCard } from "@/components/events/EventCard";
 import type { EventWithCount, GroupRow } from "@/lib/events";
+import { GROUP_TYPE_LABELS } from "@/lib/constants";
 
 type DashboardGroup = GroupRow & { role: "member" | "organiser" };
 
@@ -390,14 +391,6 @@ export default async function DashboardPage() {
 }
 
 function GroupCard({ group }: { group: DashboardGroup }) {
-  const GROUP_TYPE_LABELS: Record<string, string> = {
-    community: "Community",
-    school: "School",
-    corporate: "Corporate",
-    council: "Council",
-    charity: "Charity",
-    other: "Organisation",
-  };
   return (
     <Link
       href={`/groups/${group.slug}`}

@@ -6,55 +6,20 @@ import { resolveEventLocation } from "@/lib/geocode";
 import { sendEventCreatedEmail } from "@/lib/email";
 import { sanitizeText } from "@/lib/sanitize";
 import { isEventCreationRateLimited } from "@/lib/ratelimit";
+import { londonToUTC } from "@/lib/datetime";
+import { fail, type FormState } from "@/lib/forms";
 
 const TITLE_MAX = 120;
 const DESC_MAX = 2000;
 const ADDRESS_MAX = 200;
 const CONTACT_MAX = 500;
 
-export type CreateEventState = {
-  error: string | null;
-  fields?: Record<string, string>;
-};
-
-function extractFields(formData: FormData): Record<string, string> {
-  const fields: Record<string, string> = {};
-  formData.forEach((value, key) => {
-    if (typeof value === "string") fields[key] = value;
-  });
-  return fields;
-}
-
-function fail(error: string, formData: FormData): CreateEventState {
-  return { error, fields: extractFields(formData) };
-}
+export type CreateEventState = FormState;
 
 function parseCoordinate(value: FormDataEntryValue | null): number | null {
   if (typeof value !== "string" || value.trim() === "") return null;
   const parsed = Number.parseFloat(value);
   return Number.isFinite(parsed) ? parsed : null;
-}
-
-/**
- * Interprets a naive datetime string ("YYYY-MM-DDTHH:MM") as Europe/London
- * local time and returns a UTC ISO string. Handles BST/GMT automatically.
- */
-function londonToUTC(naive: string): string {
-  const asUTC = new Date(naive + "Z");
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Europe/London",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(asUTC);
-  const p: Record<string, string> = {};
-  parts.forEach(({ type, value }) => { p[type] = value; });
-  const londonAsUTC = new Date(`${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}Z`);
-  const diff = londonAsUTC.getTime() - asUTC.getTime();
-  return new Date(asUTC.getTime() - diff).toISOString();
 }
 
 export async function createEvent(
