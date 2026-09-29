@@ -373,6 +373,24 @@ export interface Database {
         };
         Relationships: [];
       };
+      api_rate_limits: {
+        Row: {
+          key: string;
+          window_start: string;
+          request_count: number;
+        };
+        Insert: {
+          key: string;
+          window_start?: string;
+          request_count?: number;
+        };
+        Update: {
+          key?: string;
+          window_start?: string;
+          request_count?: number;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

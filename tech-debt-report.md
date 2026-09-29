@@ -14,7 +14,7 @@ The findings below concern resilience, correctness at scale, and maintainability
 |---|---|
 | Critical | 1 (fixed) |
 | High | 5 (4 fixed) |
-| Medium | 11 (5 fixed) |
+| Medium | 11 (6 fixed) |
 | Low | 9 |
 
 ---
@@ -281,15 +281,19 @@ Entries are never evicted — unbounded growth on long-lived instances. The map 
 
 Move the cooldown to the database alongside the existing helpers in `src/lib/ratelimit.ts`. If the in-process map is kept as a cheap first line of defence, add TTL eviction.
 
-### M7 — `/api/reverse-geocode` is an unauthenticated open proxy
+### M7 — ~~`/api/reverse-geocode` is an unauthenticated open proxy~~ ✅ Fixed
 
 **Location:** `src/app/api/reverse-geocode/route.ts`
 
 Coordinates are validated correctly, but the route has no auth and no rate limit. It can be driven at volume to proxy traffic to postcodes.io under your IP and reputation.
 
-**Suggested fix**
+**Resolution**
 
-Add a per-IP rate limit (the `x-forwarded-for` header on Vercel), and consider requiring a session.
+Both routes stay public so anonymous location search keeps working. They now have a per-IP rate limit instead of requiring a session.
+
+1. `supabase/migrations/0035_api_rate_limits.sql` adds an `api_rate_limits` table and an atomic fixed-window `consume_rate_limit(key, limit, window_seconds)` function. RLS is on with no policies, and `EXECUTE` is granted only to `service_role`. A pg_cron job clears expired rows hourly. Keys are `<route>:<sha256(ip)>`, so raw IPs are never stored.
+2. `consumeGeocodeRateLimit()` in `src/lib/ratelimit.ts` takes the client IP from the first `x-forwarded-for` entry (Vercel overwrites this header), falling back to `x-real-ip`. It allows **30 lookups per IP per minute, per route**, and fails open with logging if the database call errors.
+3. `/api/reverse-geocode` and `/api/geocode` both check the limit after input validation, so malformed requests are rejected without using any quota. Over the limit, they return `429` with a `Retry-After` header and a user-facing `error` message, which the existing `src/lib/geolocation.ts` wrappers already display. Coordinate and postcode validation and the postcodes.io fetch caching are unchanged.
 
 ### M8 — Group membership changes do not revalidate the discovery page
 

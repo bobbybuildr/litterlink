@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { NO_UK_POSTCODE_MESSAGE, reverseGeocode } from "@/lib/geocode";
+import { consumeGeocodeRateLimit } from "@/lib/ratelimit";
 
 function parseCoordinate(value: string | null): number | null {
   if (!value) return null;
@@ -23,6 +24,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       { error: "Invalid coordinates." },
       { status: 400 }
+    );
+  }
+
+  const retryAfter = await consumeGeocodeRateLimit("reverse-geocode", request.headers);
+  if (retryAfter > 0) {
+    return NextResponse.json(
+      { error: "Too many location lookups. Please wait a moment and try again." },
+      { status: 429, headers: { "Retry-After": String(retryAfter) } }
     );
   }
 

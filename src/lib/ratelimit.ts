@@ -1,5 +1,43 @@
+import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
+import { createAdminClient } from "@/lib/supabase/admin";
+
+/** 30 lookups per client IP per minute, per geocoding route. */
+const GEOCODE_LIMIT = 30;
+const GEOCODE_WINDOW_SECONDS = 60;
+
+// On Vercel, x-forwarded-for is overwritten by the platform, so the first entry is the real client.
+function getClientIp(headers: Headers): string {
+  const forwarded = headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  return forwarded || headers.get("x-real-ip")?.trim() || "unknown";
+}
+
+/**
+ * Records a lookup against the caller's IP for one of the public geocoding
+ * routes. Returns 0 if allowed, otherwise the seconds until the limit resets.
+ * Fails open so a database blip doesn't break location search.
+ */
+export async function consumeGeocodeRateLimit(
+  bucket: "geocode" | "reverse-geocode",
+  headers: Headers
+): Promise<number> {
+  const ipHash = createHash("sha256").update(getClientIp(headers)).digest("hex");
+
+  // The hand-written Database type declares no Functions, so call rpc untyped.
+  const admin = createAdminClient() as unknown as SupabaseClient;
+  const { data, error } = await admin.rpc("consume_rate_limit", {
+    p_key: `${bucket}:${ipHash}`,
+    p_limit: GEOCODE_LIMIT,
+    p_window_seconds: GEOCODE_WINDOW_SECONDS,
+  });
+
+  if (error) {
+    console.error("[consumeGeocodeRateLimit]", error);
+    return 0;
+  }
+  return (data as number | null) ?? 0;
+}
 
 /** 5 events per user per 24 hours. */
 const CREATE_LIMIT = 5;

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { geocodePostcode } from "@/lib/geocode";
 import { UK_POSTCODE_PATTERN } from "@/lib/constants";
+import { consumeGeocodeRateLimit } from "@/lib/ratelimit";
 
 /**
  * Server-side proxy for postcode → coordinates lookups, so the browser never
@@ -16,6 +17,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       { error: "Enter a valid UK postcode." },
       { status: 400 }
+    );
+  }
+
+  const retryAfter = await consumeGeocodeRateLimit("geocode", request.headers);
+  if (retryAfter > 0) {
+    return NextResponse.json(
+      { error: "Too many postcode lookups. Please wait a moment and try again." },
+      { status: 429, headers: { "Retry-After": String(retryAfter) } }
     );
   }
 
