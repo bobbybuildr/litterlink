@@ -52,7 +52,8 @@ export async function joinEvent(eventId: string) {
     // P0001 = capacity trigger fired — event filled up between the pre-check and insert
     if (error.code === "P0001" && error.message === "event_full")
       return { error: "This event just filled up. You weren't able to join in time." };
-    return { error: error.message };
+    console.error("[joinEvent]", error);
+    return { error: "Failed to join event. Please try again." };
   }
 
   if (user.email) {
@@ -101,7 +102,10 @@ export async function leaveEvent(eventId: string) {
     .eq("event_id", eventId)
     .eq("user_id", user.id);
 
-  if (error) return { error: error.message };
+  if (error) {
+    console.error("[leaveEvent]", error);
+    return { error: "Failed to leave event. Please try again." };
+  }
 
   if (user.email) {
     const { data: event } = await supabase
@@ -168,7 +172,10 @@ export async function cancelEvent(eventId: string) {
     .update({ status: "cancelled" })
     .eq("id", eventId);
 
-  if (error) return { error: error.message };
+  if (error) {
+    console.error("[cancelEvent]", error);
+    return { error: "Failed to cancel event. Please try again." };
+  }
 
   // Notify all confirmed participants by email
   const { data: participants } = await supabase

@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { extractFields, type FormState } from "@/lib/forms";
 
 const MAX_BAGS_COLLECTED = 300;
 const MAX_ACTUAL_ATTENDEES = 500;
@@ -13,7 +14,22 @@ const MAX_SEVERITY = 5;
 const MAX_NOTABLE_BRANDS_LENGTH = 500;
 const MAX_NOTES_LENGTH = 1000;
 
-export async function submitStats(eventId: string, formData: FormData) {
+// `extractFields` keeps only the last value of a repeated key, so re-add the checkbox group.
+function fail(error: string, formData: FormData): FormState {
+  return {
+    error,
+    fields: {
+      ...extractFields(formData),
+      litter_types: formData.getAll("litter_types").join("\n"),
+    },
+  };
+}
+
+export async function submitStats(
+  eventId: string,
+  _prevState: FormState,
+  formData: FormData
+): Promise<FormState> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -29,17 +45,15 @@ export async function submitStats(eventId: string, formData: FormData) {
     .single();
 
   if (!event || event.organiser_id !== user.id) {
-    redirect(`/events/${eventId}?error=Not+authorised`);
+    return { error: "Not authorised." };
   }
 
-  // Cancelled events cannot accept stats
   if (event.status === "cancelled") {
-    redirect(`/events/${eventId}`);
+    return { error: "Cancelled events cannot accept stats." };
   }
 
-  // Reject if the event hasn't started yet
   if (new Date(event.starts_at) > new Date()) {
-    redirect(`/events/${eventId}/stats?error=${encodeURIComponent("Stats can only be submitted after the event has started.")}`);
+    return fail("Stats can only be submitted after the event has started.", formData);
   }
 
   const bags = formData.get("bags_collected")
@@ -59,32 +73,23 @@ export async function submitStats(eventId: string, formData: FormData) {
   const notes = (formData.get("notes") as string | null)?.trim() || null;
 
   if (bags !== null && (!Number.isInteger(bags) || bags < 0 || bags > MAX_BAGS_COLLECTED)) {
-    redirect(
-      `/events/${eventId}/stats?error=${encodeURIComponent(
-        `Bags collected must be between 0 and ${MAX_BAGS_COLLECTED}.`
-      )}`
-    );
+    return fail(`Bags collected must be between 0 and ${MAX_BAGS_COLLECTED}.`, formData);
   }
 
   if (
     attendees !== null &&
     (!Number.isInteger(attendees) || attendees < 0 || attendees > MAX_ACTUAL_ATTENDEES)
   ) {
-    redirect(
-      `/events/${eventId}/stats?error=${encodeURIComponent(
-        `Actual attendees must be between 0 and ${MAX_ACTUAL_ATTENDEES}.`
-      )}`
-    );
+    return fail(`Actual attendees must be between 0 and ${MAX_ACTUAL_ATTENDEES}.`, formData);
   }
 
   if (
     duration !== null &&
     (!Number.isFinite(duration) || duration < MIN_DURATION_HOURS || duration > MAX_DURATION_HOURS)
   ) {
-    redirect(
-      `/events/${eventId}/stats?error=${encodeURIComponent(
-        `Duration must be between ${MIN_DURATION_HOURS} and ${MAX_DURATION_HOURS} hours.`
-      )}`
+    return fail(
+      `Duration must be between ${MIN_DURATION_HOURS} and ${MAX_DURATION_HOURS} hours.`,
+      formData
     );
   }
 
@@ -92,25 +97,18 @@ export async function submitStats(eventId: string, formData: FormData) {
     severity !== null &&
     (!Number.isInteger(severity) || severity < MIN_SEVERITY || severity > MAX_SEVERITY)
   ) {
-    redirect(
-      `/events/${eventId}/stats?error=${encodeURIComponent("Hotspot severity must be between 1 and 5.")}`
-    );
+    return fail("Hotspot severity must be between 1 and 5.", formData);
   }
 
   if (notableBrands !== null && notableBrands.length > MAX_NOTABLE_BRANDS_LENGTH) {
-    redirect(
-      `/events/${eventId}/stats?error=${encodeURIComponent(
-        `Notable brands must be ${MAX_NOTABLE_BRANDS_LENGTH} characters or fewer.`
-      )}`
+    return fail(
+      `Notable brands must be ${MAX_NOTABLE_BRANDS_LENGTH} characters or fewer.`,
+      formData
     );
   }
 
   if (notes !== null && notes.length > MAX_NOTES_LENGTH) {
-    redirect(
-      `/events/${eventId}/stats?error=${encodeURIComponent(
-        `Notes must be ${MAX_NOTES_LENGTH} characters or fewer.`
-      )}`
-    );
+    return fail(`Notes must be ${MAX_NOTES_LENGTH} characters or fewer.`, formData);
   }
 
   const { data: existingStats } = await supabase
@@ -142,9 +140,8 @@ export async function submitStats(eventId: string, formData: FormData) {
   ]);
 
   if (statsResult.error) {
-    redirect(
-      `/events/${eventId}/stats?error=${encodeURIComponent("Failed to save stats. Please try again.")}`
-    );
+    console.error("[submitStats]", statsResult.error);
+    return fail("Failed to save stats. Please try again.", formData);
   }
 
   revalidatePath(`/events/${eventId}`);

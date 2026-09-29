@@ -14,7 +14,7 @@ The findings below concern resilience, correctness at scale, and maintainability
 |---|---|
 | Critical | 1 (fixed) |
 | High | 5 (4 fixed) |
-| Medium | 11 (4 fixed) |
+| Medium | 11 (5 fixed) |
 | Low | 9 |
 
 ---
@@ -239,7 +239,7 @@ Added `validateHttpUrl()` in `src/lib/url.ts` and applied it to `website_url` an
 4. `src/lib/uploads.ts` exports `ALLOWED_IMAGE_TYPES`, `MAX_IMAGE_BYTES` and `validateImageUpload(file, label)`, used by event photo, group logo (create/edit) and avatar uploads.
 5. `src/app/dashboard/page.tsx` imports `GROUP_TYPE_LABELS` from `src/lib/constants.ts`. Dashboard group cards now show "Community group" rather than "Community", matching the rest of the app.
 
-### M5 — Inconsistent Server Action error contracts
+### M5 — ~~Inconsistent Server Action error contracts~~ ✅ Fixed
 
 **Location:** All `actions.ts` files
 
@@ -254,6 +254,18 @@ Several paths also return raw `error.message` from Postgres straight to the clie
 **Suggested fix**
 
 Standardise on the `{ error, fields }` state-object contract with `useActionState`. Never return `error.message` directly — map known codes (`23505`, `P0001`) to user-facing strings and fall back to a generic message.
+
+**Resolution**
+
+1. Form-backed actions now all use the `FormState` contract from `src/lib/forms.ts` with `useActionState`, and `redirect()` only on auth gates and success:
+   - `createGroup` (`src/app/groups/create/actions.ts`) — the form moved into a new `CreateGroupForm.tsx` client component; the page no longer reads `?error=`.
+   - `submitStats` (`src/app/events/[id]/stats/actions.ts`) — the form moved into a new `StatsForm.tsx`. A local `fail()` re-adds the `litter_types` checkbox group, which `extractFields` would otherwise collapse to one value. The unrendered `?error=Not+authorised` redirect is now an inline error.
+   - `submitOrganiserApplication` (`src/app/become-a-verified-organiser/actions.ts`) — `ApplicationForm.tsx` is now a client component using `useActionState`.
+2. Submitted values are now kept after a validation error on all three forms, where the redirect pattern used to clear them.
+3. Raw Postgres `error.message` is no longer returned from `joinEvent`, `leaveEvent`, `cancelEvent`, `joinGroup`, `leaveGroup`, or `updateEvent`. Known codes (`23505`, `P0001 event_full`) keep their specific messages, everything else falls back to a generic "Failed to … Please try again.", and the raw error is logged server-side with `console.error`.
+4. Button-triggered actions (`joinEvent`, `cancelEvent`, admin approve/reject, etc.) keep returning `{ error: string | null }`, which matches `FormState` without `fields`.
+
+**Out of scope:** `src/app/(auth)/actions.ts` still uses `redirect("/sign-in?error=...")` and passes through Supabase Auth (GoTrue) messages. These are intended for end users (e.g. "Invalid login credentials"), and the sign-in page's resend-confirmation flow depends on them, so converting auth is left as a separate change.
 
 ### M6 — In-process email rate limiter leaks memory and is ineffective in serverless
 

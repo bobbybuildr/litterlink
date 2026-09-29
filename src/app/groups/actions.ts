@@ -35,7 +35,8 @@ export async function joinGroup(groupId: string) {
   if (error) {
     // 23505 = unique_violation — already a member
     if (error.code === "23505") return { error: "You are already a member of this group." };
-    return { error: error.message };
+    console.error("[joinGroup]", error);
+    return { error: "Failed to join group. Please try again." };
   }
 
   revalidatePath(`/groups/${group.slug}`);
@@ -67,7 +68,10 @@ export async function leaveGroup(groupId: string) {
     .eq("group_id", groupId)
     .eq("user_id", user.id);
 
-  if (error) return { error: error.message };
+  if (error) {
+    console.error("[leaveGroup]", error);
+    return { error: "Failed to leave group. Please try again." };
+  }
 
   revalidatePath(`/groups/${group?.slug ?? groupId}`);
   return { error: null };

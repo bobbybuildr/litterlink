@@ -1,16 +1,23 @@
+"use client";
+
+import { useActionState } from "react";
 import { submitOrganiserApplication } from "./actions";
+import type { FormState } from "@/lib/forms";
 import { FormSubmitButton } from "@/components/FormSubmitButton";
 
-interface ApplicationFormProps {
-  error?: string;
-}
+export function ApplicationForm() {
+  const [state, formAction] = useActionState<FormState, FormData>(
+    submitOrganiserApplication,
+    { error: null }
+  );
 
-export function ApplicationForm({ error }: ApplicationFormProps) {
+  const f = state.fields;
+
   return (
-    <form action={submitOrganiserApplication} className="space-y-6">
-      {error && (
+    <form action={formAction} className="space-y-6">
+      {state.error && (
         <div className="rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
-          {error}
+          {state.error}
         </div>
       )}
 
@@ -25,6 +32,7 @@ export function ApplicationForm({ error }: ApplicationFormProps) {
           rows={4}
           required
           maxLength={2000}
+          defaultValue={f?.motivation ?? ""}
           placeholder="Tell us about your motivation and what you hope to achieve…"
           className={inputCls}
         />
@@ -40,6 +48,7 @@ export function ApplicationForm({ error }: ApplicationFormProps) {
           name="experience"
           rows={3}
           maxLength={2000}
+          defaultValue={f?.experience ?? ""}
           placeholder="Any relevant volunteering, event organisation, or community experience…"
           className={inputCls}
         />
@@ -55,6 +64,7 @@ export function ApplicationForm({ error }: ApplicationFormProps) {
           name="organisation_name"
           type="text"
           maxLength={200}
+          defaultValue={f?.organisation_name ?? ""}
           placeholder="e.g. Riverside Clean-Up Crew"
           className={inputCls}
         />
@@ -70,6 +80,7 @@ export function ApplicationForm({ error }: ApplicationFormProps) {
           name="social_links"
           type="text"
           maxLength={500}
+          defaultValue={f?.social_links ?? ""}
           placeholder="https://…"
           className={inputCls}
         />

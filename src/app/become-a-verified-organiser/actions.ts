@@ -3,8 +3,12 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { sendApplicationEmails } from "@/lib/email";
+import { fail, type FormState } from "@/lib/forms";
 
-export async function submitOrganiserApplication(formData: FormData) {
+export async function submitOrganiserApplication(
+  _prevState: FormState,
+  formData: FormData
+): Promise<FormState> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -19,11 +23,7 @@ export async function submitOrganiserApplication(formData: FormData) {
   const socialLinks = (formData.get("social_links") as string).trim() || null;
 
   if (!motivation) {
-    redirect(
-      `/become-a-verified-organiser?error=${encodeURIComponent(
-        "Please tell us your motivation for becoming an organiser."
-      )}`
-    );
+    return fail("Please tell us your motivation for becoming an organiser.", formData);
   }
 
   // Fetch display_name for the confirmation email
@@ -43,17 +43,10 @@ export async function submitOrganiserApplication(formData: FormData) {
 
   if (error) {
     if (error.code === "23505") {
-      redirect(
-        `/become-a-verified-organiser?error=${encodeURIComponent(
-          "You have already submitted an application."
-        )}`
-      );
+      return fail("You have already submitted an application.", formData);
     }
-    redirect(
-      `/become-a-verified-organiser?error=${encodeURIComponent(
-        "Failed to submit application. Please try again."
-      )}`
-    );
+    console.error("[submitOrganiserApplication]", error);
+    return fail("Failed to submit application. Please try again.", formData);
   }
 
   // Send admin notification + applicant confirmation (non-blocking)

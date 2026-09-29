@@ -10,10 +10,6 @@ export const metadata: Metadata = {
   title: "Become a Verified Organiser",
 };
 
-interface Props {
-  searchParams: Promise<{ error?: string }>;
-}
-
 const statusMessages: Record<
   OrganiserApplicationRow["status"],
   { heading: string; body: string; colour: string }
@@ -35,9 +31,7 @@ const statusMessages: Record<
   },
 };
 
-export default async function BecomeAnOrganiserPage({ searchParams }: Props) {
-  const { error } = await searchParams;
-
+export default async function BecomeAnOrganiserPage() {
   const supabase = await createClient();
   const {
     data: { user },
@@ -99,7 +93,7 @@ export default async function BecomeAnOrganiserPage({ searchParams }: Props) {
           )}
         </div>
       ) : (
-        <ApplicationForm error={error} />
+        <ApplicationForm />
       )}
     </div>
   );

@@ -221,7 +221,10 @@ export async function updateEvent(
     })
     .eq("id", eventId);
 
-  if (error) return { error: error.message };
+  if (error) {
+    console.error("[updateEvent]", error);
+    return fail("Failed to update event. Please try again.", formData);
+  }
 
   // Email confirmed participants (excluding organiser) if date/time or location changed
   // and the per-event notification cooldown (15 min) has elapsed.

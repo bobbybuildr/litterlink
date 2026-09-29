@@ -8,10 +8,14 @@ import { sendGroupCreatedEmail } from "@/lib/email";
 import { validateHttpUrl } from "@/lib/url";
 import { slugify } from "@/lib/slug";
 import { validateImageUpload } from "@/lib/uploads";
+import { fail, type FormState } from "@/lib/forms";
 
 const LOCATION_NAME_MAX = 100;
 
-export async function createGroup(formData: FormData) {
+export async function createGroup(
+  _prevState: FormState,
+  formData: FormData
+): Promise<FormState> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -40,63 +44,39 @@ export async function createGroup(formData: FormData) {
   const locationName = sanitizeText((formData.get("location_name") as string) ?? "").trim();
   const logoFile = formData.get("logo") as File | null;
 
-  if (!name) {
-    redirect(
-      `/groups/create?error=${encodeURIComponent("Group name is required.")}`
-    );
-  }
+  if (!name) return fail("Group name is required.", formData);
 
   const validGroupTypes = ["community", "school", "corporate", "council", "charity", "other"];
   if (!groupType || !validGroupTypes.includes(groupType)) {
-    redirect(
-      `/groups/create?error=${encodeURIComponent("Please select a group type.")}`
-    );
+    return fail("Please select a group type.", formData);
   }
 
-  if (!postcode) {
-    redirect(
-      `/groups/create?error=${encodeURIComponent("Postcode is required.")}`
-    );
-  }
+  if (!postcode) return fail("Postcode is required.", formData);
 
-  if (!locationName) {
-    redirect(
-      `/groups/create?error=${encodeURIComponent("Display location is required.")}`
-    );
-  }
+  if (!locationName) return fail("Display location is required.", formData);
   if (locationName.length > LOCATION_NAME_MAX) {
-    redirect(
-      `/groups/create?error=${encodeURIComponent(
-        `Display location must be ${LOCATION_NAME_MAX} characters or fewer.`
-      )}`
+    return fail(
+      `Display location must be ${LOCATION_NAME_MAX} characters or fewer.`,
+      formData
     );
   }
 
   const websiteUrlError = validateHttpUrl(websiteUrl, "Website URL");
-  if (websiteUrlError) {
-    redirect(`/groups/create?error=${encodeURIComponent(websiteUrlError)}`);
-  }
+  if (websiteUrlError) return fail(websiteUrlError, formData);
   const socialUrlError = validateHttpUrl(socialUrl, "Social URL");
-  if (socialUrlError) {
-    redirect(`/groups/create?error=${encodeURIComponent(socialUrlError)}`);
-  }
+  if (socialUrlError) return fail(socialUrlError, formData);
 
   const slug = slugify(name);
 
   if (!slug) {
-    redirect(
-      `/groups/create?error=${encodeURIComponent(
-        "Group name must contain at least one letter or number."
-      )}`
-    );
+    return fail("Group name must contain at least one letter or number.", formData);
   }
 
   const geo = await geocodePostcode(postcode);
   if (!geo) {
-    redirect(
-      `/groups/create?error=${encodeURIComponent(
-        `Postcode "${postcode}" wasn't recognised. Please enter a valid UK postcode.`
-      )}`
+    return fail(
+      `Postcode "${postcode}" wasn't recognised. Please enter a valid UK postcode.`,
+      formData
     );
   }
 
@@ -121,17 +101,13 @@ export async function createGroup(formData: FormData) {
 
   if (error || !group) {
     if (error?.code === "23505") {
-      redirect(
-        `/groups/create?error=${encodeURIComponent(
-          `A group with the name "${name}" already exists. Please choose a different name.`
-        )}`
+      return fail(
+        `A group with the name "${name}" already exists. Please choose a different name.`,
+        formData
       );
     }
-    redirect(
-      `/groups/create?error=${encodeURIComponent(
-        "Failed to create group. Please try again."
-      )}`
-    );
+    console.error("[createGroup]", error);
+    return fail("Failed to create group. Please try again.", formData);
   }
 
   // The creator is auto-enrolled as an organiser by the
