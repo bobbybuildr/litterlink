@@ -14,7 +14,7 @@ The findings below concern resilience, correctness at scale, and maintainability
 |---|---|
 | Critical | 1 (fixed) |
 | High | 5 (4 fixed) |
-| Medium | 11 (6 fixed) |
+| Medium | 11 (7 fixed) |
 | Low | 9 |
 
 ---
@@ -295,15 +295,15 @@ Both routes stay public so anonymous location search keeps working. They now hav
 2. `consumeGeocodeRateLimit()` in `src/lib/ratelimit.ts` takes the client IP from the first `x-forwarded-for` entry (Vercel overwrites this header), falling back to `x-real-ip`. It allows **30 lookups per IP per minute, per route**, and fails open with logging if the database call errors.
 3. `/api/reverse-geocode` and `/api/geocode` both check the limit after input validation, so malformed requests are rejected without using any quota. Over the limit, they return `429` with a `Retry-After` header and a user-facing `error` message, which the existing `src/lib/geolocation.ts` wrappers already display. Coordinate and postcode validation and the postcodes.io fetch caching are unchanged.
 
-### M8 — Group membership changes do not revalidate the discovery page
+### M8 — ~~Group membership changes do not revalidate the discovery page~~ ✅ Fixed
 
 **Location:** `src/app/groups/actions.ts`
 
 `joinGroup` and `leaveGroup` call `revalidatePath("/groups/" + slug)` only. But `/groups` sorts cards by member count and derives the featured-group score from recent joins, and `/dashboard` lists memberships. Both go stale immediately.
 
-**Suggested fix**
+**Resolution**
 
-Add `revalidatePath("/groups")` and `revalidatePath("/dashboard")` to both actions.
+`joinGroup` and `leaveGroup` now also call `revalidatePath("/groups")` and `revalidatePath("/dashboard")`. The review also found that `/profile/[id]` lists a user's group memberships, so both actions call `revalidatePath("/profile/[id]", "page")` too. That revalidates the route pattern because profiles can be reached by UUID or by username.
 
 ### M9 — Hand-written database types drift from the schema
 

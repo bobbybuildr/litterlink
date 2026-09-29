@@ -40,6 +40,9 @@ export async function joinGroup(groupId: string) {
   }
 
   revalidatePath(`/groups/${group.slug}`);
+  revalidatePath("/groups");
+  revalidatePath("/dashboard");
+  revalidatePath("/profile/[id]", "page");
   return { error: null };
 }
 
@@ -74,6 +77,9 @@ export async function leaveGroup(groupId: string) {
   }
 
   revalidatePath(`/groups/${group?.slug ?? groupId}`);
+  revalidatePath("/groups");
+  revalidatePath("/dashboard");
+  revalidatePath("/profile/[id]", "page");
   return { error: null };
 }
 
@@ -127,5 +133,9 @@ export async function deleteGroup(groupId: string) {
   if (error) return { error: "Failed to delete group. Please try again." };
 
   revalidatePath("/groups");
+  revalidatePath("/dashboard");
+  revalidatePath("/profile/[id]", "page");
+  revalidatePath("/events");
+  revalidatePath("/events/[id]", "page");
   redirect("/groups");
 }
