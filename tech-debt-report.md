@@ -15,7 +15,7 @@ The findings below concern resilience, correctness at scale, and maintainability
 | Critical | 1 (fixed) |
 | High | 5 (4 fixed) |
 | Medium | 11 (8 fixed) |
-| Low | 9 (3 fixed) |
+| Low | 9 (4 fixed) |
 
 ---
 
@@ -405,9 +405,13 @@ No streaming or skeleton states on data-heavy routes. `/impact` in particular ru
 
 `weight_kg` and `area_covered_sqm` exist on `event_stats` and in `src/types/database.ts` with no UI in any form. Either build the inputs or drop the columns.
 
-### L5 — Unreachable UI option remains reachable by URL
+### L5 — ~~Unreachable UI option remains reachable by URL~~ ✅ Fixed
 
-The `year` period is commented out of `getPeriodOptions()` in `src/app/impact/page.tsx`, but `isPeriod` still accepts it and `getPeriodRange` still handles it, so `?orgPeriod=year` works. Remove it from the `Period` union or restore the option.
+The `year` period was commented out of `getPeriodOptions()`, but `isPeriod` still accepted it and `getPeriodRange` still handled it, so `?orgPeriod=year` worked.
+
+**Resolution**
+
+Removed `year` from the `Period` union, `PERIOD_VALUES`, `getPeriodRange`, `getPeriodDescription` and the commented-out option in `src/lib/impact.ts`. `?orgPeriod=year` now falls back to the default period.
 
 ### L6 — No CI, no dependency audit, no typecheck script
 

@@ -1,8 +1,8 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 
-export type Period = "month" | "lastMonth" | "year" | "90d" | "all";
-const PERIOD_VALUES: Period[] = ["month", "lastMonth", "year", "90d", "all"];
+export type Period = "month" | "lastMonth" | "90d" | "all";
+const PERIOD_VALUES: Period[] = ["month", "lastMonth", "90d", "all"];
 
 export function isPeriod(value: string | undefined): value is Period {
   return !!value && (PERIOD_VALUES as string[]).includes(value);
@@ -12,8 +12,6 @@ export function getPeriodOptions(): Array<{ value: Period; label: string }> {
   return [
     { value: "month", label: "This month" },
     { value: "lastMonth", label: "Last month" },
-    // Redundant while the app's launch year is still the current year — same data as "All time".
-    // { value: "year", label: String(new Date().getFullYear()) },
     { value: "90d", label: "Last 90 days" },
     { value: "all", label: "All time" },
   ];
@@ -29,8 +27,6 @@ function getPeriodRange(period: Period): { start: string | null; end: string | n
       const end = new Date(now.getFullYear(), now.getMonth(), 1);
       return { start: start.toISOString(), end: end.toISOString() };
     }
-    case "year":
-      return { start: new Date(now.getFullYear(), 0, 1).toISOString(), end: null };
     case "90d":
       return { start: new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString(), end: null };
     case "all":
@@ -48,8 +44,6 @@ export function getPeriodDescription(period: Period): string {
       lastMonthDate.setMonth(lastMonthDate.getMonth() - 1);
       return `in ${lastMonthDate.toLocaleString("en-GB", { month: "long" })}`;
     }
-    case "year":
-      return `in ${new Date().getFullYear()}`;
     case "90d":
       return "over the last 90 days";
     case "all":
