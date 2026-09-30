@@ -12,9 +12,9 @@ All routes use the Next.js 16 App Router. There is no Pages Router.
 |---|---|---|
 | `/` | `src/app/page.tsx` | Landing / home page |
 | `/coming-soon` | `src/app/coming-soon/page.tsx` | Pre-launch holding page — `/`, `/events`, and `/events/*` redirect here when `COMING_SOON=true` |
-| `/events` | `src/app/events/page.tsx` | Browse all published events — postcode search, radius filter, date range, map + card list |
+| `/events` | `src/app/events/(browse)/page.tsx` | Browse all published events — postcode search, radius filter, date range, map + card list |
 | `/events/[id]` | `src/app/events/[id]/page.tsx` | Event detail — join/leave, share URL, map pin, photo gallery, participants, post-event stats |
-| `/groups` | `src/app/groups/page.tsx` | Browse all groups — postcode search, radius filter, group type filter, interactive map with popups, "Featured Group" showcase (most active in the trailing 30 days, hidden once a search/filter is applied), and a card grid sorted by member count |
+| `/groups` | `src/app/groups/(browse)/page.tsx` | Browse all groups — postcode search, radius filter, group type filter, interactive map with popups, "Featured Group" showcase (most active in the trailing 30 days, hidden once a search/filter is applied), and a card grid sorted by member count |
 | `/groups/[slug]` | `src/app/groups/[slug]/page.tsx` | Group profile page — logo, description, links, member count, join/leave button, impact stats (events hosted, bags collected, volunteer sessions, hours volunteered), organisers section, members section, upcoming/past events |
 | `/impact` | `src/app/impact/page.tsx` | National impact dashboard — collective stats (bags collected, volunteer sessions, events completed, hours), period-filterable recent activity, top areas, top organisers, most active groups, community stats, and a litter-type breakdown |
 | `/profile/[id]` | `src/app/profile/[id]/page.tsx` | Public profile page, keyed by username or user ID (canonicalises to the username URL when one is set) — avatar, bio, social link, verified-organiser badge, impact stats, organised/joined events, and group memberships. Content is gated to signed-in viewers (unauthenticated visitors see a sign-in prompt) |
@@ -78,12 +78,15 @@ Both are thin server-side proxies over `src/lib/geocode.ts` so `postcodes.io` is
 
 ### Route Protection Logic
 
-Enforced in `src/proxy.ts` (Next.js 16 middleware replacement):
+Handled in `src/proxy.ts` (Next.js 16 middleware replacement; auth logic lives in `src/lib/supabase/middleware.ts`):
 
 - `COMING_SOON=true` → only `/`, `/events`, and `/events/*` redirect to `/coming-soon`; all other routes (auth, admin, etc.) remain accessible
-- Unauthenticated users visiting `/dashboard`, `/events/create`, `/events/[id]/edit`, or `/profile` → redirect to `/sign-in?redirectTo=…`
+- Unauthenticated users visiting any path starting with `/dashboard`, `/events/create`, or `/profile` → redirect to `/sign-in?redirectTo=…`. For `/profile/[id]` a `message` param is added ("Sign in to view member profiles on LitterLink.")
 - Authenticated users visiting `/sign-in` or `/sign-up` → redirect to `/dashboard`
-- Admin gate for `/admin/*` is enforced in `src/app/admin/layout.tsx` (checks `profiles.is_admin`)
+
+The proxy is an early redirect only. Every protected page does its own `getUser()` check and redirects to `/sign-in?redirectTo=…`, and that check is authoritative. It is the only check for `/events/[id]/edit`, `/events/[id]/stats`, `/become-a-verified-organiser`, `/groups/create`, and `/groups/[slug]/edit`. New protected pages must include the page-level check; adding them to the proxy is optional.
+
+The admin gate for `/admin/*` is enforced in `src/app/admin/layout.tsx` (checks `profiles.is_admin`).
 
 ### Search Parameters — `/events`
 

@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { GroupCard } from "@/components/groups/GroupCard";
 import { FeaturedGroupCard } from "@/components/groups/FeaturedGroupCard";
 import { GroupsFilter } from "@/components/groups/GroupsFilter";
+import { FilterSkeleton } from "@/components/FilterSkeleton";
 import { GroupsMap } from "@/components/map/GroupsMap";
 import { getPublishedGroups, getFeaturedGroup, haversineKm } from "@/lib/events";
 import { geocodePostcode } from "@/lib/geocode";
@@ -102,7 +103,7 @@ export default async function GroupsPage({ searchParams }: Props) {
 
       {/* Filter */}
       <div className="mb-6 rounded-xl border border-gray-200 bg-white p-3 sm:p-4 shadow-sm">
-        <Suspense fallback={<FilterSkeleton />}>
+        <Suspense fallback={<FilterSkeleton selects={2} />}>
           <GroupsFilter />
         </Suspense>
       </div>
@@ -202,24 +203,6 @@ function EmptyState({ postcode }: { postcode?: string }) {
       >
         Be the first — create one
       </Link>
-    </div>
-  );
-}
-
-function FilterSkeleton() {
-  return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-end animate-pulse">
-      <div className="flex-1 space-y-1.5">
-        <div className="h-4 w-16 rounded bg-gray-200" />
-        <div className="h-9 rounded-lg bg-gray-100" />
-      </div>
-      {[0, 1].map((i) => (
-        <div key={i} className="space-y-1.5">
-          <div className="h-4 w-12 rounded bg-gray-200" />
-          <div className="h-9 w-28 rounded-lg bg-gray-100" />
-        </div>
-      ))}
-      <div className="h-9 w-20 rounded-lg bg-gray-100" />
     </div>
   );
 }

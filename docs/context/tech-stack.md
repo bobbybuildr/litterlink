@@ -26,7 +26,7 @@ import { createClient } from "@/lib/supabase/client";  // Client Components only
 
 - Always use `getUser()` on the server — never `getSession()` (getUser validates the JWT)
 - Auth is checked in Server Actions and Server Components directly
-- Route protection is enforced in `src/proxy.ts` (see below)
+- Every protected page checks `getUser()` itself and redirects to `/sign-in?redirectTo=…`. `src/proxy.ts` also redirects early for `/dashboard`, `/events/create`, and `/profile*`, but it is not the authoritative check (see `routes-and-features.md`)
 
 ### Environment variables
 

@@ -15,7 +15,7 @@ The findings below concern resilience, correctness at scale, and maintainability
 | Critical | 1 (fixed) |
 | High | 5 (4 fixed) |
 | Medium | 11 (8 fixed) |
-| Low | 9 |
+| Low | 9 (3 fixed) |
 
 ---
 
@@ -367,17 +367,39 @@ The review found the tag-stripping was the wrong defence as well as uneven. Litt
 
 ## Low
 
-### L1 — `impact/page.tsx` is 849 lines mixing three concerns
+### L1 — ~~`impact/page.tsx` is 849 lines mixing three concerns~~ ✅ Fixed
 
 Data fetching, aggregation, and presentation in a single file. Extract `getImpactData` and the period helpers into `src/lib/impact.ts`.
 
-### L2 — Proxy route protection does not match the documentation
+**Resolution**
+
+`src/lib/impact.ts` (`import "server-only"`) now holds the `Period` type, `isPeriod`, `getPeriodOptions`, `getPeriodDescription`, the private `getPeriodRange`, and `getImpactData`, moved verbatim. `src/app/impact/page.tsx` is down to presentation only (~525 lines) and imports them. No behaviour change; `npx tsc --noEmit` and `npm run lint` pass clean.
+
+### L2 — ~~Proxy route protection does not match the documentation~~ ✅ Fixed
 
 `src/lib/supabase/middleware.ts` guards only `/dashboard`, `/events/create`, and `/profile`. The docs in `AGENTS.md` and `docs/context/routes-and-features.md` also claim `/events/[id]/edit`. Page-level checks do cover it, so this is a documentation accuracy issue rather than a security hole — but the two should agree.
 
-### L3 — No `loading.tsx` anywhere
+**Resolution**
+
+The review found that only `docs/context/routes-and-features.md` made the claim. `AGENTS.md` does not list proxy-protected routes. Every protected page (`/dashboard`, `/profile`, `/events/create`, `/events/[id]/edit`, `/events/[id]/stats`, `/become-a-verified-organiser`, `/groups/create`, `/groups/[slug]/edit`) already does its own `getUser()` check and redirects to `/sign-in?redirectTo=…`. So the docs were changed to match the code, and the proxy was left as it is.
+
+1. The "Route Protection Logic" section in `docs/context/routes-and-features.md` now lists the proxy's real prefixes, including the `/profile/[id]` sign-in message. It states that the page-level check is authoritative, names the routes that rely on it alone, and says new protected pages must include it.
+2. `docs/context/tech-stack.md` no longer says route protection is "enforced in `src/proxy.ts`". It now describes the page-level check as primary and the proxy as an early redirect.
+
+### L3 — ~~No `loading.tsx` anywhere~~ ✅ Fixed
 
 No streaming or skeleton states on data-heavy routes. `/impact` in particular runs nine parallel queries before rendering anything.
+
+**Resolution**
+
+`loading.tsx` skeletons were added to the four routes that do heavy data work with nothing to show until it finishes. The layout router keys segments without search params, so a period, filter or page change keeps the current content visible rather than showing the skeleton again.
+
+1. `/impact` — `src/app/impact/loading.tsx`. The static hero is extracted into `ImpactHero.tsx` and shared by the page and the skeleton, so it appears immediately and doesn't shift when the data arrives.
+2. `/dashboard` — `src/app/dashboard/loading.tsx`, covering its five sequential per-user queries.
+3. `/events` and `/groups` — the list pages moved into `(browse)` route groups (`src/app/events/(browse)/`, `src/app/groups/(browse)/`), each with its own `loading.tsx`; URLs are unchanged. A `loading.tsx` directly in `events/` or `groups/` would also wrap `[id]`, `[slug]`, `create` and `edit`, which would then show a list skeleton, and detail-page `notFound()` would become a soft 404.
+4. The filter skeleton that both list pages defined separately is now `src/components/FilterSkeleton.tsx`, used by the pages' `<Suspense>` fallbacks and the loading files.
+
+**Deliberately not added:** `/events/[id]`, `/groups/[slug]` and `/profile/[id]`. They call `notFound()` after fetching. Once a loading fallback has streamed, the HTTP status is already sent as `200`, so missing records would return a soft 404 (`200` + `noindex`) instead of a real `404`. Form pages (`create`/`edit`/`stats`, `/profile`) and `/admin` only run light owner or auth lookups.
 
 ### L4 — Dead schema columns
 

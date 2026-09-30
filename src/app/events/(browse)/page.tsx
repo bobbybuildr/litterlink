@@ -5,6 +5,7 @@ import { CalendarPlus, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EventCard } from "@/components/events/EventCard";
 import { EventsFilter } from "@/components/events/EventsFilter";
+import { FilterSkeleton } from "@/components/FilterSkeleton";
 import { EventsMap } from "@/components/map/EventsMap";
 import { getPublishedEvents, haversineKm } from "@/lib/events";
 import { geocodePostcode } from "@/lib/geocode";
@@ -119,7 +120,7 @@ export default async function EventsPage({ searchParams }: Props) {
 
       {/* Filter */}
       <div className="mb-6 rounded-xl border border-gray-200 bg-white p-3 sm:p-4 shadow-sm">
-        <Suspense fallback={<FilterSkeleton />}>
+        <Suspense fallback={<FilterSkeleton selects={3} />}>
           <EventsFilter defaultFrom={fromDate} defaultTo={toDate} />
         </Suspense>
       </div>
@@ -268,24 +269,6 @@ function EmptyState({ postcode }: { postcode?: string }) {
       >
         Be the first — create one
       </Link>
-    </div>
-  );
-}
-
-function FilterSkeleton() {
-  return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-end animate-pulse">
-      <div className="flex-1 space-y-1.5">
-        <div className="h-4 w-16 rounded bg-gray-200" />
-        <div className="h-9 rounded-lg bg-gray-100" />
-      </div>
-      {[0, 1, 2].map((i) => (
-        <div key={i} className="space-y-1.5">
-          <div className="h-4 w-12 rounded bg-gray-200" />
-          <div className="h-9 w-28 rounded-lg bg-gray-100" />
-        </div>
-      ))}
-      <div className="h-9 w-20 rounded-lg bg-gray-100" />
     </div>
   );
 }
