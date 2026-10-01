@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { withFlash } from "@/lib/flash";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -276,5 +277,5 @@ export async function updateEvent(
   revalidatePath(`/events/${eventId}`);
   revalidatePath("/events");
   revalidatePath("/sitemap.xml");
-  redirect(`/events/${eventId}?updated=1`);
+  redirect(withFlash(`/events/${eventId}`, "eventUpdated"));
 }

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { withFlash } from "@/lib/flash";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { readFormFields } from "@/lib/input";
@@ -181,5 +182,5 @@ export async function updatePassword(formData: FormData) {
   }
 
   revalidatePath("/", "layout");
-  redirect("/dashboard?message=Your password has been updated.");
+  redirect(withFlash("/dashboard", "passwordUpdated"));
 }

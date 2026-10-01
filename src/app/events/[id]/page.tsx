@@ -26,7 +26,7 @@ import { cancelEvent } from "@/app/events/actions";
 import { CancelEventButton } from "@/components/events/CancelEventButton";
 import { EventPhotosGallery } from "@/components/events/EventPhotosGallery";
 import { PhotoUpload } from "@/components/events/PhotoUpload";
-import { EventFlashBanner } from "./EventFlashBanner";
+import { FlashBanner } from "@/components/FlashBanner";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -119,7 +119,7 @@ export default async function EventDetailPage({ params, searchParams }: Props) {
         All events
       </Link>
 
-      <EventFlashBanner />
+      <FlashBanner className="mb-6" />
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         {/* Main content */}

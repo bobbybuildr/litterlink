@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { withFlash } from "@/lib/flash";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { geocodePostcode } from "@/lib/geocode";
@@ -191,5 +192,5 @@ export async function deleteAccount(
   // 6. Clear the session cookie (best-effort — auth user is already gone)
   await supabase.auth.signOut().catch(() => undefined);
 
-  redirect("/");
+  redirect(withFlash("/", "accountDeleted"));
 }

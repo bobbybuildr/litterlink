@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { withFlash } from "@/lib/flash";
 import { createClient } from "@/lib/supabase/server";
 import { geocodePostcode } from "@/lib/geocode";
 import { sendGroupCreatedEmail } from "@/lib/email";
@@ -146,5 +147,5 @@ export async function createGroup(
     });
   }
 
-  redirect(`/groups/create?created=${encodeURIComponent(name)}`);
+  redirect(withFlash(`/groups/${group.slug}`, "groupCreated"));
 }

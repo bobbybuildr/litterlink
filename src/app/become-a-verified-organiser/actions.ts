@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { withFlash } from "@/lib/flash";
 import { createClient } from "@/lib/supabase/server";
 import { sendApplicationEmails } from "@/lib/email";
 import { fail, type FormState } from "@/lib/forms";
@@ -64,6 +65,6 @@ export async function submitOrganiserApplication(
     });
   }
 
-  redirect("/become-a-verified-organiser");
+  redirect(withFlash("/become-a-verified-organiser", "applicationSubmitted"));
 }
 

@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { EventCard } from "@/components/events/EventCard";
 import type { EventWithCount, GroupRow } from "@/lib/events";
 import { GROUP_TYPE_LABELS } from "@/lib/constants";
+import { FlashBanner } from "@/components/FlashBanner";
 
 type DashboardGroup = GroupRow & { role: "member" | "organiser" };
 
@@ -123,6 +124,8 @@ export default async function DashboardPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+      <FlashBanner className="mb-6" />
+
       {/* Header */}
       <div className="mb-2 sm:mb-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>

@@ -11,6 +11,7 @@ import { DeleteGroupButton } from "@/components/groups/DeleteGroupButton";
 import { GroupsMap } from "@/components/map/GroupsMap";
 import { ShareGroupButton } from "@/components/groups/ShareGroupButton";
 import { createClient } from "@/lib/supabase/server";
+import { FlashBanner } from "@/components/FlashBanner";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -119,6 +120,8 @@ export default async function GroupPage({ params }: Props) {
           </div>
         )}
       </div>
+
+      <FlashBanner className="mb-6" />
 
       {/* Group header */}
       <div className="rounded-xl border border-gray-200 bg-white p-6 mb-8">

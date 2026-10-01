@@ -133,6 +133,8 @@ export async function myAction(formData: FormData) {
 
 Actions return `{ error: string | null }` on mutation or call `redirect()` on success.
 
+**Success feedback**: when an action redirects on success, use `redirect(withFlash(path, key))` from `@/lib/flash` (add the message to `FLASH_MESSAGES`) and make sure the target page renders `<FlashBanner />` from `@/components/FlashBanner`. Actions that stay on the page and return state should render `<SuccessBanner>` for the same look.
+
 ### Input handling
 
 LitterLink never accepts HTML. User text is stored as plain text, exactly as typed after normalisation, and escaped when it is output. Input is **not** HTML-stripped.

@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { withFlash } from "@/lib/flash";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { extractFields, type FormState } from "@/lib/forms";
@@ -143,6 +144,5 @@ export async function submitStats(
   }
 
   revalidatePath(`/events/${eventId}`);
-  const successParam = existingStats ? "statsUpdated=1" : "statsSaved=1";
-  redirect(`/events/${eventId}?${successParam}`);
+  redirect(withFlash(`/events/${eventId}`, existingStats ? "statsUpdated" : "statsSaved"));
 }

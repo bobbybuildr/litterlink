@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { withFlash } from "@/lib/flash";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEventJoinedEmail, sendEventLeftEmail, sendEventCancelledEmails } from "@/lib/email";
@@ -224,7 +226,7 @@ export async function cancelEvent(eventId: string) {
   revalidatePath(`/events/${eventId}`);
   revalidatePath("/events");
   revalidatePath("/dashboard");
-  return { error: null };
+  redirect(withFlash(`/events/${eventId}`, "eventCancelled"));
 }
 
 interface PhotoUploadResult {

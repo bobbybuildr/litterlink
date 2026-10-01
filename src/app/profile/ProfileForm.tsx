@@ -5,6 +5,7 @@ import Image from "next/image";
 import { Camera } from "lucide-react";
 import { updateProfile, type ProfileState } from "./actions";
 import { UrlInput } from "@/components/UrlInput";
+import { SuccessBanner } from "@/components/FlashBanner";
 import {
   IMAGE_UPLOAD_ACCEPT,
   MAX_IMAGE_SOURCE_BYTES,
@@ -366,9 +367,7 @@ export function ProfileForm({ displayName, postcode, avatarUrl, email, username,
         </p>
       )}
       {state?.success && (
-        <p className="mt-4 rounded-lg bg-green-50 px-4 py-2.5 text-sm text-green-700">
-          Profile saved successfully!
-        </p>
+        <SuccessBanner className="mt-4">Profile updated successfully.</SuccessBanner>
       )}
 
       <button

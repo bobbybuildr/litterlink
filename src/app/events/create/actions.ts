@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { withFlash } from "@/lib/flash";
 import { createClient } from "@/lib/supabase/server";
 import { resolveEventLocation } from "@/lib/geocode";
 import { sendEventCreatedEmail } from "@/lib/email";
@@ -179,5 +180,5 @@ export async function createEvent(
     });
   }
 
-  redirect(`/events/${event.id}`);
+  redirect(withFlash(`/events/${event.id}`, "eventCreated"));
 }

@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { ApplicationForm } from "./ApplicationForm";
 import type { OrganiserApplicationRow } from "@/lib/events";
 import { BadgeCheck } from "lucide-react";
+import { FlashBanner } from "@/components/FlashBanner";
 
 export const metadata: Metadata = {
   title: "Become a Verified Organiser",
@@ -72,6 +73,8 @@ export default async function BecomeAnOrganiserPage() {
           under one identity.
         </p>
       </div>
+
+      <FlashBanner className="mb-6" />
 
       {existingApp ? (
         <div

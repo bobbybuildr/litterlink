@@ -4,6 +4,7 @@ import { Calendar, Trash, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { LucideIcon, ArrowRight } from "lucide-react";
 import { PostcodeSearch } from "@/components/PostcodeSearch";
+import { FlashBanner } from "@/components/FlashBanner";
 
 async function getImpactStats() {
   const supabase = await createClient();
@@ -50,6 +51,7 @@ export default async function HomePage({ searchParams }: Props) {
       {/* Hero */}
       <section className="bg-linear-to-br from-green-50 to-emerald-100 px-4 py-20 sm:py-28">
         <div className="mx-auto max-w-3xl text-center">
+          <FlashBanner className="mx-auto mb-8 w-fit" />
           <h1 className="text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl">
             <span className="text-accent">Find local litter picks.</span>{" "}
             <span className="text-brand">Make a real difference.</span>

@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { withFlash } from "@/lib/flash";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { isGroupJoinRateLimited } from "@/lib/ratelimit";
@@ -137,5 +138,5 @@ export async function deleteGroup(groupId: string) {
   revalidatePath("/profile/[id]", "page");
   revalidatePath("/events");
   revalidatePath("/events/[id]", "page");
-  redirect("/groups");
+  redirect(withFlash("/groups", "groupDeleted"));
 }

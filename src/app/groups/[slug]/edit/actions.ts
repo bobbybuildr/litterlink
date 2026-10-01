@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { withFlash } from "@/lib/flash";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { geocodePostcode } from "@/lib/geocode";
@@ -181,5 +182,5 @@ export async function updateGroup(
   revalidatePath(`/groups/${newSlug}`);
   if (slugChanged) revalidatePath(`/groups/${existing.slug}`);
 
-  redirect(`/groups/${newSlug}`);
+  redirect(withFlash(`/groups/${newSlug}`, "groupUpdated"));
 }
