@@ -15,7 +15,7 @@ The findings below concern resilience, correctness at scale, and maintainability
 | Critical | 1 (fixed) |
 | High | 5 (4 fixed) |
 | Medium | 11 (8 fixed) |
-| Low | 9 (4 fixed) |
+| Low | 9 (6 fixed) |
 
 ---
 
@@ -424,17 +424,42 @@ Removed `year` from the `Period` union, `PERIOD_VALUES`, `getPeriodRange`, `getP
 
 and a GitHub Actions workflow running lint, typecheck, and tests on every push.
 
-### L7 — One-off backfill script committed with no provenance
+### L7 — ~~One-off backfill script committed with no provenance~~ ✅ Fixed
 
-`scripts/backfill-event-locations.mjs` has no record of whether it has been run, against which environment, or whether it is idempotent. Add a header comment or move it to an `archive/` directory.
+`scripts/backfill-event-locations.mjs` had no record of whether it had been run.
+
+**Resolution**
+
+The script has been run, so it was moved to `scripts/archive/backfill-event-locations.mjs`. Its header now says it is archived, and its usage paths point at the new location.
 
 ### L8 — Client-side pagination
 
 `/events` and `/groups` both fetch the full result set then `.slice()`. Combined with H2, this means the page size is a display concern layered over an already-truncated dataset.
 
-### L9 — Server Action body size limit exceeds the upload cap
+### L9 — ~~Batched photo uploads exceed the hosting platform's request body limit~~ ✅ Fixed
 
-`next.config.ts` sets `bodySizeLimit: "11mb"` while every upload path enforces a 5 MB cap. Tighten to roughly `6mb` to reduce the accepted payload surface.
+**Location:** `next.config.ts`, `src/components/events/PhotoUpload.tsx`, `src/app/events/actions.ts` (`uploadEventPhoto`), `src/lib/uploads.ts`
+
+`next.config.ts` sets `bodySizeLimit: "11mb"`. This is sized for `uploadEventPhoto`, which receives every selected photo in one request: up to 10 photos, each compressed client-side to about 1 MB WebP (`maxSizeMB: 1`), so about 10 MB per full batch. The 5 MB `MAX_IMAGE_BYTES` in `src/lib/uploads.ts` is a per-file backstop, not a per-request cap, so tightening `bodySizeLimit` to `6mb` would reject legitimate batches of about 6 or more photos. Logo and avatar uploads are compressed to 0.25 MB and are unaffected either way.
+
+The `11mb` setting is never reached in production. Vercel caps a function's request body at 4.5 MB whatever `bodySizeLimit` says, so:
+
+- A batch of more than about 4 photos near the 1 MB target is likely to be rejected by the platform with `413` before the action runs. This needs confirming in production by uploading 6 or more photos at once.
+- Lowering `bodySizeLimit` on its own changes nothing in production and only breaks batches locally.
+
+**Suggested fix**
+
+1. Have `PhotoUpload` send photos one per request, or in batches kept under about 4 MB. Collect `uploaded`/`failed` results on the client as it does now.
+2. Enforce the 10-photo limit per request in `uploadEventPhoto`. It already re-counts existing photos, so sequential single-photo requests stay correct.
+3. Then lower `bodySizeLimit` to about `2mb`, and lower `MAX_IMAGE_BYTES` towards the 1 MB compression target, keeping some headroom for files that `browser-image-compression` can't get under the target.
+
+**Resolution**
+
+1. `PhotoUpload` now compresses and uploads each photo in its own `uploadEventPhoto` request, one after another. Per-photo failures are collected and shown together as before, and successfully uploaded photos are removed from the selection at the end. If a request fails for a reason that applies to the whole batch (not signed in, event not completed, photo limit reached), the loop stops rather than repeating the same error. The button now reads "Uploading N of M…".
+2. `uploadEventPhoto` is unchanged. It re-counts existing photos on every request, so the 10-photo limit still holds across sequential single-photo requests.
+3. `bodySizeLimit` in `next.config.ts` is now `2mb`, and `MAX_IMAGE_BYTES` in `src/lib/uploads.ts` is now 1.5 MB. Logo and avatar uploads (0.25 MB target) never submit the uncompressed original, so they fit well within both limits.
+
+`npx tsc --noEmit` and `npm run lint` pass clean. The upload flow still needs a production check with 6 or more photos.
 
 ---
 

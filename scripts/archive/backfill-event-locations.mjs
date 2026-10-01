@@ -5,8 +5,10 @@
  * Uses postcodes.io's bulk lookup endpoint (POST /postcodes, up to 100
  * postcodes per request) instead of one geocode call per event.
  *
+ * Already run; archived. Kept for reference only.
+ *
  * Usage:
- *   node --env-file=.env.local scripts/backfill-event-locations.mjs [--dry-run]
+ *   node --env-file=.env.local scripts/archive/backfill-event-locations.mjs [--dry-run]
  *
  * Requires NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_KEY (service role,
  * needed to bypass RLS and update every organiser's events).
@@ -27,7 +29,7 @@ const serviceKey = process.env.SUPABASE_SECRET_KEY;
 if (!supabaseUrl || !serviceKey) {
   console.error(
     "Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SECRET_KEY. Run with:\n" +
-      "  node --env-file=.env.local scripts/backfill-event-locations.mjs"
+      "  node --env-file=.env.local scripts/archive/backfill-event-locations.mjs"
   );
   process.exit(1);
 }

@@ -5,7 +5,8 @@ export const ALLOWED_IMAGE_TYPES: ReadonlySet<string> = new Set([
   "image/webp",
 ]);
 
-export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+// Clients compress to ~1 MB (photos) or 0.25 MB (logos/avatars); must stay under `bodySizeLimit`.
+export const MAX_IMAGE_BYTES = 1.5 * 1024 * 1024;
 
 /** Returns a user-facing error message, or `null` if the file is acceptable. */
 export function validateImageUpload(file: File, label = "Image"): string | null {

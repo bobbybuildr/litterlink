@@ -159,38 +159,46 @@ export function PhotoUpload({ eventId, existingCount = 0, className }: PhotoUplo
     startTransition(async () => {
       try {
         const { default: imageCompression } = await import("browser-image-compression");
-        const formData = new FormData();
         const problems: string[] = [];
-        let count = 0;
+        const uploadedKeys = new Set<string>();
 
+        // One photo per request keeps each body under Vercel's 4.5 MB function limit.
         for (const { key, file, name } of uploadable) {
+          let compressed: File;
           try {
-            const compressed = await imageCompression(file, compressionOptions);
-            formData.append("photos", compressed, file.name);
-            formData.append("keys", key);
-            count++;
+            compressed = await imageCompression(file, compressionOptions);
           } catch {
             problems.push(`${name}: could not be processed — try re-saving it as a JPEG.`);
+            setPrepared((n) => n + 1);
+            continue;
+          }
+
+          const formData = new FormData();
+          formData.append("photos", compressed, file.name);
+          formData.append("keys", key);
+
+          let result: Awaited<ReturnType<typeof uploadEventPhoto>>;
+          try {
+            result = await uploadEventPhoto(eventId, formData);
+          } catch {
+            problems.push(`${name}: upload failed — please try again.`);
+            setPrepared((n) => n + 1);
+            continue;
           }
           setPrepared((n) => n + 1);
-        }
 
-        if (!count) {
-          setError(problems.join(" ") || "None of the selected photos could be processed.");
-          return;
+          result.uploaded.forEach((k) => uploadedKeys.add(k));
+          problems.push(...result.failed.map((f) => f.message));
+          // A request-level error (auth, event state, photo limit) will repeat for every remaining photo.
+          if (!result.uploaded.length && !result.failed.length && result.error) {
+            problems.push(result.error);
+            break;
+          }
         }
-
-        const result = await uploadEventPhoto(eventId, formData);
-        const uploadedKeys = new Set(result.uploaded);
 
         if (uploadedKeys.size) {
           setPhotos((current) => current.filter((p) => !uploadedKeys.has(p.key)));
           router.refresh();
-        }
-
-        problems.push(...result.failed.map((f) => f.message));
-        if (!uploadedKeys.size && !result.failed.length && result.error) {
-          problems.push(result.error);
         }
 
         if (problems.length) setError(problems.join(" "));
@@ -307,8 +315,8 @@ export function PhotoUpload({ eventId, existingCount = 0, className }: PhotoUplo
         >
           {isPending
             ? prepared < uploadable.length
-              ? `Preparing ${prepared + 1} of ${uploadable.length}…`
-              : "Uploading…"
+              ? `Uploading ${prepared + 1} of ${uploadable.length}…`
+              : "Finishing…"
             : converting
               ? "Converting photos…"
               : uploadable.length > 0
