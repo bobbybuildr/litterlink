@@ -142,7 +142,7 @@ A postcodes.io outage, a Supabase connection blip, or any unhandled throw inside
 
 `npm run lint`, `npx tsc --noEmit`, and `npm run build` all pass clean with these files in place.
 
-### H5 — No test suite
+### H5 — No test suite ⚠️ Partly fixed (unit tests + CI; no end-to-end tests yet)
 
 **Location:** Project-wide
 
@@ -155,6 +155,23 @@ Untested surface includes every authorisation branch in every Server Action, the
 1. Add Vitest and cover the pure functions in `src/lib/` first — `londonToUTC`, `haversineKm`, `readFormFields`, `escapeHtml`, `slugify`, `isRescheduleNotificationRateLimited`. Fast wins, no mocking required.
 2. Add Playwright for the critical flows: sign up, create event, join event, leave event, submit stats.
 3. Wire both into a GitHub Actions workflow alongside `lint` and `tsc --noEmit`.
+
+**Resolution (steps 1 and 3)**
+
+1. Added Vitest 4 (`vitest.config.mts`, Node environment, tsconfig `@/` paths resolved natively by Vite 8). Vitest 5 was not used because it needs `@types/node` 22+, and the project is on 20. Scripts: `npm test` (single run), `npm run test:watch`, and `npm run typecheck` (`next typegen && tsc --noEmit`, so `next-env.d.ts`, which is gitignored, exists in CI).
+2. Tests are co-located as `src/lib/*.test.ts` (107 tests):
+   - `datetime` — `londonToUTC` for GMT, BST, both 2026 clock-change days, BST midnight crossing the UTC date, and round-trips through `utcToLondonDatetimeLocal`.
+   - `events` — `haversineKm` against known distances, symmetry and latitude scaling.
+   - `input` — every `readFormFields` field type: normalisation, control/bidi stripping, no HTML stripping, required/optional, max length after normalisation, email/URL/postcode rules (including `javascript:`/`data:` rejection), and first-error ordering.
+   - `html` — `escapeHtml`, including the unclosed-tag payload from M11.
+   - `slug` — `slugify`.
+   - `ratelimit` — `isRescheduleNotificationRateLimited` at the 15-minute boundary; `isEventCreationRateLimited`, `isJoinRateLimited` and `isGroupJoinRateLimited` against a stub client (limit boundaries, `null` count, user and time-window filters); `consumeGeocodeRateLimit` (hashed key, `x-forwarded-for`/`x-real-ip`, raw IP never sent, fails open).
+   - `redirect` — see below.
+3. `.github/workflows/ci.yml` runs `npm ci`, `lint`, `typecheck` and `test` on Node 24 for pushes to `master` and all pull requests.
+
+**Open redirect found while testing.** The `signInWithEmail` check (`startsWith("/") && !startsWith("//")`) let through `/\evil.com` and `/\t/evil.com`, which browsers read as `//evil.com`. The same check guarded the `oauth_redirect` cookie in `src/app/auth/callback/route.ts`. That route also took `?next=` with no validation and built `${origin}${next}`, so `?next=@evil.com` produced `https://litterlink.co.uk@evil.com`, which goes to `evil.com`. All three now use `safeRedirectPath()` in the new `src/lib/redirect.ts`. It resolves the target the way a browser would and only accepts it if the origin stays the same. `signInWithGoogle` uses it too.
+
+**Still to do:** step 2 (Playwright). The critical flows need a disposable Supabase instance (`supabase start` + seeded users) in CI, which is a separate piece of work. Server Action authorisation branches and the capacity trigger are still untested.
 
 ---
 
@@ -421,7 +438,7 @@ The `year` period was commented out of `getPeriodOptions()`, but `isPeriod` stil
 
 Removed `year` from the `Period` union, `PERIOD_VALUES`, `getPeriodRange`, `getPeriodDescription` and the commented-out option in `src/lib/impact.ts`. `?orgPeriod=year` now falls back to the default period.
 
-### L6 — No CI, no dependency audit, no typecheck script
+### L6 — No CI, no dependency audit, no typecheck script ⚠️ Partly fixed (CI + `typecheck` added under H5; no `audit` script)
 
 `package.json` defines only `dev`, `build`, `start`, and `lint`. Add:
 

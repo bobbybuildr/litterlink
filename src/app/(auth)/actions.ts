@@ -6,6 +6,7 @@ import { withFlash } from "@/lib/flash";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { readFormFields } from "@/lib/input";
+import { safeRedirectPath } from "@/lib/redirect";
 
 // Use the canonical site URL rather than the (spoofable) Host header.
 async function getSiteUrl() {
@@ -18,13 +19,7 @@ export async function signInWithEmail(formData: FormData) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
 
-  // Validate redirectTo to prevent open-redirect attacks — must be a
-  // relative path starting with "/" but not protocol-relative ("//").
-  const rawRedirectTo = (formData.get("redirectTo") as string) || "/dashboard";
-  const redirectTo =
-    rawRedirectTo.startsWith("/") && !rawRedirectTo.startsWith("//")
-      ? rawRedirectTo
-      : "/dashboard";
+  const redirectTo = safeRedirectPath(formData.get("redirectTo"));
 
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
@@ -92,11 +87,7 @@ export async function signInWithGoogle(formData: FormData) {
   const supabase = await createClient();
   const siteUrl = await getSiteUrl();
 
-  const rawRedirectTo = (formData.get("redirectTo") as string) || "/dashboard";
-  const redirectTo =
-    rawRedirectTo.startsWith("/") && !rawRedirectTo.startsWith("//")
-      ? rawRedirectTo
-      : "/dashboard";
+  const redirectTo = safeRedirectPath(formData.get("redirectTo"));
 
   // Store post-auth destination in a short-lived httpOnly cookie — more
   // reliable than a query param which OAuth providers may strip.

@@ -2,13 +2,14 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
+import { safeRedirectPath } from "@/lib/redirect";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
   const tokenHash = searchParams.get("token_hash");
   const type = searchParams.get("type") as EmailOtpType | null;
-  const next = searchParams.get("next") ?? "/dashboard";
+  const next = safeRedirectPath(searchParams.get("next"));
 
   // Token-hash flow (used by password-reset and magic-link email templates)
   if (tokenHash && type) {
@@ -69,10 +70,7 @@ export async function GET(request: Request) {
       const cookieStore = await cookies();
       const oauthRedirect = cookieStore.get("oauth_redirect")?.value;
       cookieStore.delete("oauth_redirect");
-      const destination =
-        oauthRedirect && oauthRedirect.startsWith("/") && !oauthRedirect.startsWith("//")
-          ? oauthRedirect
-          : next;
+      const destination = safeRedirectPath(oauthRedirect, next);
 
       return redirect(`${origin}${destination}`);
     }

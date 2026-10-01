@@ -15,12 +15,14 @@ LitterLink is a Next.js 16 app for finding and joining local litter-picking even
 ## Build & Dev Commands
 
 ```bash
-npm run dev      # dev server (Turbopack enabled)
-npm run build    # production build — run this to validate changes
-npm run lint     # ESLint
+npm run dev       # dev server (Turbopack enabled)
+npm run build     # production build — run this to validate changes
+npm run lint      # ESLint
+npm run typecheck # next typegen + tsc --noEmit
+npm test          # Vitest unit tests (npm run test:watch to watch)
 ```
 
-No test suite is configured yet.
+Unit tests are Vitest, co-located as `src/**/*.test.ts`, run in a Node environment. Modules that import Supabase clients are tested with `vi.mock("@/lib/supabase/server")` / `vi.mock("@/lib/supabase/admin")` so no env vars or network are needed. CI (`.github/workflows/ci.yml`) runs lint, typecheck and tests on every push to `master` and every PR. There are no end-to-end tests yet.
 
 ## Architecture
 
@@ -56,6 +58,7 @@ No test suite is configured yet.
 | `src/lib/ratelimit.ts` | DB-backed rate limiting (event creation, joins, reschedule notifications) |
 | `src/lib/input.ts` | `readFormFields()` — the single entry point for free-text form fields (see Input handling below) |
 | `src/lib/html.ts` | `escapeHtml()` — for the few raw-HTML sinks (Leaflet popups) |
+| `src/lib/redirect.ts` | `safeRedirectPath()` — validates every post-auth redirect target (`redirectTo`, `next`, `oauth_redirect`) |
 | `src/lib/supabase/` | Supabase client factories |
 | `src/types/database.ts` | Hand-written DB types — update when schema changes |
 | `supabase/migrations/` | SQL migration files |
