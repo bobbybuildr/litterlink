@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { MapPin, Calendar, Trash, Weight, Users, Clock } from "lucide-react";
+import { MapPin, Calendar, Trash, Users, Clock } from "lucide-react";
 import type { EventWithCount } from "@/lib/events";
 import type { Database } from "@/types/database";
 import { cn } from "@/lib/utils";
@@ -25,9 +25,7 @@ export function LatestEventHighlight({ event, stats, photos, className }: Latest
   const statItems = (
     [
       stats.bags_collected != null && { icon: <Trash className="h-3.5 w-3.5" />, label: `${stats.bags_collected} bags` },
-      stats.weight_kg != null && { icon: <Weight className="h-3.5 w-3.5" />, label: `${stats.weight_kg} kg` },
       stats.actual_attendees != null && { icon: <Users className="h-3.5 w-3.5" />, label: `${stats.actual_attendees} attended` },
-      stats.area_covered_sqm != null && { icon: <span className="text-xs leading-none">📐</span>, label: `${stats.area_covered_sqm} m²` },
       stats.duration_hours != null && { icon: <Clock className="h-3.5 w-3.5" />, label: `${stats.duration_hours} hrs` },
     ] as (false | { icon: React.ReactNode; label: string })[]
   ).filter((item): item is { icon: React.ReactNode; label: string } => item !== false);

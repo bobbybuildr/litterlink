@@ -10,7 +10,6 @@ import {
   Users,
   ArrowLeft,
   Trash,
-  Weight,
   Clock,
   CheckCircle,
   XCircle,
@@ -247,25 +246,11 @@ export default async function EventDetailPage({ params, searchParams }: Props) {
                     label="Bags"
                   />
                 )}
-                {event.event_stats.weight_kg != null && (
-                  <StatTile
-                    icon={<Weight className="h-5 w-5 text-green-600" />}
-                    value={`${event.event_stats.weight_kg} kg`}
-                    label="Litter"
-                  />
-                )}
                 {event.event_stats.actual_attendees != null && (
                   <StatTile
                     icon={<Users className="h-5 w-5 text-purple-600" />}
                     value={event.event_stats.actual_attendees}
                     label="Attended"
-                  />
-                )}
-                {event.event_stats.area_covered_sqm != null && (
-                  <StatTile
-                    icon={<span className="text-lg">📐</span>}
-                    value={`${event.event_stats.area_covered_sqm} m²`}
-                    label="Area"
                   />
                 )}
               </div>

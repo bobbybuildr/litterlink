@@ -76,8 +76,6 @@ One row per event (unique on `event_id`). Written when organiser logs impact aft
 | `id` | UUID | PK |
 | `event_id` | UUID | Unique FK → `events` |
 | `bags_collected` | INT \| null | |
-| `weight_kg` | NUMERIC \| null | Collected weight in kg — in schema/types but no UI yet |
-| `area_covered_sqm` | NUMERIC \| null | Area covered — in schema/types but no UI yet |
 | `actual_attendees` | INT \| null | |
 | `duration_hours` | NUMERIC(4,1) \| null | Must be > 0 |
 | `litter_types` | TEXT[] \| null | e.g. `{plastic, glass, cigarettes}` |

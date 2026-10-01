@@ -346,7 +346,6 @@ The following features are absent from the codebase. Do not assume these exist w
 - Recurring event scheduling
 
 #### Impact & Stats
-- `weight_kg` and `area_covered_sqm` columns exist in the schema and TypeScript types but are not exposed in any UI
 - Downloadable impact reports
 
 #### Groups

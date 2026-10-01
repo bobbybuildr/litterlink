@@ -15,7 +15,7 @@ The findings below concern resilience, correctness at scale, and maintainability
 | Critical | 1 (fixed) |
 | High | 5 (4 fixed) |
 | Medium | 11 (8 fixed) |
-| Low | 9 (6 fixed) |
+| Low | 9 (7 fixed) |
 
 ---
 
@@ -401,9 +401,17 @@ No streaming or skeleton states on data-heavy routes. `/impact` in particular ru
 
 **Deliberately not added:** `/events/[id]`, `/groups/[slug]` and `/profile/[id]`. They call `notFound()` after fetching. Once a loading fallback has streamed, the HTTP status is already sent as `200`, so missing records would return a soft 404 (`200` + `noindex`) instead of a real `404`. Form pages (`create`/`edit`/`stats`, `/profile`) and `/admin` only run light owner or auth lookups.
 
-### L4 — Dead schema columns
+### L4 — ~~Dead schema columns~~ ✅ Fixed
 
 `weight_kg` and `area_covered_sqm` exist on `event_stats` and in `src/types/database.ts` with no UI in any form. Either build the inputs or drop the columns.
+
+**Resolution**
+
+The columns were dropped.
+
+1. Added `supabase/migrations/0036_drop_event_stats_weight_area.sql`, dropping `weight_kg` and `area_covered_sqm` (and their CHECK constraints) from `event_stats`. No view referenced either column.
+2. Removed both fields from the `event_stats` Row/Insert/Update types in `src/types/database.ts`.
+3. Removed the read-only `kg`/`m²` stat tiles from `src/app/events/[id]/page.tsx` and `src/components/events/LatestEventHighlight.tsx`. They could only ever render for values set outside the app.
 
 ### L5 — ~~Unreachable UI option remains reachable by URL~~ ✅ Fixed
 

@@ -159,8 +159,6 @@ export interface Database {
           id: string;
           event_id: string;
           bags_collected: number | null;
-          weight_kg: number | null;
-          area_covered_sqm: number | null;
           actual_attendees: number | null;
           duration_hours: number | null;
           litter_types: string[] | null;
@@ -173,8 +171,6 @@ export interface Database {
           id?: string;
           event_id: string;
           bags_collected?: number | null;
-          weight_kg?: number | null;
-          area_covered_sqm?: number | null;
           actual_attendees?: number | null;
           duration_hours?: number | null;
           litter_types?: string[] | null;
@@ -187,8 +183,6 @@ export interface Database {
           id?: string;
           event_id?: string;
           bags_collected?: number | null;
-          weight_kg?: number | null;
-          area_covered_sqm?: number | null;
           actual_attendees?: number | null;
           duration_hours?: number | null;
           litter_types?: string[] | null;
