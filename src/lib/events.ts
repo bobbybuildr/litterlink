@@ -24,7 +24,8 @@ export type EventPhotoRow =
   Database["public"]["Tables"]["event_photos"]["Row"];
 
 // PostgREST caps unbounded selects at 1000 rows per request — paginate with
-// `.range()` past that so results don't silently truncate.
+// `.range()` past that so results don't silently truncate. Paginated queries
+// also order by `id` so rows with equal sort keys can't shift between pages.
 const POSTGREST_MAX_ROWS = 1000;
 
 /**
@@ -45,6 +46,7 @@ export async function getPublishedEvents(options?: {
       .select("*")
       .in("status", ["published", "completed"])
       .order("starts_at", { ascending: true })
+      .order("id")
       .range(from, to);
 
     if (options?.from) query = query.gte("starts_at", options.from);
@@ -186,7 +188,8 @@ export type GroupWithCounts = GroupRow & {
  * verified-organiser status, member count, upcoming (published) event count,
  * and a recent-activity score. Aggregation happens in Postgres via the
  * `groups_with_counts` view, so it isn't a full-table scan reduced in
- * JavaScript and isn't subject to PostgREST's per-request row cap.
+ * JavaScript. Paginated with `.range()` so it isn't subject to PostgREST's
+ * per-request row cap.
  *
  * `activity_score` reflects engagement over the trailing 30 days: new
  * members joined, events that took place, and participants who joined those
@@ -195,13 +198,21 @@ export type GroupWithCounts = GroupRow & {
 export async function getPublishedGroups(): Promise<GroupWithCounts[]> {
   const supabase = await createClient();
 
-  const { data, error } = await supabase
-    .from("groups_with_counts")
-    .select("*")
-    .order("created_at", { ascending: false });
-
-  if (error || !data) return [];
-  return data as GroupWithCounts[];
+  const rows: GroupWithCounts[] = [];
+  let from = 0;
+  for (;;) {
+    const { data, error } = await supabase
+      .from("groups_with_counts")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .order("id")
+      .range(from, from + POSTGREST_MAX_ROWS - 1);
+    if (error || !data) break;
+    rows.push(...(data as GroupWithCounts[]));
+    if (data.length < POSTGREST_MAX_ROWS) break;
+    from += POSTGREST_MAX_ROWS;
+  }
+  return rows;
 }
 
 /**
@@ -246,6 +257,7 @@ export async function getEventsByGroupId(
       .eq("group_id", groupId)
       .in("status", ["published", "completed", "cancelled"])
       .order("starts_at", { ascending: false })
+      .order("id")
       .range(from, from + POSTGREST_MAX_ROWS - 1);
     if (error || !data) break;
     rows.push(...(data as EventWithCount[]));

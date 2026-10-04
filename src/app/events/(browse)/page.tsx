@@ -9,6 +9,13 @@ import { FilterSkeleton } from "@/components/FilterSkeleton";
 import { EventsMap } from "@/components/map/EventsMap";
 import { getPublishedEvents, haversineKm } from "@/lib/events";
 import { geocodePostcode } from "@/lib/geocode";
+import {
+  MAX_EVENT_RANGE_DAYS,
+  formatIsoDate,
+  parseEventDateRange,
+  parsePage,
+  parseRadiusKm,
+} from "@/lib/search-params";
 
 export const metadata: Metadata = {
   title: "Browse Events",
@@ -24,9 +31,9 @@ interface Props {
 
 export default async function EventsPage({ searchParams }: Props) {
   const { postcode, radius, from, to, page, pastPage } = await searchParams;
-  const currentPage = Math.max(1, parseInt(page ?? "1", 10));
-  const currentPastPage = Math.max(1, parseInt(pastPage ?? "1", 10));
-  const radiusKm = radius ? parseInt(radius, 10) : 16; // default 10 mi
+  const currentPage = parsePage(page);
+  const currentPastPage = parsePage(pastPage);
+  const radiusKm = parseRadiusKm(radius);
 
   // Geocode the search postcode server-side
   let geo: { latitude: number; longitude: number } | null = null;
@@ -35,13 +42,7 @@ export default async function EventsPage({ searchParams }: Props) {
   }
 
   const now = new Date();
-  const today = now.toISOString().split("T")[0];
-  const sevenDaysLater = new Date(now);
-  sevenDaysLater.setDate(now.getDate() + 7);
-  const defaultTo = sevenDaysLater.toISOString().split("T")[0];
-
-  const fromDate = from ?? today;
-  const toDate = to ?? defaultTo;
+  const { from: fromDate, to: toDate, clamped: rangeClamped } = parseEventDateRange(from, to, now);
 
   const allEvents = await getPublishedEvents({ from: fromDate, to: toDate });
 
@@ -74,9 +75,9 @@ export default async function EventsPage({ searchParams }: Props) {
   function buildUrl(overrides: Record<string, string | undefined>) {
     const params = new URLSearchParams();
     if (postcode) params.set("postcode", postcode);
-    if (radius) params.set("radius", radius);
-    if (from) params.set("from", from);
-    if (to) params.set("to", to);
+    if (radius) params.set("radius", String(radiusKm));
+    if (from) params.set("from", fromDate);
+    if (to) params.set("to", toDate);
     if (safePage > 1) params.set("page", String(safePage));
     if (safePastPage > 1) params.set("pastPage", String(safePastPage));
     for (const [k, v] of Object.entries(overrides)) {
@@ -121,9 +122,16 @@ export default async function EventsPage({ searchParams }: Props) {
       {/* Filter */}
       <div className="mb-6 rounded-xl border border-gray-200 bg-white p-3 sm:p-4 shadow-sm">
         <Suspense fallback={<FilterSkeleton selects={3} />}>
-          <EventsFilter defaultFrom={fromDate} defaultTo={toDate} />
+          <EventsFilter key={`${fromDate}:${toDate}`} defaultFrom={fromDate} defaultTo={toDate} />
         </Suspense>
       </div>
+
+      {rangeClamped && (
+        <div role="status" className="mb-4 rounded-md bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-700">
+          Searches can cover up to {MAX_EVENT_RANGE_DAYS} days, so we&apos;re showing events from{" "}
+          {formatIsoDate(fromDate)} to {formatIsoDate(toDate)}.
+        </div>
+      )}
 
       {postcode && !geo && (
         <div className="mb-4 rounded-md bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-700">

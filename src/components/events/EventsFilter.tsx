@@ -3,6 +3,15 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import { Loader2, LocateFixed, Search, X } from "lucide-react";
+import { RADIUS_OPTIONS } from "@/lib/constants";
+import {
+  DEFAULT_EVENT_RANGE_DAYS,
+  MAX_EVENT_RANGE_DAYS,
+  addDaysToIsoDate,
+  formatIsoDate,
+  isIsoDate,
+  parseRadiusKm,
+} from "@/lib/search-params";
 import {
   GEOLOCATION_UNSUPPORTED_MESSAGE,
   geolocationErrorMessage,
@@ -10,13 +19,6 @@ import {
   lookupNearestPostcode,
   requestCurrentPosition,
 } from "@/lib/geolocation";
-
-const RADIUS_OPTIONS = [
-  { label: "5 mi", value: "8" },
-  { label: "10 mi", value: "16" },
-  { label: "25 mi", value: "40" },
-  { label: "50 mi", value: "80" },
-];
 
 interface EventsFilterProps {
   defaultFrom?: string;
@@ -29,16 +31,34 @@ export function EventsFilter({ defaultFrom, defaultTo }: EventsFilterProps = {})
   const [isPending, startTransition] = useTransition();
   const [isLocating, setIsLocating] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [from, setFrom] = useState(defaultFrom ?? params.get("from") ?? "");
+  const [to, setTo] = useState(defaultTo ?? params.get("to") ?? "");
+  const [dateNotice, setDateNotice] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const postcodeInputRef = useRef<HTMLInputElement>(null);
+
+  const latestTo = isIsoDate(from) ? addDaysToIsoDate(from, MAX_EVENT_RANGE_DAYS) : undefined;
+
+  // Runs on blur rather than change: typing a year fires change for every digit.
+  function keepEndDateInRange() {
+    if (!isIsoDate(from) || !isIsoDate(to) || !latestTo) return;
+    if (to > latestTo) {
+      setTo(latestTo);
+      setDateNotice(
+        `End date moved to ${formatIsoDate(latestTo)}. Searches can cover up to ${MAX_EVENT_RANGE_DAYS} days.`
+      );
+    } else if (to < from) {
+      const next = addDaysToIsoDate(from, DEFAULT_EVENT_RANGE_DAYS);
+      setTo(next);
+      setDateNotice(`End date moved to ${formatIsoDate(next)} so it's after the start date.`);
+    }
+  }
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     const postcode = (fd.get("postcode") as string).trim();
     const radius = fd.get("radius") as string;
-    const from = fd.get("from") as string;
-    const to = fd.get("to") as string;
     const sp = new URLSearchParams();
     if (postcode) sp.set("postcode", postcode.toUpperCase());
     if (radius) sp.set("radius", radius);
@@ -133,7 +153,7 @@ export function EventsFilter({ defaultFrom, defaultTo }: EventsFilterProps = {})
           <select
             id="radius"
             name="radius"
-            defaultValue={params.get("radius") ?? "16"}
+            defaultValue={String(parseRadiusKm(params.get("radius") ?? undefined))}
             className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs sm:text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
           >
             {RADIUS_OPTIONS.map((o) => (
@@ -154,7 +174,12 @@ export function EventsFilter({ defaultFrom, defaultTo }: EventsFilterProps = {})
             id="from"
             name="from"
             type="date"
-            defaultValue={params.get("from") ?? defaultFrom ?? ""}
+            value={from}
+            onChange={(e) => {
+              setFrom(e.target.value);
+              setDateNotice(null);
+            }}
+            onBlur={keepEndDateInRange}
             className="w-full rounded-lg border border-gray-300 bg-white px-2 sm:px-3 py-2 text-xs sm:text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
           />
         </div>
@@ -167,9 +192,21 @@ export function EventsFilter({ defaultFrom, defaultTo }: EventsFilterProps = {})
             id="to"
             name="to"
             type="date"
-            defaultValue={params.get("to") ?? defaultTo ?? ""}
+            value={to}
+            min={isIsoDate(from) ? from : undefined}
+            max={latestTo}
+            onChange={(e) => {
+              setTo(e.target.value);
+              setDateNotice(null);
+            }}
+            aria-describedby={dateNotice ? "date-range-notice" : undefined}
             className="w-full rounded-lg border border-gray-300 bg-white px-2 sm:px-3 py-2 text-xs sm:text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
           />
+          {dateNotice && (
+            <p id="date-range-notice" role="status" className="mt-1 text-xs text-amber-700">
+              {dateNotice}
+            </p>
+          )}
         </div>
       </div>
 
@@ -187,6 +224,9 @@ export function EventsFilter({ defaultFrom, defaultTo }: EventsFilterProps = {})
           onClick={() => {
             formRef.current?.reset();
             setLocationError(null);
+            setFrom(defaultFrom ?? "");
+            setTo(defaultTo ?? "");
+            setDateNotice(null);
             startTransition(() => router.push("/events"));
           }}
           className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-500 hover:border-gray-300 hover:text-gray-800 transition-colors"

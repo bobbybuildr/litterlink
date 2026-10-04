@@ -11,6 +11,7 @@ import { FlashBanner } from "@/components/FlashBanner";
 import { GroupsMap } from "@/components/map/GroupsMap";
 import { getPublishedGroups, getFeaturedGroup, haversineKm } from "@/lib/events";
 import { geocodePostcode } from "@/lib/geocode";
+import { parsePage, parseRadiusKm } from "@/lib/search-params";
 
 export const metadata: Metadata = {
   title: "Browse Groups",
@@ -26,8 +27,8 @@ interface Props {
 
 export default async function GroupsPage({ searchParams }: Props) {
   const { postcode, radius, type, page } = await searchParams;
-  const currentPage = Math.max(1, parseInt(page ?? "1", 10));
-  const radiusKm = radius ? parseInt(radius, 10) : 16; // default 10 mi
+  const currentPage = parsePage(page);
+  const radiusKm = parseRadiusKm(radius);
 
   // Geocode the search postcode server-side
   let geo: { latitude: number; longitude: number } | null = null;
@@ -65,7 +66,7 @@ export default async function GroupsPage({ searchParams }: Props) {
   function buildUrl(overrides: Record<string, string | undefined>) {
     const params = new URLSearchParams();
     if (postcode) params.set("postcode", postcode);
-    if (radius) params.set("radius", radius);
+    if (radius) params.set("radius", String(radiusKm));
     if (type) params.set("type", type);
     if (safePage > 1) params.set("page", String(safePage));
     for (const [k, v] of Object.entries(overrides)) {

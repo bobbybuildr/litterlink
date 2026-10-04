@@ -3,7 +3,8 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import { Loader2, LocateFixed, Search, X } from "lucide-react";
-import { GROUP_TYPE_LABELS } from "@/lib/constants";
+import { GROUP_TYPE_LABELS, RADIUS_OPTIONS } from "@/lib/constants";
+import { parseRadiusKm } from "@/lib/search-params";
 import {
   GEOLOCATION_UNSUPPORTED_MESSAGE,
   geolocationErrorMessage,
@@ -11,13 +12,6 @@ import {
   lookupNearestPostcode,
   requestCurrentPosition,
 } from "@/lib/geolocation";
-
-const RADIUS_OPTIONS = [
-  { label: "5 mi", value: "8" },
-  { label: "10 mi", value: "16" },
-  { label: "25 mi", value: "40" },
-  { label: "50 mi", value: "80" },
-];
 
 export function GroupsFilter() {
   const router = useRouter();
@@ -127,7 +121,7 @@ export function GroupsFilter() {
           <select
             id="radius"
             name="radius"
-            defaultValue={params.get("radius") ?? "16"}
+            defaultValue={String(parseRadiusKm(params.get("radius") ?? undefined))}
             className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs sm:text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand"
           >
             {RADIUS_OPTIONS.map((o) => (

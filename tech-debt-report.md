@@ -15,7 +15,7 @@ The findings below concern resilience, correctness at scale, and maintainability
 | Critical | 1 (fixed) |
 | High | 5 (4 fixed) |
 | Medium | 11 (8 fixed) |
-| Low | 9 (7 fixed) |
+| Low | 9 (8 fixed) |
 
 ---
 
@@ -457,9 +457,23 @@ and a GitHub Actions workflow running lint, typecheck, and tests on every push.
 
 The script has been run, so it was moved to `scripts/archive/backfill-event-locations.mjs`. Its header now says it is archived, and its usage paths point at the new location.
 
-### L8 — Client-side pagination
+### L8 — ~~Client-side pagination~~ ✅ Fixed
 
 `/events` and `/groups` both fetch the full result set then `.slice()`. Combined with H2, this means the page size is a display concern layered over an already-truncated dataset.
+
+**Resolution**
+
+The review found the in-memory slicing is intentional, and the truncation it described was already fixed by H2. The slicing runs in the Server Component, not the browser, and the map on each page needs the full result set anyway (`EventsMap` gets every event in the date range, `GroupsMap` every group of the selected type). Paginating in SQL would not reduce the fetch, and the radius filter would need PostGIS or an RPC. The review did find related gaps, which are now fixed:
+
+1. **Unbounded date range.** `?from=2020-01-01&to=2099-12-31` made `/events` page through every event and send them all to the map. `parseEventDateRange()` in the new `src/lib/search-params.ts` now accepts only real `YYYY-MM-DD` dates, falling back to today and today + 7 days. It swaps a reversed range and limits the span to 365 days, so a full year (e.g. 1 January 2026 to 1 January 2027) can still be searched. `?from=` without `to` now means `from` + 7 days, rather than today + 7 days, which could fall before `from`.
+   - When a range is shortened, the page shows a notice saying searches can cover up to 365 days and which dates are being shown.
+   - `EventsFilter` stops out-of-range dates being picked. The "To" input's `min`/`max` follow the "From" date, so the date picker greys out anything outside the 365 days. A typed date outside it fails browser validation before submit. If changing "From" leaves "To" out of range, "To" is moved when the field loses focus, with a message under it explaining why.
+   - The filter is keyed on the normalised range, so its inputs always show the dates the results use.
+2. **`getPublishedGroups()` had no `.range()` loop**, so groups past 1000 would be silently dropped. This was missed in H2. It now paginates like `getPublishedEvents`.
+3. **Unstable paging order.** `getPublishedEvents`, `getEventsByGroupId` and `getPublishedGroups` now also order by `id`. Without a tiebreaker, rows with the same `starts_at`/`created_at` could be duplicated or skipped across 1000-row pages.
+4. **Malformed `page`/`radius`.** `?page=abc` gave `NaN` and an empty list, and `?radius=abc` filtered out every result. `parsePage()` now falls back to page 1, and `parseRadiusKm()` only accepts the values the filters offer, otherwise the 16 km default. `RADIUS_OPTIONS` and `DEFAULT_RADIUS_KM` moved to `src/lib/constants.ts` and are shared by both filters and the server. Pagination links carry the normalised values.
+
+Covered by `src/lib/search-params.test.ts`.
 
 ### L9 — ~~Batched photo uploads exceed the hosting platform's request body limit~~ ✅ Fixed
 
