@@ -166,7 +166,7 @@ export default async function EventDetailPage({ params, searchParams }: Props) {
                 <User className="h-3.5 w-3.5 shrink-0" />
                 <span className="whitespace-nowrap">Organised by</span>
                 <span className="font-medium text-brand">
-                  <Link href={`/profile/${event.organiser_username ?? event.organiser_id}`} className="hover:underline">
+                  <Link href={`/profile/${event.organiser_username ?? event.organiser_id}`} rel="nofollow" className="hover:underline">
                     {event.organiser_name}
                   </Link>
                   {event.organiser_is_verified && (
@@ -357,7 +357,7 @@ export default async function EventDetailPage({ params, searchParams }: Props) {
                     <span className="font-medium text-gray-800">
                       {p.profiles?.display_name ? (
                         <>
-                          <Link href={`/profile/${p.profiles.username ?? p.user_id}`} className="text-brand hover:underline">
+                          <Link href={`/profile/${p.profiles.username ?? p.user_id}`} rel="nofollow" className="text-brand hover:underline">
                             {p.profiles.display_name}
                           </Link>
                           {p.profiles.display_name === event.organiser_name && (

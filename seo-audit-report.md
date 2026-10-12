@@ -21,7 +21,7 @@ All critical issues are now fixed. The remaining work is mainly enhancement: sha
 | Severity | Total | Fixed | Partially fixed | Open |
 |---|---|---|---|---|
 | Critical | 5 | 5 | 0 | 0 |
-| High | 10 | 4 | 3 | 3 |
+| High | 10 | 5 | 3 | 2 |
 | Medium | 9 | 1 | 1 | 7 |
 
 ### Workstreams
@@ -32,7 +32,7 @@ All critical issues are now fixed. The remaining work is mainly enhancement: sha
 | W2 | Titles and shared metadata | ✅ Done |
 | W3 | Canonical URLs and query-parameter duplicates | ✅ Done |
 | W4 | Open Graph, X and share images | Open |
-| W5 | Sitemap and robots | Open |
+| W5 | Sitemap and robots | In progress (robots done) |
 | W6 | Structured data (JSON-LD) | Open |
 | W7 | Internal linking, content and headings | Open |
 | W8 | Core Web Vitals | Open |
@@ -130,16 +130,17 @@ These routes relied only on auth redirects.
   - `groups/[slug]/edit`
   - `become-a-verified-organiser`
 
-### H2 — `robots.txt` blocks the wrong things — Open (W5)
+### H2 — ~~`robots.txt` blocks the wrong things~~ ✅ Fixed (W5)
 
-**Location:** `src/app/robots.ts`
+**Location:** `src/app/robots.ts`, `src/lib/supabase/middleware.ts`, public pages that link to profiles
 
-`/profile` is disallowed even though public event, group and impact pages link heavily to `/profile/*`. Blocked URLs that are well linked can be indexed as bare URLs, and a blocked URL's `noindex` is never seen. `/api/` is not disallowed.
+`/profile` was disallowed even though public event, group and impact pages link heavily to `/profile/*`. Blocked URLs that are well linked can be indexed as bare URLs, and a blocked URL's `noindex` is never seen. `/api/` was not disallowed.
 
-**Recommendation:**
-- Add `/api/`.
-- For `/profile`, either remove the disallow, so crawlers follow the 307 to the `noindex` sign-in page, or keep it and add `rel="nofollow"` to public profile links.
-- Never disallow a route that relies on `noindex`.
+**Fix:**
+- `robots.ts` disallows `/api/` and no longer disallows `/profile`.
+- The proxy sends `X-Robots-Tag: noindex, nofollow` on every `/profile` response. That includes the 307 that anonymous visitors (and crawlers) receive, so the noindex is on the profile URL itself, not only on the sign-in page it redirects to. Signed-in responses also keep the `NOINDEX` metadata from `profile/layout.tsx`.
+- Profile links on public pages (`events/[id]` organiser and attendees, `groups/[slug]` members, `impact` top organisers) have `rel="nofollow"`.
+- Rule to keep: never disallow a route that relies on `noindex`.
 
 ### H3 — The sitemap is incomplete and truncates at 1,000 events — Partially fixed (W5)
 
@@ -388,14 +389,14 @@ Both go through the Supabase session refresh. Exclude `robots.txt|sitemap.xml|ma
 2. **W5 – Sitemap and robots:**
    - Add groups, `/groups`, `/impact` and the legal pages.
    - `.range()` pagination; real `lastModified`; drop stale, never-wrapped-up events.
-   - Disallow `/api/`; resolve the `/profile` disallow (H2).
+   - ~~Disallow `/api/`; resolve the `/profile` disallow (H2).~~ Done.
 3. **W6 – JSON-LD:**
    - `jsonLd()` serialiser with tests.
    - `Organization` / `WebSite` on the homepage, `Event` on event pages, `Organization` on group pages, `BreadcrumbList` on detail pages.
    - Document the exception in AGENTS.md.
 4. **W7 – Linking and content:**
    - Homepage event and group sections; related or nearby events on event pages.
-   - Decide on profile links (public pages or `nofollow`).
+   - ~~Decide on profile links (public pages or `nofollow`).~~ `nofollow` (H2).
    - Heading fixes (M2) and photo alt text (M3).
    - Upcoming list beyond 7 days (H9); optionally remove `?back=` from card links.
 5. **W8 – Core Web Vitals:**

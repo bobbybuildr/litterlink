@@ -3,6 +3,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import type { Database } from "@/types/database";
 import { publicEnv } from "@/lib/env/public";
 
+const PROFILE_ROBOTS_TAG = "noindex, nofollow";
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
@@ -33,11 +35,13 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  const isProfileRoute = request.nextUrl.pathname.startsWith("/profile");
+
   // Protect dashboard, event-creation, and profile routes
   const isProtectedRoute =
     request.nextUrl.pathname.startsWith("/dashboard") ||
     request.nextUrl.pathname.startsWith("/events/create") ||
-    request.nextUrl.pathname.startsWith("/profile");
+    isProfileRoute;
 
   if (isProtectedRoute && !user) {
     const url = request.nextUrl.clone();
@@ -46,8 +50,13 @@ export async function updateSession(request: NextRequest) {
     if (request.nextUrl.pathname.startsWith("/profile/")) {
       url.searchParams.set("message", "Sign in to view member profiles on LitterLink.");
     }
-    return NextResponse.redirect(url);
+    const redirectResponse = NextResponse.redirect(url);
+    // Crawlers are anonymous, so the noindex must be on the redirect itself, not only on the sign-in page.
+    if (isProfileRoute) redirectResponse.headers.set("X-Robots-Tag", PROFILE_ROBOTS_TAG);
+    return redirectResponse;
   }
+
+  if (isProfileRoute) supabaseResponse.headers.set("X-Robots-Tag", PROFILE_ROBOTS_TAG);
 
   // Redirect authenticated users away from auth pages
   const isAuthRoute =

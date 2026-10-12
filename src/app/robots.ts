@@ -6,7 +6,8 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: ["/dashboard", "/admin", "/profile", "/auth"],
+      // /profile is deliberately crawlable: it relies on X-Robots-Tag noindex, which a disallowed URL never exposes.
+      disallow: ["/dashboard", "/admin", "/auth", "/api/"],
     },
     sitemap: absoluteUrl("/sitemap.xml"),
   };

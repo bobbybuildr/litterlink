@@ -378,7 +378,11 @@ function MemberChip({ member }: { member: GroupMember }) {
     </div>
   );
 
-  return <Link href={`/profile/${member.username ?? member.user_id}`}>{inner}</Link>;
+  return (
+    <Link href={`/profile/${member.username ?? member.user_id}`} rel="nofollow">
+      {inner}
+    </Link>
+  );
 }
 
 function GroupImpactCard({

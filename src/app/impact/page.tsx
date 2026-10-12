@@ -298,6 +298,7 @@ export default async function ImpactPage({
                     <div className="flex items-center gap-1.5">
                       <Link
                         href={`/profile/${org.username ?? org.id}`}
+                        rel="nofollow"
                         className="truncate font-semibold text-brand hover:underline"
                       >
                         {org.display_name}
