@@ -1,7 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
+import { SITE_URL } from "@/lib/seo";
 
-const siteHost = new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://litterlink.co.uk").host;
+const siteHost = new URL(SITE_URL).host;
 
 export async function proxy(request: NextRequest) {
   // Auth cookies (incl. the OAuth PKCE verifier) are host-only, so www must not diverge from the callback host.
@@ -11,12 +12,6 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url, 308);
   }
 
-  if (process.env.COMING_SOON === "true") {
-    const { pathname } = request.nextUrl;
-    if (pathname === "/" || pathname === "/events" || pathname.startsWith("/events/")) {
-      return NextResponse.redirect(new URL("/coming-soon", request.url));
-    }
-  }
   return await updateSession(request);
 }
 

@@ -1,5 +1,8 @@
+import type { Metadata } from "next";
 import { updatePassword } from "@/app/(auth)/actions";
 import { FormSubmitButton } from "@/components/FormSubmitButton";
+
+export const metadata: Metadata = { title: "Reset password" };
 
 interface Props {
   searchParams: Promise<{ error?: string }>;

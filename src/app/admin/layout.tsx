@@ -1,5 +1,9 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { NOINDEX } from "@/lib/seo";
+
+export const metadata: Metadata = { robots: NOINDEX };
 
 export default async function AdminLayout({
   children,

@@ -12,12 +12,28 @@ import {
 } from "@/lib/impact";
 import { ShareImpactButton } from "@/components/ShareImpactButton";
 import { ImpactHero } from "./ImpactHero";
+import { hasListingParams, pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Impact",
-  description:
-    "See the collective impact LitterLink volunteers are making across the UK — bags collected, hours completed, and more.",
+type ImpactSearchParams = {
+  orgPeriod?: string;
+  areaPeriod?: string;
+  statsPeriod?: string;
+  groupPeriod?: string;
 };
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<ImpactSearchParams>;
+}): Promise<Metadata> {
+  return pageMetadata({
+    title: "UK Litter Picking Impact",
+    description:
+      "See the collective impact LitterLink volunteers are making across the UK — bags collected, hours completed, and more.",
+    path: "/impact",
+    indexable: !hasListingParams(await searchParams, ["orgPeriod", "areaPeriod", "statsPeriod", "groupPeriod"]),
+  });
+}
 
 function formatLitterType(type: string) {
   return type
@@ -44,12 +60,7 @@ function buildImpactHref(
 export default async function ImpactPage({
   searchParams,
 }: {
-  searchParams: Promise<{
-    orgPeriod?: string;
-    areaPeriod?: string;
-    statsPeriod?: string;
-    groupPeriod?: string;
-  }>;
+  searchParams: Promise<ImpactSearchParams>;
 }) {
   const {
     orgPeriod,

@@ -1,10 +1,19 @@
 ﻿import Link from "next/link";
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Calendar, Trash, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { LucideIcon, ArrowRight } from "lucide-react";
 import { PostcodeSearch } from "@/components/PostcodeSearch";
 import { FlashBanner } from "@/components/FlashBanner";
+import { DEFAULT_DESCRIPTION, pageMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = pageMetadata({
+  title: "LitterLink — Find Local Litter Picks Near You",
+  absoluteTitle: true,
+  description: DEFAULT_DESCRIPTION,
+  path: "/",
+});
 
 async function getImpactStats() {
   const supabase = await createClient();

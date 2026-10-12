@@ -175,6 +175,24 @@ export async function getGroupBySlug(
   return (data as Database["public"]["Tables"]["groups"]["Row"] | null) ?? null;
 }
 
+/** Resolve a former slug (from before a rename) to the group's current slug. */
+export async function getCurrentSlugForOldGroupSlug(oldSlug: string): Promise<string | null> {
+  const supabase = await createClient();
+  const { data: history } = await supabase
+    .from("group_slug_history")
+    .select("group_id")
+    .eq("slug", oldSlug)
+    .maybeSingle();
+  if (!history) return null;
+
+  const { data: group } = await supabase
+    .from("groups")
+    .select("slug")
+    .eq("id", history.group_id)
+    .maybeSingle();
+  return group?.slug ?? null;
+}
+
 export type GroupWithCounts = GroupRow & {
   creator_is_verified: boolean;
   member_count: number;

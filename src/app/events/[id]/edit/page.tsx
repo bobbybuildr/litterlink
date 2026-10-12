@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { EditEventForm } from "./EditEventForm";
 import { utcToLondonDatetimeLocal } from "@/lib/datetime";
+import { NOINDEX } from "@/lib/seo";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -12,6 +13,7 @@ interface Props {
 
 export const metadata: Metadata = {
   title: "Edit event",
+  robots: NOINDEX,
 };
 
 export default async function EditEventPage({ params }: Props) {

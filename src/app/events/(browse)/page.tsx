@@ -2,10 +2,10 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { CalendarPlus, ChevronLeft, ChevronRight } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { EventCard } from "@/components/events/EventCard";
 import { EventsFilter } from "@/components/events/EventsFilter";
 import { FilterSkeleton } from "@/components/FilterSkeleton";
+import { PaginationLink } from "@/components/PaginationLink";
 import { EventsMap } from "@/components/map/EventsMap";
 import { getPublishedEvents, haversineKm } from "@/lib/events";
 import { geocodePostcode } from "@/lib/geocode";
@@ -14,23 +14,32 @@ import {
   formatIsoDate,
   parseEventDateRange,
   parsePage,
+  parsePostcode,
   parseRadiusKm,
 } from "@/lib/search-params";
-
-export const metadata: Metadata = {
-  title: "Browse Events",
-  description:
-    "Find local litter-picking events near you across the UK. Filter by postcode and join in.",
-};
+import { hasListingParams, pageMetadata } from "@/lib/seo";
 
 const PAGE_SIZE = 5;
 
+type EventsSearchParams = { postcode?: string; radius?: string; from?: string; to?: string; page?: string; pastPage?: string };
+
 interface Props {
-  searchParams: Promise<{ postcode?: string; radius?: string; from?: string; to?: string; page?: string; pastPage?: string }>;
+  searchParams: Promise<EventsSearchParams>;
+}
+
+export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
+  return pageMetadata({
+    title: "Litter Picking Events Near You",
+    description:
+      "Find local litter-picking events near you across the UK. Filter by postcode and join in.",
+    path: "/events",
+    indexable: !hasListingParams(await searchParams, ["postcode", "radius", "from", "to", "page", "pastPage"]),
+  });
 }
 
 export default async function EventsPage({ searchParams }: Props) {
-  const { postcode, radius, from, to, page, pastPage } = await searchParams;
+  const { postcode: rawPostcode, radius, from, to, page, pastPage } = await searchParams;
+  const postcode = parsePostcode(rawPostcode) ?? undefined;
   const currentPage = parsePage(page);
   const currentPastPage = parsePage(pastPage);
   const radiusKm = parseRadiusKm(radius);
@@ -133,9 +142,10 @@ export default async function EventsPage({ searchParams }: Props) {
         </div>
       )}
 
-      {postcode && !geo && (
+      {rawPostcode && !geo && (
         <div className="mb-4 rounded-md bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-700">
-          Postcode &ldquo;{postcode}&rdquo; wasn&apos;t recognised. Showing all events.
+          {postcode ? <>Postcode &ldquo;{postcode}&rdquo; wasn&apos;t recognised.</> : <>That postcode wasn&apos;t recognised.</>}{" "}
+          Showing all events.
         </div>
       )}
 
@@ -168,33 +178,15 @@ export default async function EventsPage({ searchParams }: Props) {
               ))}
               {totalPages > 1 && (
                 <div className="flex items-center justify-between border-t border-gray-200 pt-4">
-                  <Link
-                    href={buildUrl({ page: String(safePage - 1) })}
-                    aria-disabled={safePage <= 1}
-                    className={cn(
-                      "inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium transition-colors",
-                      safePage <= 1
-                        ? "pointer-events-none text-gray-300"
-                        : "text-gray-600 hover:bg-gray-50"
-                    )}
-                  >
+                  <PaginationLink href={buildUrl({ page: String(safePage - 1) })} disabled={safePage <= 1}>
                     <ChevronLeft className="h-4 w-4" /> Previous
-                  </Link>
+                  </PaginationLink>
                   <span className="text-sm text-gray-500">
                     Page {safePage} of {totalPages}
                   </span>
-                  <Link
-                    href={buildUrl({ page: String(safePage + 1) })}
-                    aria-disabled={safePage >= totalPages}
-                    className={cn(
-                      "inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium transition-colors",
-                      safePage >= totalPages
-                        ? "pointer-events-none text-gray-300"
-                        : "text-gray-600 hover:bg-gray-50"
-                    )}
-                  >
+                  <PaginationLink href={buildUrl({ page: String(safePage + 1) })} disabled={safePage >= totalPages}>
                     Next <ChevronRight className="h-4 w-4" />
-                  </Link>
+                  </PaginationLink>
                 </div>
               )}
               {pastEvents.length > 0 && (
@@ -216,33 +208,18 @@ export default async function EventsPage({ searchParams }: Props) {
                     ))}
                     {pastTotalPages > 1 && (
                       <div className="flex items-center justify-between border-t border-gray-200 pt-4">
-                        <Link
-                          href={buildUrl({ pastPage: String(safePastPage - 1) })}
-                          aria-disabled={safePastPage <= 1}
-                          className={cn(
-                            "inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium transition-colors",
-                            safePastPage <= 1
-                              ? "pointer-events-none text-gray-300"
-                              : "text-gray-600 hover:bg-gray-50"
-                          )}
-                        >
+                        <PaginationLink href={buildUrl({ pastPage: String(safePastPage - 1) })} disabled={safePastPage <= 1}>
                           <ChevronLeft className="h-4 w-4" /> Previous
-                        </Link>
+                        </PaginationLink>
                         <span className="text-sm text-gray-500">
                           Page {safePastPage} of {pastTotalPages}
                         </span>
-                        <Link
+                        <PaginationLink
                           href={buildUrl({ pastPage: String(safePastPage + 1) })}
-                          aria-disabled={safePastPage >= pastTotalPages}
-                          className={cn(
-                            "inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium transition-colors",
-                            safePastPage >= pastTotalPages
-                              ? "pointer-events-none text-gray-300"
-                              : "text-gray-600 hover:bg-gray-50"
-                          )}
+                          disabled={safePastPage >= pastTotalPages}
                         >
                           Next <ChevronRight className="h-4 w-4" />
-                        </Link>
+                        </PaginationLink>
                       </div>
                     )}
                   </div>

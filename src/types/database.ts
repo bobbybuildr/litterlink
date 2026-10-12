@@ -385,6 +385,24 @@ export interface Database {
         };
         Relationships: [];
       };
+      group_slug_history: {
+        Row: {
+          slug: string;
+          group_id: string;
+          created_at: string;
+        };
+        Insert: {
+          slug: string;
+          group_id: string;
+          created_at?: string;
+        };
+        Update: {
+          slug?: string;
+          group_id?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

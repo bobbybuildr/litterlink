@@ -8,16 +8,12 @@ import { FeaturedGroupCard } from "@/components/groups/FeaturedGroupCard";
 import { GroupsFilter } from "@/components/groups/GroupsFilter";
 import { FilterSkeleton } from "@/components/FilterSkeleton";
 import { FlashBanner } from "@/components/FlashBanner";
+import { PaginationLink } from "@/components/PaginationLink";
 import { GroupsMap } from "@/components/map/GroupsMap";
 import { getPublishedGroups, getFeaturedGroup, haversineKm } from "@/lib/events";
 import { geocodePostcode } from "@/lib/geocode";
-import { parsePage, parseRadiusKm } from "@/lib/search-params";
-
-export const metadata: Metadata = {
-  title: "Browse Groups",
-  description:
-    "Find and join local litter-picking groups and communities across the UK.",
-};
+import { parsePage, parsePostcode, parseRadiusKm } from "@/lib/search-params";
+import { hasListingParams, pageMetadata } from "@/lib/seo";
 
 const PAGE_SIZE = 6;
 
@@ -25,8 +21,19 @@ interface Props {
   searchParams: Promise<{ postcode?: string; radius?: string; type?: string; page?: string }>;
 }
 
+export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
+  return pageMetadata({
+    title: "Litter Picking Groups Near You",
+    description:
+      "Find and join local litter-picking groups and communities across the UK.",
+    path: "/groups",
+    indexable: !hasListingParams(await searchParams, ["postcode", "radius", "type", "page"]),
+  });
+}
+
 export default async function GroupsPage({ searchParams }: Props) {
-  const { postcode, radius, type, page } = await searchParams;
+  const { postcode: rawPostcode, radius, type, page } = await searchParams;
+  const postcode = parsePostcode(rawPostcode) ?? undefined;
   const currentPage = parsePage(page);
   const radiusKm = parseRadiusKm(radius);
 
@@ -112,9 +119,10 @@ export default async function GroupsPage({ searchParams }: Props) {
         </Suspense>
       </div>
 
-      {postcode && !geo && (
+      {rawPostcode && !geo && (
         <div className="mb-4 rounded-md bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-700">
-          Postcode &ldquo;{postcode}&rdquo; wasn&apos;t recognised. Showing all groups.
+          {postcode ? <>Postcode &ldquo;{postcode}&rdquo; wasn&apos;t recognised.</> : <>That postcode wasn&apos;t recognised.</>}{" "}
+          Showing all groups.
         </div>
       )}
 
@@ -155,33 +163,15 @@ export default async function GroupsPage({ searchParams }: Props) {
             </div>
             {totalPages > 1 && (
               <div className="flex items-center justify-between border-t border-gray-200 pt-4">
-                <Link
-                  href={buildUrl({ page: String(safePage - 1) })}
-                  aria-disabled={safePage <= 1}
-                  className={cn(
-                    "inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium transition-colors",
-                    safePage <= 1
-                      ? "pointer-events-none text-gray-300"
-                      : "text-gray-600 hover:bg-gray-50"
-                  )}
-                >
+                <PaginationLink href={buildUrl({ page: String(safePage - 1) })} disabled={safePage <= 1}>
                   <ChevronLeft className="h-4 w-4" /> Previous
-                </Link>
+                </PaginationLink>
                 <span className="text-sm text-gray-500">
                   Page {safePage} of {totalPages}
                 </span>
-                <Link
-                  href={buildUrl({ page: String(safePage + 1) })}
-                  aria-disabled={safePage >= totalPages}
-                  className={cn(
-                    "inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium transition-colors",
-                    safePage >= totalPages
-                      ? "pointer-events-none text-gray-300"
-                      : "text-gray-600 hover:bg-gray-50"
-                  )}
-                >
+                <PaginationLink href={buildUrl({ page: String(safePage + 1) })} disabled={safePage >= totalPages}>
                   Next <ChevronRight className="h-4 w-4" />
-                </Link>
+                </PaginationLink>
               </div>
             )}
           </>

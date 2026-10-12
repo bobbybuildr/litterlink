@@ -4,8 +4,9 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { StatsForm } from "./StatsForm";
+import { NOINDEX } from "@/lib/seo";
 
-export const metadata: Metadata = { title: "Log Impact Stats" };
+export const metadata: Metadata = { title: "Log Impact Stats", robots: NOINDEX };
 
 interface Props {
   params: Promise<{ id: string }>;

@@ -2,9 +2,11 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { CreateGroupForm } from "./CreateGroupForm";
+import { NOINDEX } from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: "Create a Group",
+  robots: NOINDEX,
 };
 
 export default async function CreateGroupPage() {

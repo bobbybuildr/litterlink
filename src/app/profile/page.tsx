@@ -6,7 +6,7 @@ import { ProfileForm } from "./ProfileForm";
 import { DeleteAccountSection } from "./DeleteAccountSection";
 
 export const metadata: Metadata = {
-  title: "Your Profile — LitterLink",
+  title: "Your Profile",
   description: "Update your display name, location, and profile photo.",
 };
 

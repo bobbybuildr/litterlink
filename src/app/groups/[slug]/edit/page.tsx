@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getGroupBySlug } from "@/lib/events";
 import { EditGroupForm } from "./EditGroupForm";
+import { NOINDEX } from "@/lib/seo";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -12,6 +13,7 @@ interface Props {
 
 export const metadata: Metadata = {
   title: "Edit group",
+  robots: NOINDEX,
 };
 
 export default async function EditGroupPage({ params }: Props) {

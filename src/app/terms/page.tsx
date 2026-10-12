@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Terms & Conditions — LitterLink",
+export const metadata: Metadata = pageMetadata({
+  title: "Terms & Conditions",
   description: "Terms governing access to and use of the LitterLink platform.",
-};
+  path: "/terms",
+});
 
 const lastUpdated = "2026-04-03";
 

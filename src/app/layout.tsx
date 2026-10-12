@@ -6,6 +6,7 @@ import { Footer } from "@/components/layout/Footer";
 import { BetaBanner } from "@/components/layout/BetaBanner";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { DEFAULT_DESCRIPTION, OPEN_GRAPH_DEFAULTS, SITE_NAME, SITE_URL } from "@/lib/seo";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -17,21 +18,12 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://litterlink.co.uk";
-const defaultDescription =
-  "Find and join local litter-picking events near you. Track your impact and help keep communities clean.";
-
+// No canonical or og:url/title here — nested fields are inherited by every page that doesn't set its own.
 export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
-  title: { default: "LitterLink", template: "%s | LitterLink" },
-  description: defaultDescription,
-  openGraph: {
-    siteName: "LitterLink",
-    type: "website",
-    url: "/",
-    title: "LitterLink — Find Local Litter Picks",
-    description: defaultDescription,
-  },
+  metadataBase: new URL(SITE_URL),
+  title: { default: SITE_NAME, template: `%s | ${SITE_NAME}` },
+  description: DEFAULT_DESCRIPTION,
+  openGraph: { ...OPEN_GRAPH_DEFAULTS },
 };
 
 export default function RootLayout({
@@ -41,7 +33,7 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
+      lang="en-GB"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">

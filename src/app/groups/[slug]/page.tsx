@@ -1,10 +1,11 @@
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowLeft, Globe, Mail, Users, Calendar, Pencil, ShieldCheck, MapPin, Trash, Clock } from "lucide-react";
-import { getGroupBySlug, getEventsByGroupId, getGroupMembers } from "@/lib/events";
+import { getGroupBySlug, getEventsByGroupId, getGroupMembers, getCurrentSlugForOldGroupSlug } from "@/lib/events";
 import { GROUP_TYPE_LABELS } from "@/lib/constants";
+import { metaDescription, pageMetadata } from "@/lib/seo";
 import { EventCard } from "@/components/events/EventCard";
 import { JoinGroupButton } from "@/components/groups/JoinGroupButton";
 import { DeleteGroupButton } from "@/components/groups/DeleteGroupButton";
@@ -21,10 +22,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const group = await getGroupBySlug(slug);
   if (!group) return { title: "Group not found" };
-  return {
-    title: group.name,
-    description: group.description ?? `Events organised by ${group.name}`,
-  };
+  const locationLabel = group.location_name || group.location_postcode;
+  return pageMetadata({
+    title: `${group.name} – Litter Picking Group`,
+    description: metaDescription(
+      group.description ??
+        `Litter-picking events organised by ${group.name}${locationLabel ? ` in ${locationLabel}` : ""}. Join the group on LitterLink.`
+    ),
+    path: `/groups/${group.slug}`,
+  });
 }
 
 export default async function GroupPage({ params }: Props) {
@@ -34,7 +40,12 @@ export default async function GroupPage({ params }: Props) {
     getGroupBySlug(slug),
     createClient(),
   ]);
-  if (!group) notFound();
+  if (!group) {
+    // Renaming a group changes its slug; keep old links and rankings pointing at it.
+    const currentSlug = await getCurrentSlugForOldGroupSlug(slug);
+    if (currentSlug) permanentRedirect(`/groups/${currentSlug}`);
+    notFound();
+  }
 
   const {
     data: { user },

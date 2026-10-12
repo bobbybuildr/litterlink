@@ -6,8 +6,26 @@ import {
   MAX_EVENT_RANGE_DAYS,
   parseEventDateRange,
   parsePage,
+  parsePostcode,
   parseRadiusKm,
 } from "@/lib/search-params";
+
+describe("parsePostcode", () => {
+  it.each([
+    ["SW1A 1AA", "SW1A 1AA"],
+    [" sw1a1aa ", "SW1A1AA"],
+    ["m1 1ae", "M1 1AE"],
+  ])("accepts %j as %j", (raw, expected) => {
+    expect(parsePostcode(raw)).toBe(expected);
+  });
+
+  it.each([undefined, "", "   ", "Buy cheap stuff at spam.example", "SW1A 1AA <b>", "SW1A     1AA"])(
+    "rejects %j",
+    (raw) => {
+      expect(parsePostcode(raw)).toBeNull();
+    }
+  );
+});
 
 describe("parsePage", () => {
   it.each([

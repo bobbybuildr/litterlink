@@ -1,9 +1,16 @@
-import { DEFAULT_RADIUS_KM, RADIUS_OPTIONS } from "@/lib/constants";
+import { DEFAULT_RADIUS_KM, RADIUS_OPTIONS, UK_POSTCODE_PATTERN } from "@/lib/constants";
 
 export const DEFAULT_EVENT_RANGE_DAYS = 7;
 export const MAX_EVENT_RANGE_DAYS = 365;
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Returns the upper-cased postcode only if it is UK-postcode shaped, so arbitrary query text is never echoed. */
+export function parsePostcode(raw: string | undefined): string | null {
+  const trimmed = raw?.trim() ?? "";
+  if (!trimmed || trimmed.length > 10 || !UK_POSTCODE_PATTERN.test(trimmed)) return null;
+  return trimmed.toUpperCase();
+}
 
 export function parsePage(raw: string | undefined): number {
   const n = Number.parseInt(raw ?? "", 10);

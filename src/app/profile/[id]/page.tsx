@@ -29,12 +29,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   ).single();
 
   if (!profile) {
-    return { title: "Profile not found — LitterLink" };
+    return { title: "Profile not found" };
   }
 
   const name = profile.display_name ?? profile.username ?? "LitterLink member";
   return {
-    title: `${name} — LitterLink`,
+    title: name,
     description: profile.bio ?? `View ${name}'s profile on LitterLink.`,
   };
 }

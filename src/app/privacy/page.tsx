@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Privacy Policy",
   description:
     "How LitterLink collects, uses, shares, and protects personal data.",
-};
+  path: "/privacy",
+});
 
 const lastUpdated = "2026-09-24";
 

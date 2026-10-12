@@ -1,6 +1,9 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { signInWithEmail, signInWithGoogle, resendConfirmationEmail } from "@/app/(auth)/actions";
 import { FormSubmitButton } from "@/components/FormSubmitButton";
+
+export const metadata: Metadata = { title: "Sign in" };
 
 interface Props {
   searchParams: Promise<{ error?: string; message?: string; redirectTo?: string; email?: string }>;

@@ -6,9 +6,11 @@ import { ApplicationForm } from "./ApplicationForm";
 import type { OrganiserApplicationRow } from "@/lib/events";
 import { BadgeCheck } from "lucide-react";
 import { FlashBanner } from "@/components/FlashBanner";
+import { NOINDEX } from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: "Become a Verified Organiser",
+  robots: NOINDEX,
 };
 
 const statusMessages: Record<

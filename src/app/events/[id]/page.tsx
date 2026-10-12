@@ -26,6 +26,7 @@ import { CancelEventButton } from "@/components/events/CancelEventButton";
 import { EventPhotosGallery } from "@/components/events/EventPhotosGallery";
 import { PhotoUpload } from "@/components/events/PhotoUpload";
 import { FlashBanner } from "@/components/FlashBanner";
+import { absoluteUrl, metaDescription, pageMetadata } from "@/lib/seo";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -36,20 +37,23 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const event = await getEventById(id);
   if (!event) return { title: "Event not found" };
-  const description =
-    event.description ?? `Join the litter pick at ${event.address_label ?? event.location_postcode}`;
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://litterlink.co.uk";
-  return {
-    title: event.title,
-    description,
-    openGraph: {
-      title: event.title,
-      description,
-      url: `${siteUrl}/events/${id}`,
-      type: "website",
-      siteName: "LitterLink",
-    },
-  };
+  const place = event.location_admin_district ?? event.location_outcode ?? event.location_postcode;
+  const date = new Date(event.starts_at).toLocaleDateString("en-GB", {
+    timeZone: "Europe/London",
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+  // ?back= only restores list filters, so every variant canonicalises to the bare event URL.
+  return pageMetadata({
+    title: `${event.title} – ${place}, ${date}`,
+    description: metaDescription(
+      event.description ??
+        `Join the litter pick at ${event.address_label ?? event.location_postcode} on ${formatDate(event.starts_at)}.`
+    ),
+    path: `/events/${id}`,
+  });
 }
 
 export default async function EventDetailPage({ params, searchParams }: Props) {
@@ -60,8 +64,7 @@ export default async function EventDetailPage({ params, searchParams }: Props) {
   const backHref =
     back && /^\/events(\?[^#]*)?$/.test(back) ? back : "/events";
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://litterlink.co.uk";
-  const eventUrl = `${siteUrl}/events/${id}`;
+  const eventUrl = absoluteUrl(`/events/${id}`);
 
   const [event, supabase] = await Promise.all([
     getEventById(id),

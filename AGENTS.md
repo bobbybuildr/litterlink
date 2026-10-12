@@ -59,6 +59,7 @@ Unit tests are Vitest, co-located as `src/**/*.test.ts`, run in a Node environme
 | `src/lib/input.ts` | `readFormFields()` — the single entry point for free-text form fields (see Input handling below) |
 | `src/lib/html.ts` | `escapeHtml()` — for the few raw-HTML sinks (Leaflet popups) |
 | `src/lib/redirect.ts` | `safeRedirectPath()` — validates every post-auth redirect target (`redirectTo`, `next`, `oauth_redirect`) |
+| `src/lib/seo.ts` | `SITE_URL`, `absoluteUrl()`, `metaDescription()`, `pageMetadata()` (title + canonical + Open Graph), `NOINDEX`/`NOINDEX_FOLLOW`, `hasListingParams()`. Public pages use `pageMetadata()`; filtered/paginated listing variants pass `indexable: false`; private pages/layouts set `robots: NOINDEX`. Never put `alternates` or `openGraph.url` in the root layout — nested metadata fields are inherited |
 | `src/lib/supabase/` | Supabase client factories |
 | `src/types/database.ts` | Hand-written DB types — update when schema changes |
 | `supabase/migrations/` | SQL migration files |
