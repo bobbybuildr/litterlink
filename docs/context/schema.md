@@ -22,6 +22,9 @@ Auto-created on sign-up via a `on_auth_user_created` trigger (reads `raw_user_me
 | `avatar_url` | TEXT \| null | Public URL in `avatars` storage bucket |
 | `is_verified_organiser` | BOOLEAN | Default `false` — set to `true` by admin approval |
 | `is_admin` | BOOLEAN | Default `false` — set manually in DB |
+| `username` | TEXT \| null | Unique; lowercase letters, digits and underscores, 3–30 characters |
+| `bio` | TEXT \| null | Maximum 300 characters |
+| `social_url` | TEXT \| null | Must start with `http://` or `https://` |
 | `created_at` | TIMESTAMPTZ | |
 
 ### `events`
@@ -48,6 +51,7 @@ Auto-created on sign-up via a `on_auth_user_created` trigger (reads `raw_user_me
 | `stats_reminder_sent_at` | TIMESTAMPTZ \| null | Set to `now()` when the stats-reminder cron email is dispatched; NULL means not yet sent |
 | `location_outcode` | TEXT \| null | Postcode outward code / district (e.g. `SW1A`), returned directly by `postcodes.io` as `outcode`. Populated on create/edit. |
 | `location_admin_district` | TEXT \| null | Human-readable local authority / district name from `postcodes.io` (`admin_district`). Populated on create/edit; null if postcodes.io has no admin_district for that postcode. |
+| `content_updated_at` | TIMESTAMPTZ \| null | Set by the application when organiser-visible event content changes; unlike `updated_at`, not changed by system-only updates |
 
 **Indexes:** `organiser_id`, `group_id`, `(status, starts_at)`, `(latitude, longitude)`, `location_outcode`
 
@@ -63,7 +67,9 @@ Auto-created on sign-up via a `on_auth_user_created` trigger (reads `raw_user_me
 | `status` | `participant_status` | Default `'confirmed'` |
 | `joined_at` | TIMESTAMPTZ | |
 
-**Indexes:** `event_id`, `user_id`, composite `(event_id, user_id)`
+**Constraint:** `UNIQUE (event_id, user_id)`
+
+**Indexes:** `event_id`, `user_id`, composite `(event_id, status)`
 
 **DB Trigger:** `enforce_event_capacity` — BEFORE INSERT, raises `SQLSTATE P0001 / 'event_full'` if `confirmed_count >= max_attendees`
 
@@ -74,7 +80,7 @@ One row per event (unique on `event_id`). Written when organiser logs impact aft
 | Column | Type | Notes |
 |---|---|---|
 | `id` | UUID | PK |
-| `event_id` | UUID | Unique FK → `events` |
+| `event_id` | UUID | Unique FK → `events` ON DELETE CASCADE |
 | `bags_collected` | INT \| null | |
 | `actual_attendees` | INT \| null | |
 | `duration_hours` | NUMERIC(4,1) \| null | Must be > 0 |
@@ -82,6 +88,7 @@ One row per event (unique on `event_id`). Written when organiser logs impact aft
 | `hotspot_severity` | SMALLINT \| null | 1–5 scale |
 | `notable_brands` | TEXT \| null | Free-text brand notes |
 | `notes` | TEXT \| null | General organiser notes |
+| `updated_at` | TIMESTAMPTZ | Defaults to `now()` and is auto-updated by trigger |
 
 ### `event_photos`
 
@@ -94,6 +101,8 @@ One row per event (unique on `event_id`). Written when organiser logs impact aft
 | `created_at` | TIMESTAMPTZ | |
 
 **Index:** `event_id`
+
+**DB Trigger:** `enforce_event_photo_limit` — BEFORE INSERT, rejects uploads once the event already has 10 photos
 
 ### `groups`
 
@@ -170,6 +179,34 @@ Auto-created when a profile is created (via `on_profile_created_email_preference
 | `created_at` | TIMESTAMPTZ | |
 | `updated_at` | TIMESTAMPTZ | Auto-updated by trigger |
 
+### `api_rate_limits`
+
+Postgres-backed fixed-window counters for anonymous geocoding API rate limits. Keys contain a bucket and a SHA-256 hash of the client IP; raw IP addresses are not stored.
+
+| Column | Type | Notes |
+|---|---|---|
+| `key` | TEXT | PK |
+| `window_start` | TIMESTAMPTZ | Default `now()` |
+| `request_count` | INTEGER | Default `0` |
+
+**Index:** `window_start`
+
+RLS is enabled with no client policies and all privileges revoked from `anon` and `authenticated`; the service role accesses it through `consume_rate_limit()`. A cron job purges expired counters hourly.
+
+### `group_slug_history`
+
+Records renamed group slugs so requests for old group URLs can permanently redirect to the current slug. Maintained by the `on_group_slug_change` trigger.
+
+| Column | Type | Notes |
+|---|---|---|
+| `slug` | TEXT | PK; former group slug |
+| `group_id` | UUID | FK → `groups` ON DELETE CASCADE |
+| `created_at` | TIMESTAMPTZ | Default `now()`; refreshed if a historical slug is reassigned |
+
+**Index:** `group_id`
+
+RLS permits public reads. When a group takes a slug, any history row for that live slug is removed; on rename, its old slug is recorded.
+
 ## View: `events_with_counts`
 
 Extends `events` with joined profile, group, and participant count data.
@@ -177,23 +214,39 @@ Extends `events` with joined profile, group, and participant count data.
 | Column | Type | Notes |
 |---|---|---|
 | `organiser_name` | TEXT | From joined `profiles.display_name` |
+| `organiser_username` | TEXT | From joined `profiles.username` |
 | `organiser_avatar` | TEXT | From joined `profiles.avatar_url` |
 | `organiser_is_verified` | BOOLEAN | From joined `profiles.is_verified_organiser` |
 | `group_name` | TEXT | From joined `groups.name` |
 | `group_slug` | TEXT | From joined `groups.slug` |
 | `organiser_contact_details` | TEXT | Passed through from `events` |
 | `updated_at` | TIMESTAMPTZ | Passed through from `events` |
+| `content_updated_at` | TIMESTAMPTZ | Passed through from `events` |
 | `confirmed_count` | BIGINT | COUNT of `event_participants` where `status = 'confirmed'` |
 
 All data-fetching helpers in `src/lib/events.ts` query this view, not the raw `events` table.
+The view's explicit column list has not been rebuilt since `location_outcode` and `location_admin_district` were added to `events`, so those two fields are not currently exposed by this view.
+
+## Other Views
+
+These aggregation views use `security_invoker = true`, so underlying table RLS applies:
+
+| View | Columns | Purpose |
+|---|---|---|
+| `groups_with_counts` | Group columns; `creator_is_verified`, `member_count`, `upcoming_event_count`, `activity_score` | Published group discovery and aggregate activity (recent joins ×3, events ×5, confirmed participants ×2 over 30 days) |
+| `national_impact_stats` | `total_bags`, `total_volunteers`, `total_hours` | Pre-aggregated national litter-picking impact totals |
+| `litter_type_counts` | `litter_type`, `count` | Frequency of each recorded litter type |
 
 ## SQL Function
 
 ```sql
 haversine_distance(lat1 FLOAT, lon1 FLOAT, lat2 FLOAT, lon2 FLOAT) RETURNS FLOAT
+consume_rate_limit(p_key TEXT, p_limit INTEGER, p_window_seconds INTEGER) RETURNS INTEGER
 ```
 
 Returns distance in kilometres using the Haversine formula. IMMUTABLE. Used for proximity filtering (though the app currently also implements this client-side in `src/lib/events.ts`).
+
+`consume_rate_limit` atomically increments a fixed-window counter. It returns `0` when allowed, otherwise the seconds until the window resets; execution is granted only to `service_role`.
 
 ## DB Triggers
 
@@ -203,15 +256,25 @@ Returns distance in kilometres using the Haversine formula. IMMUTABLE. Used for 
 | `on_profile_created_email_preferences` | `profiles` | Auto-creates an `email_preferences` row with defaults |
 | `on_email_preferences_updated` | `email_preferences` | Keeps `updated_at` current |
 | `enforce_event_capacity` | `event_participants` | BEFORE INSERT — raises `P0001/event_full` if `confirmed_count >= max_attendees` |
+| `enforce_event_photo_limit` | `event_photos` | BEFORE INSERT — rejects inserts when the event already has 10 photos |
 | `events_set_updated_at` | `events` | BEFORE UPDATE — sets `updated_at = now()` |
+| `event_stats_set_updated_at` | `event_stats` | BEFORE UPDATE — sets `updated_at = now()` |
 | `enforce_creator_cannot_leave` | `group_members` | BEFORE DELETE — raises `P0001` if the row being deleted belongs to the group creator |
 | `on_group_created_enrol_organiser` | `groups` | AFTER INSERT — inserts a `group_members` row for `created_by` with `role = 'organiser'`. Runs `SECURITY DEFINER` to bypass the self-insert RLS policy, which only permits `role = 'member'` |
+| `on_group_slug_change` | `groups` | AFTER INSERT or slug UPDATE — clears history for the current slug and records the previous slug on rename |
+
+## Scheduled Database Jobs
+
+| Job | Schedule | Purpose |
+|---|---|---|
+| `stats-reminder-4h` | Every 4 hours | Calls the `send-event-reminders` Edge Function |
+| `purge-api-rate-limits` | Hourly | Deletes rate-limit windows older than one hour |
 
 ## Storage Buckets
 
 ### `event-photos` (public)
 - Path pattern: `{event_id}/{user_id}/{filename}`
-- RLS: public read, authenticated upload, owner delete (matched by second path segment)
+- RLS: public read; upload restricted to the event organiser for completed events, with the user ID in the second path segment; uploader-only delete
 
 ### `avatars` (public, 5 MB limit, JPEG/PNG/WebP only)
 - Path pattern: `{user_id}/avatar.{ext}`
@@ -228,12 +291,14 @@ Returns distance in kilometres using the Haversine formula. IMMUTABLE. Used for 
 | `profiles` | Public | Owner only; admin can update |
 | `events` | Public (published/completed; organiser sees own drafts) | Organiser only; delete only for drafts; admins can also update (e.g. cancel) |
 | `event_participants` | Own rows + organiser sees all for their events; confirmed rows public | Self |
-| `event_stats` | Organiser only | Organiser only |
-| `event_photos` | Public | Authenticated upload; owner delete |
+| `event_stats` | Public | Organiser only |
+| `event_photos` | Public | Insert: event organiser only, for completed events; delete: uploader only |
 | `groups` | Public | Verified organiser (creator) only; delete also allowed for admins |
 | `group_members` | Public | Insert (self only, `role = 'member'` enforced by RLS); Delete (self, blocked for creators by trigger); Update role: group organiser or admin |
 | `organiser_applications` | Owner sees own; admin sees all | Owner insert; admin update |
 | `email_preferences` | Owner only | Owner only |
+| `api_rate_limits` | No client access | Service role only, through `consume_rate_limit()` |
+| `group_slug_history` | Public | Trigger-maintained |
 
 ## TypeScript Types
 
