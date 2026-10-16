@@ -3,7 +3,7 @@
 **Date:** 4 October 2026
 **Scope:** Technical SEO across `src/app/`, `src/components/`, `src/lib/`, `src/proxy.ts`, `robots.ts`, `sitemap.ts`, metadata and routing. Next.js 16 behaviour was checked against the installed docs in `node_modules/next/dist/docs/`.
 **Public routes in scope:** `/`, `/events`, `/events/[id]`, `/groups`, `/groups/[slug]`, `/impact`, `/privacy`, `/terms`
-**Status:** W1–W4 implemented (W4: default image, X card and generated event images 15 October 2026; generated group images and the `events_with_counts` place-name fix 16 October 2026). Migration `0038` must be applied before event titles show place names (see Deployment notes). `npm test` (188 tests), `npm run typecheck`, `npm run lint` and `npm run build` all pass. Rendered `<head>` output was verified against a local production build using a Googlebot user agent.
+**Status:** W1–W5 implemented (W4: default image, X card and generated event images 15 October 2026; generated group images and the `events_with_counts` place-name fix 16 October 2026; W5: complete sitemap 16 October 2026). Migration `0038` has been applied, so event titles now show place names. `npm test` (204 tests), `npm run typecheck`, `npm run lint` and `npm run build` all pass. Rendered `<head>` output, `sitemap.xml` and `robots.txt` were verified against a local production build using a Googlebot user agent.
 
 ## Summary
 
@@ -21,8 +21,8 @@ All critical issues are now fixed. The remaining work is mainly enhancement: str
 | Severity | Total | Fixed | Partially fixed | Open |
 |---|---|---|---|---|
 | Critical | 5 | 5 | 0 | 0 |
-| High | 10 | 7 | 2 | 1 |
-| Medium | 9 | 1 | 1 | 7 |
+| High | 10 | 8 | 1 | 1 |
+| Medium | 9 | 1 | 2 | 6 |
 
 ### Workstreams
 
@@ -31,8 +31,8 @@ All critical issues are now fixed. The remaining work is mainly enhancement: str
 | W1 | Indexing controls | ✅ Done |
 | W2 | Titles and shared metadata | ✅ Done |
 | W3 | Canonical URLs and query-parameter duplicates | ✅ Done |
-| W4 | Open Graph, X and share images | ✅ Done (apply migration `0038`) |
-| W5 | Sitemap and robots | In progress (robots done) |
+| W4 | Open Graph, X and share images | ✅ Done |
+| W5 | Sitemap and robots | ✅ Done |
 | W6 | Structured data (JSON-LD) | Open |
 | W7 | Internal linking, content and headings | Open |
 | W8 | Core Web Vitals | Open |
@@ -41,14 +41,12 @@ All critical issues are now fixed. The remaining work is mainly enhancement: str
 
 ## Deployment notes
 
-1. **Apply migrations `0037_group_slug_history.sql` and `0038_events_with_counts_location_display.sql`** (`supabase db push`). Neither breaks anything if deployed late:
-   - Until `0037` is applied, the old-slug lookup finds nothing and renamed groups return 404 as before.
-   - Until `0038` is applied, event titles and share cards keep falling back to the postcode, as before.
-2. **Remove the `COMING_SOON` environment variable** from the hosting provider. Nothing reads it any more.
-3. After deploying, check the following in Google Search Console:
-   - Submit `sitemap.xml`.
-   - Use URL Inspection on `/`, an event page and a group page.
-   - Look in the Pages report for "Duplicate without user-selected canonical" and "Indexed, though blocked by robots.txt".
+1. **Migrations:** `0037_group_slug_history.sql` and `0038_events_with_counts_location_display.sql` have both been applied. No migrations are outstanding.
+2. **`COMING_SOON` environment variable:** removed from the hosting provider. Nothing reads it any more.
+3. **Google Search Console:**
+   - ✅ `sitemap.xml` submitted (16 October 2026).
+   - Still to do: use URL Inspection on `/`, an event page and a group page.
+   - Still to do: look in the Pages report for "Duplicate without user-selected canonical" and "Indexed, though blocked by robots.txt".
 
 ---
 
@@ -108,7 +106,7 @@ Only `/`, `/events` and `/events/*` redirected. Groups, impact, auth and legal p
 
 **Resolution:** the site has launched, so coming-soon mode has been removed entirely:
 - The `/coming-soon` route is deleted (it now returns 404; it was always `noindex`, so nothing indexed is lost).
-- `isComingSoon()` and the `COMING_SOON` flag are gone.
+- `isComingSoon()` and the `COMING_SOON` flag are gone, and the variable has been removed from the hosting provider.
 - The proxy no longer redirects or adds `X-Robots-Tag`.
 - `sitemap.ts` always lists URLs and `robots.ts` always includes the `Sitemap:` line.
 
@@ -144,16 +142,30 @@ These routes relied only on auth redirects.
 - Profile links on public pages (`events/[id]` organiser and attendees, `groups/[slug]` members, `impact` top organisers) have `rel="nofollow"`.
 - Rule to keep: never disallow a route that relies on `noindex`.
 
-### H3 — The sitemap is incomplete and truncates at 1,000 events — Partially fixed (W5)
+### H3 — ~~The sitemap is incomplete and truncates at 1,000 events~~ ✅ Fixed (W5)
 
-**Location:** `src/app/sitemap.ts`
+**Location:** `src/app/sitemap.ts`, `src/lib/sitemap.ts`, `src/lib/events.ts`, `src/lib/legal.ts`
 
-Still outstanding:
-- Add `/groups`, `/groups/{slug}`, `/impact`, `/privacy` and `/terms`.
-- Paginate the event query with `.range()` (PostgREST caps responses at 1,000 rows).
-- Stop reporting `lastModified: new Date()` for static pages.
-- Consider leaving out stale past events that were never wrapped up.
-- Plan for `generateSitemaps()` beyond about 50k URLs.
+The sitemap listed only `/`, `/events` and events. It used one unpaginated query, so PostgREST cut it off at 1,000 rows. It stamped `new Date()` on static pages and dated events from `updated_at`, which the trigger also bumps on system-only writes (stats-reminder and reschedule bookkeeping).
+
+**Resolution:**
+- **Coverage:** `/`, `/events`, `/groups`, `/impact`, `/privacy`, `/terms`, every listed event and every `/groups/{slug}`. Group slugs are URL-encoded. These are exactly the pages that have a canonical.
+- **Pagination:** `getSitemapData()` in `src/lib/events.ts` reads events, `event_stats` and groups in 1,000-row `.range()` pages ordered by a unique key. Unlike the older list helpers, it throws on a query error. A failed query returns a 500, which crawlers retry, instead of a truncated sitemap.
+- **`lastModified` only where it reflects a real change:**
+
+  | Entry | `lastModified` |
+  |---|---|
+  | `/events/{id}` | Latest of `created_at`, `content_updated_at` (organiser edits) and the event's `event_stats.updated_at`. `updated_at` is deliberately ignored |
+  | `/events` | Latest of the listed events |
+  | `/` and `/impact` | Latest `event_stats.updated_at`, since both show stats totals |
+  | `/privacy`, `/terms` | The page's "Last updated" date. Both now come from `src/lib/legal.ts`, so the page and the sitemap can't drift |
+  | `/groups`, `/groups/{slug}` | Omitted: groups have no edit timestamp, and Google prefers no `lastmod` to a wrong one |
+
+- `changeFrequency` and `priority` were removed. Google ignores both, and the old values (`weekly` for finished events) were misleading.
+- **Stale events:** published events that started more than 14 days ago (`STALE_EVENT_GRACE_DAYS`) were never wrapped up, so they are left out. Completed events stay listed. Drafts and cancelled events stay excluded. Organisers get the stats reminder 12 hours after the start, so 14 days leaves plenty of time to wrap up before an event drops out. See M4 for the page-level `noindex`.
+- **Scale:** a single sitemap holds up to 50,000 URLs (`SITEMAP_URL_LIMIT`). The route logs a warning if it goes over. At that point, split it with `generateSitemaps()`. In Next 16 that serves `/sitemap/{id}.xml` with no automatic index, so `robots.ts` would need to list each file.
+- The route still renders per request because the Supabase server client reads cookies. That avoids a database dependency at build time and keeps it fresh.
+- Unit tests (`src/lib/sitemap.test.ts`) cover coverage, stale-event rules, `lastModified` derivation and the empty-data case.
 
 ### H4 — ~~Weak, generic or doubled titles~~ ✅ Fixed (W2)
 
@@ -183,7 +195,7 @@ Still outstanding:
 **Done — event place name (16 October 2026):**
 - **Cause (found during W4):** `events_with_counts` lists its columns explicitly (migration `0024`) and was never rebuilt after `0031` added `location_outcode` and `location_admin_district`.
   - As a result, `{district}` in event titles always fell back to the postcode, even though the TypeScript type includes both fields.
-- **Migration `0038_events_with_counts_location_display.sql`** adds both columns to the view.
+- **Migration `0038_events_with_counts_location_display.sql`** adds both columns to the view. It has been applied.
   - It uses `CREATE OR REPLACE VIEW` rather than `DROP` + `CREATE`, so the view is never missing and its grants and `security_invoker = true` are kept. The existing columns are unchanged and the two new ones are appended at the end, as Postgres requires.
   - Checked in PGlite (Postgres compiled to WASM): applied on top of `0024` + `0031`, re-run cleanly, kept `security_invoker=true` and the `anon`/`authenticated` `SELECT` grants, and returned both fields.
   - No app change is needed to read the fields: the view-backed `EventWithCount` type already includes them through `EventRow`.
@@ -289,7 +301,7 @@ Still outstanding:
 Renaming a group regenerated its slug, and the old URL returned 404.
 
 **Resolution:**
-- Migration `0037_group_slug_history.sql` adds a `group_slug_history` table (public read via RLS).
+- Migration `0037_group_slug_history.sql` adds a `group_slug_history` table (public read via RLS). It has been applied.
 - A `SECURITY DEFINER` trigger, `on_group_slug_change`, records the old slug on rename. It also deletes any history row whose slug is taken by a live group, so a live group always takes priority.
 - `getCurrentSlugForOldGroupSlug()` in `src/lib/events.ts` resolves old slugs, and the group page calls `permanentRedirect()` (308) to the current slug.
 - Types are added to `src/types/database.ts`.
@@ -340,9 +352,13 @@ Renaming a group regenerated its slug, and the old URL returned 404.
 - It also loads full-size images into 160px tiles with a raw `<img>`. Switch to `next/image` with `sizes`.
 - Member-chip avatar alt text on group pages repeats the visible name; set it to `""`.
 
-### M4 — Thin past events — Open (W2/W5)
+### M4 — Thin past events — Partially fixed (W5)
 
-Past `published` events that were never wrapped up only say "This event has finished". Consider `noindex` after N days without stats, and leaving them out of the sitemap.
+Past `published` events that were never wrapped up only say "This event has finished".
+
+**Done (W5):** they are left out of the sitemap 14 days after they start (`isSitemapEvent()` in `src/lib/sitemap.ts`).
+
+**Open:** the event page itself is still indexable. To finish, apply the same predicate in `events/[id]/page.tsx` `generateMetadata` (`indexable: false`), so the page and the sitemap agree.
 
 ### M5 — ~~Language and locale~~ ✅ Fixed (W2)
 
@@ -391,7 +407,7 @@ Both go through the Supabase session refresh. Exclude `robots.txt|sitemap.xml|ma
 
 ---
 
-## Work completed (W1–W4)
+## Work completed (W1–W5)
 
 ### New files
 
@@ -412,6 +428,8 @@ Both go through the Supabase session refresh. Exclude `robots.txt|sitemap.xml|ma
 | `src/app/profile/layout.tsx` | `noindex, nofollow` for `/profile` and `/profile/[id]` |
 | `supabase/migrations/0037_group_slug_history.sql` | Old-slug history table, RLS, and the maintenance trigger |
 | `supabase/migrations/0038_events_with_counts_location_display.sql` | Adds `location_outcode` and `location_admin_district` to `events_with_counts` (W4) |
+| `src/lib/sitemap.ts` (+ test) | `buildSitemap()`, `isSitemapEvent()` (stale-event rule), `eventLastModified()`, `STALE_EVENT_GRACE_DAYS`, `SITEMAP_URL_LIMIT` (W5) |
+| `src/lib/legal.ts` | `TERMS_LAST_UPDATED`, `PRIVACY_LAST_UPDATED`, `formatLegalDate()`, shared by the legal pages and the sitemap (W5) |
 
 ### Modified files
 
@@ -419,23 +437,24 @@ Both go through the Supabase session refresh. Exclude `robots.txt|sitemap.xml|ma
 |---|---|
 | `src/app/layout.tsx` | Root metadata from `@/lib/seo`; removed `og:url`/`og:title`; `lang="en-GB"`; `twitter: TWITTER_DEFAULTS` (W4) |
 | `src/proxy.ts` | Coming-soon handling removed; uses `SITE_URL` |
-| `src/app/robots.ts` | Uses `absoluteUrl()`; coming-soon handling removed |
-| `src/app/sitemap.ts` | Uses `SITE_URL`; coming-soon handling removed |
+| `src/app/robots.ts` | Uses `absoluteUrl()`; coming-soon handling removed; disallows `/api/`, no longer `/profile` (W5) |
+| `src/app/sitemap.ts` | Uses `SITE_URL`; coming-soon handling removed; now a thin wrapper around `getSitemapData()` and `buildSitemap()`, with a warning over 50,000 URLs (W5) |
 | `src/app/coming-soon/page.tsx` | Deleted |
 | `src/app/page.tsx` | Homepage `pageMetadata()` with an absolute title and canonical `/` |
 | `src/app/events/(browse)/page.tsx` | `generateMetadata` with listing `noindex`; `parsePostcode()`; `PaginationLink` |
 | `src/app/groups/(browse)/page.tsx` | Same as `/events` |
 | `src/app/impact/page.tsx` | `generateMetadata` with period-parameter `noindex` |
+| `src/lib/impact.ts` | "Top areas" uses `districtName()` for its labels (W4) |
 | `src/app/events/[id]/page.tsx` | Descriptive title, trimmed description, canonical, Open Graph; `absoluteUrl()` for the share URL; `defaultImage: false` so the generated image applies; `districtName()` for the title place (W4) |
 | `src/lib/events.ts` | `getEventById` and `getGroupBySlug` wrapped in React `cache()` (W4) |
 | `src/app/groups/[slug]/page.tsx` | Descriptive metadata and canonical; 308 redirect for old slugs; `defaultImage: false` so the generated image applies (W4) |
-| `src/app/privacy/page.tsx`, `src/app/terms/page.tsx` | `pageMetadata()` with canonicals; fixed the doubled terms title |
+| `src/app/privacy/page.tsx`, `src/app/terms/page.tsx` | `pageMetadata()` with canonicals; fixed the doubled terms title; "Last updated" date from `src/lib/legal.ts` (W5) |
 | `src/app/(auth)/*/page.tsx` | Distinct titles |
 | `src/app/admin/layout.tsx` | `robots: NOINDEX` |
 | `events/create`, `events/[id]/edit`, `events/[id]/stats`, `groups/create`, `groups/[slug]/edit`, `become-a-verified-organiser` | `robots: NOINDEX` |
 | `src/app/profile/page.tsx`, `src/app/profile/[id]/page.tsx` | Fixed doubled title suffixes |
 | `src/lib/search-params.ts` (+ test) | `parsePostcode()` |
-| `src/lib/events.ts` | `getCurrentSlugForOldGroupSlug()` |
+| `src/lib/events.ts` | `getCurrentSlugForOldGroupSlug()`; `getSitemapData()` with a throwing, paginated `fetchAllRows()` (W5) |
 | `src/types/database.ts` | `group_slug_history` table type |
 | `AGENTS.md` | Documents `src/lib/seo.ts` and the metadata conventions |
 
@@ -470,6 +489,9 @@ Both go through the Supabase session refresh. Exclude `robots.txt|sitemap.xml|ma
 | `/groups/{slug}` for a short-name and a long-name group (W4) | One `og:image` and `twitter:image` each → `/groups/{slug}/opengraph-image?<hash>` (1200×630, `image/png`, alt text); `twitter:card` `summary_large_image` |
 | `/groups/{slug}/opengraph-image` (W4) | `200`, `image/png`, about 940 KB, about 0.9–1.4 s; `Cache-Control: public, max-age=0, must-revalidate` |
 | `/groups/{unknown}/opengraph-image` (W4) | `404` |
+| `/sitemap.xml` (W5) | `200`, `application/xml`, 149 URLs: 6 site pages, 134 events, 9 groups. Static pages carry derived or "Last updated" `lastmod` values (no request-time stamps); `/groups` and group pages carry none. Sampled event and group URLs return `200` |
+| `/robots.txt` (W5) | `Allow: /`; disallows `/dashboard`, `/admin`, `/auth` and `/api/`; `Sitemap:` line points at `/sitemap.xml` |
+| `/terms`, `/privacy` (W5) | "Last updated" text unchanged: 3 April 2026 / 24 September 2026 |
 
 ---
 
@@ -480,10 +502,10 @@ Both go through the Supabase session refresh. Exclude `robots.txt|sitemap.xml|ma
    - ~~`twitter` card in the root layout.~~ Done.
    - ~~Dynamic `opengraph-image.tsx` for events and groups.~~ Done (see H6).
    - ~~`cache()` around `getEventById` and `getGroupBySlug`.~~ Done.
-   - ~~Expose `location_outcode` and `location_admin_district` in `events_with_counts`.~~ Done in migration `0038`, which still needs applying (see H5).
-2. **W5 – Sitemap and robots:**
-   - Add groups, `/groups`, `/impact` and the legal pages.
-   - `.range()` pagination; real `lastModified`; drop stale, never-wrapped-up events.
+   - ~~Expose `location_outcode` and `location_admin_district` in `events_with_counts`.~~ Done in migration `0038`, now applied (see H5).
+2. ~~**W5 – Sitemap and robots:**~~ ✅ Done:
+   - ~~Add groups, `/groups`, `/impact` and the legal pages.~~ Done (see H3).
+   - ~~`.range()` pagination; real `lastModified`; drop stale, never-wrapped-up events.~~ Done (see H3 and M4).
    - ~~Disallow `/api/`; resolve the `/profile` disallow (H2).~~ Done.
 3. **W6 – JSON-LD:**
    - `jsonLd()` serialiser with tests.
@@ -500,4 +522,4 @@ Both go through the Supabase session refresh. Exclude `robots.txt|sitemap.xml|ma
    - Homepage stats from `national_impact_stats`; proxy matcher exclusions (M9).
 6. **Tidy-ups:**
    - Move the remaining inline site URLs in `(auth)/actions.ts` and `email.ts` to `SITE_URL` (M8).
-   - Thin-event `noindex` policy (M4).
+   - Thin-event `noindex` on the page itself, reusing `isSitemapEvent()` (M4; sitemap exclusion is done).

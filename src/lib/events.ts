@@ -340,6 +340,47 @@ export async function getEventPhotos(eventId: string): Promise<EventPhotoRow[]> 
   return (data ?? []) as EventPhotoRow[];
 }
 
+/**
+ * Every row across PostgREST's per-request cap. Throws on error so callers fail outright rather than publish a
+ * silently truncated result.
+ */
+async function fetchAllRows<T>(
+  label: string,
+  fetchPage: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>
+): Promise<T[]> {
+  const rows: T[] = [];
+  for (let from = 0; ; from += POSTGREST_MAX_ROWS) {
+    const { data, error } = await fetchPage(from, from + POSTGREST_MAX_ROWS - 1);
+    if (error || !data) throw new Error(`[${label}] ${error?.message ?? "no data returned"}`);
+    rows.push(...data);
+    if (data.length < POSTGREST_MAX_ROWS) return rows;
+  }
+}
+
+/** Public rows needed to build `sitemap.xml`; see `buildSitemap()` in `@/lib/sitemap` for what gets listed. */
+export async function getSitemapData() {
+  const supabase = await createClient();
+
+  const [events, eventStats, groups] = await Promise.all([
+    fetchAllRows("sitemap events", (from, to) =>
+      supabase
+        .from("events")
+        .select("id, status, starts_at, created_at, content_updated_at")
+        .in("status", ["published", "completed"])
+        .order("id")
+        .range(from, to)
+    ),
+    fetchAllRows("sitemap event_stats", (from, to) =>
+      supabase.from("event_stats").select("event_id, updated_at").order("event_id").range(from, to)
+    ),
+    fetchAllRows("sitemap groups", (from, to) =>
+      supabase.from("groups").select("slug").order("id").range(from, to)
+    ),
+  ]);
+
+  return { events, eventStats, groups };
+}
+
 // Haversine distance in km
 export function haversineKm(
   lat1: number,

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { pageMetadata } from "@/lib/seo";
+import { formatLegalDate, TERMS_LAST_UPDATED } from "@/lib/legal";
 
 export const metadata: Metadata = pageMetadata({
   title: "Terms & Conditions",
@@ -8,14 +9,12 @@ export const metadata: Metadata = pageMetadata({
   path: "/terms",
 });
 
-const lastUpdated = "2026-04-03";
-
 export default function TermsPage() {
   return (
     <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
       <div className="rounded-3xl border border-brand/15 bg-brand/5 p-8 shadow-sm">
         <p className="text-sm font-medium text-brand">
-          Last updated <time dateTime={lastUpdated}>3 April 2026</time>
+          Last updated <time dateTime={TERMS_LAST_UPDATED}>{formatLegalDate(TERMS_LAST_UPDATED)}</time>
         </p>
         <h1 className="mt-3 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
           Terms &amp; Conditions

@@ -1,35 +1,15 @@
 import type { MetadataRoute } from "next";
-import { createClient } from "@/lib/supabase/server";
-import { SITE_URL as siteUrl } from "@/lib/seo";
+import { getSitemapData } from "@/lib/events";
+import { buildSitemap, SITEMAP_URL_LIMIT } from "@/lib/sitemap";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const supabase = await createClient();
+  const entries = buildSitemap(await getSitemapData());
 
-  const { data: events } = await supabase
-    .from("events")
-    .select("id, updated_at, created_at")
-    .in("status", ["published", "completed"]);
+  if (entries.length > SITEMAP_URL_LIMIT) {
+    console.warn(
+      `[sitemap] ${entries.length} URLs exceeds the ${SITEMAP_URL_LIMIT}-URL limit; split it with generateSitemaps().`
+    );
+  }
 
-  const eventUrls: MetadataRoute.Sitemap = (events ?? []).map((event) => ({
-    url: `${siteUrl}/events/${event.id}`,
-    lastModified: new Date(event.updated_at ?? event.created_at),
-    changeFrequency: "weekly",
-    priority: 0.8,
-  }));
-
-  return [
-    {
-      url: siteUrl,
-      lastModified: new Date(),
-      changeFrequency: "daily",
-      priority: 1,
-    },
-    {
-      url: `${siteUrl}/events`,
-      lastModified: new Date(),
-      changeFrequency: "daily",
-      priority: 0.9,
-    },
-    ...eventUrls,
-  ];
+  return entries;
 }
