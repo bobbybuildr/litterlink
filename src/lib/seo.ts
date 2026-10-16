@@ -5,10 +5,31 @@ export const SITE_NAME = "LitterLink";
 export const DEFAULT_DESCRIPTION =
   "Find and join local litter-picking events near you. Track your impact and help keep communities clean.";
 
-export const OPEN_GRAPH_DEFAULTS = {
+/** Served by the `src/app/opengraph-image.png` file convention. */
+export const DEFAULT_SHARE_IMAGE = {
+  url: "/opengraph-image.png",
+  width: 1200,
+  height: 630,
+  type: "image/png",
+  alt: "LitterLink — find local litter picks near you. Join community cleanups across the UK.",
+} as const;
+
+const OPEN_GRAPH_BASE = {
   siteName: SITE_NAME,
   type: "website",
   locale: "en_GB",
+} as const;
+
+// Pages that set `openGraph` replace the whole object, so the share image lives here rather than relying on
+// the root file convention. X falls back to `openGraph.images` when `twitter.images` isn't set.
+export const OPEN_GRAPH_DEFAULTS = {
+  ...OPEN_GRAPH_BASE,
+  images: DEFAULT_SHARE_IMAGE,
+} as const;
+
+export const TWITTER_DEFAULTS = {
+  card: "summary_large_image",
+  site: "@litterlink_",
 } as const;
 
 /** Private/account pages: keep out of the index and don't pass link signals. */
@@ -27,6 +48,12 @@ export function metaDescription(text: string, max = 155): string {
   const cut = clean.slice(0, max - 1);
   const lastSpace = cut.lastIndexOf(" ");
   return `${(lastSpace > max / 2 ? cut.slice(0, lastSpace) : cut).replace(/[\s.,;:–-]+$/, "")}…`;
+}
+
+/** postcodes.io returns some districts in the inverted ONS form, e.g. "Bristol, City of" → "Bristol". */
+export function districtName(adminDistrict: string | null | undefined): string | null {
+  const name = adminDistrict?.replace(/,\s*(City|County) of$/i, "").trim();
+  return name || null;
 }
 
 type SearchParamValue = string | string[] | undefined;
@@ -51,6 +78,11 @@ interface PageMetadataOptions {
   absoluteTitle?: boolean;
   /** Filtered/paginated variants: noindex,follow and no canonical (Google advises against mixing the two). */
   indexable?: boolean;
+  /**
+   * Set false on routes with their own `opengraph-image.*` file: Next only applies a file-based image when the
+   * route's metadata leaves `openGraph.images` unset.
+   */
+  defaultImage?: boolean;
 }
 
 /** Title, description, canonical and Open Graph for an indexable public page. */
@@ -60,6 +92,7 @@ export function pageMetadata({
   path,
   absoluteTitle = false,
   indexable = true,
+  defaultImage = true,
 }: PageMetadataOptions): Metadata {
   return {
     title: absoluteTitle ? { absolute: title } : title,
@@ -67,6 +100,6 @@ export function pageMetadata({
     ...(indexable
       ? { alternates: { canonical: path } }
       : { robots: NOINDEX_FOLLOW }),
-    openGraph: { ...OPEN_GRAPH_DEFAULTS, title, description, url: path },
+    openGraph: { ...(defaultImage ? OPEN_GRAPH_DEFAULTS : OPEN_GRAPH_BASE), title, description, url: path },
   };
 }

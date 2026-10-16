@@ -3,7 +3,7 @@
 **Date:** 4 October 2026
 **Scope:** Technical SEO across `src/app/`, `src/components/`, `src/lib/`, `src/proxy.ts`, `robots.ts`, `sitemap.ts`, metadata and routing. Next.js 16 behaviour was checked against the installed docs in `node_modules/next/dist/docs/`.
 **Public routes in scope:** `/`, `/events`, `/events/[id]`, `/groups`, `/groups/[slug]`, `/impact`, `/privacy`, `/terms`
-**Status:** W1–W3 implemented. `npm test` (166 tests), `npm run typecheck`, `npm run lint` and `npm run build` all pass. Rendered `<head>` output was verified against a local production build using a Googlebot user agent.
+**Status:** W1–W4 implemented (W4: default image, X card and generated event images 15 October 2026; generated group images and the `events_with_counts` place-name fix 16 October 2026). Migration `0038` must be applied before event titles show place names (see Deployment notes). `npm test` (188 tests), `npm run typecheck`, `npm run lint` and `npm run build` all pass. Rendered `<head>` output was verified against a local production build using a Googlebot user agent.
 
 ## Summary
 
@@ -16,12 +16,12 @@ The serious gaps were about **indexing control and duplication**:
 - No page had a canonical URL.
 - Coming-soon mode only hid part of the site. (The mode has since been removed entirely; see C5.)
 
-All critical issues are now fixed. The remaining work is mainly enhancement: share images, structured data, sitemap coverage, internal linking and performance.
+All critical issues are now fixed. The remaining work is mainly enhancement: structured data, sitemap coverage, internal linking and performance.
 
 | Severity | Total | Fixed | Partially fixed | Open |
 |---|---|---|---|---|
 | Critical | 5 | 5 | 0 | 0 |
-| High | 10 | 5 | 3 | 2 |
+| High | 10 | 7 | 2 | 1 |
 | Medium | 9 | 1 | 1 | 7 |
 
 ### Workstreams
@@ -31,7 +31,7 @@ All critical issues are now fixed. The remaining work is mainly enhancement: sha
 | W1 | Indexing controls | ✅ Done |
 | W2 | Titles and shared metadata | ✅ Done |
 | W3 | Canonical URLs and query-parameter duplicates | ✅ Done |
-| W4 | Open Graph, X and share images | Open |
+| W4 | Open Graph, X and share images | ✅ Done (apply migration `0038`) |
 | W5 | Sitemap and robots | In progress (robots done) |
 | W6 | Structured data (JSON-LD) | Open |
 | W7 | Internal linking, content and headings | Open |
@@ -41,7 +41,9 @@ All critical issues are now fixed. The remaining work is mainly enhancement: sha
 
 ## Deployment notes
 
-1. **Apply migration `0037_group_slug_history.sql`** (`supabase db push`). Until it is applied, the old-slug lookup finds nothing and renamed groups return 404 as before; nothing errors.
+1. **Apply migrations `0037_group_slug_history.sql` and `0038_events_with_counts_location_display.sql`** (`supabase db push`). Neither breaks anything if deployed late:
+   - Until `0037` is applied, the old-slug lookup finds nothing and renamed groups return 404 as before.
+   - Until `0038` is applied, event titles and share cards keep falling back to the postcode, as before.
 2. **Remove the `COMING_SOON` environment variable** from the hosting provider. Nothing reads it any more.
 3. After deploying, check the following in Google Search Console:
    - Submit `sitemap.xml`.
@@ -165,7 +167,7 @@ Still outstanding:
 | `/profile` | Your Profile — LitterLink \| LitterLink | Your Profile \| LitterLink |
 | `/profile/[id]` | {name} — LitterLink \| LitterLink | {name} \| LitterLink |
 
-### H5 — Event and group metadata incomplete — Partially fixed (W2 done, W4 open)
+### H5 — ~~Event and group metadata incomplete~~ ✅ Fixed (W2/W4)
 
 **Location:** `src/app/events/[id]/page.tsx`, `src/app/groups/[slug]/page.tsx`
 
@@ -174,20 +176,93 @@ Still outstanding:
 - Group titles are now `{name} – Litter Picking Group`.
 - Descriptions go through `metaDescription()`, which collapses whitespace and cuts on a word boundary at about 155 characters. Fallbacks are more informative.
 - Both pages have a canonical and full Open Graph URL, title and description.
+- Event and group pages have generated share images (see H6).
+- `getEventById` and `getGroupBySlug` are wrapped in React `cache()`, so `generateMetadata` and the page share one query per request.
+  - The share image is a separate HTTP request, so it still runs its own query.
 
-**Open (W4):**
-- Share images.
-- Wrap `getEventById` and `getGroupBySlug` in React `cache()`. Both are currently called twice per request, once by `generateMetadata` and once by the page.
+**Done — event place name (16 October 2026):**
+- **Cause (found during W4):** `events_with_counts` lists its columns explicitly (migration `0024`) and was never rebuilt after `0031` added `location_outcode` and `location_admin_district`.
+  - As a result, `{district}` in event titles always fell back to the postcode, even though the TypeScript type includes both fields.
+- **Migration `0038_events_with_counts_location_display.sql`** adds both columns to the view.
+  - It uses `CREATE OR REPLACE VIEW` rather than `DROP` + `CREATE`, so the view is never missing and its grants and `security_invoker = true` are kept. The existing columns are unchanged and the two new ones are appended at the end, as Postgres requires.
+  - Checked in PGlite (Postgres compiled to WASM): applied on top of `0024` + `0031`, re-run cleanly, kept `security_invoker=true` and the `anon`/`authenticated` `SELECT` grants, and returned both fields.
+  - No app change is needed to read the fields: the view-backed `EventWithCount` type already includes them through `EventRow`.
+- **`districtName()`** in `src/lib/seo.ts` turns the inverted ONS names that postcodes.io returns for some areas into readable ones: "Bristol, City of" → "Bristol", "Kingston upon Hull, City of" → "Kingston upon Hull", "Herefordshire, County of" → "Herefordshire". Other names, such as "City of Edinburgh", are left as they are.
+  - Without it, a title would read "Park tidy – Bristol, City of, Sat 24 Oct 2026".
+  - Event titles now use `districtName(location_admin_district) ?? location_outcode ?? location_postcode`.
+- **Event share card:** the pin line shows the meeting point followed by the district, unless the meeting point already names it.
+  - "Sanders Park" → "Sanders Park, Bromsgrove"
+  - "B61 7DR" (no address label) → "B61 7DR, Bromsgrove"
+  - "Sanders Park, Bromsgrove" is left as is.
+  - postcodes.io only gives a district, not a county, so the card shows "Bromsgrove" rather than "Bromsgrove, Worcestershire".
+- Unit tests cover `districtName()` and the share-card place line.
+- The impact page's "Top areas" (`src/lib/impact.ts`) also groups and labels by `districtName()`, so it shows "Bristol" rather than "Bristol, City of".
 
-### H6 — No share images or X card metadata — Open (W4)
+### H6 — ~~No share images or X card metadata~~ ✅ Fixed (W4)
 
-**Location:** `src/app/layout.tsx`; there is no `opengraph-image.*` or `twitter-image.*` file anywhere.
+**Location:** `src/app/layout.tsx`, `src/lib/seo.ts`, `src/app/opengraph-image.png`
 
-**Recommendation:**
-- Add `src/app/opengraph-image.png` (1200×630).
-- Add `twitter: { card: "summary_large_image", site: "@litterlink_" }` to the root layout.
-- Add dynamic `opengraph-image.tsx` files for `events/[id]` and `groups/[slug]` using `ImageResponse`.
-- A page that sets `openGraph` replaces the whole object, so put the shared image in `OPEN_GRAPH_DEFAULTS` (or spread it in `pageMetadata()`).
+**Done:**
+- Added `src/app/opengraph-image.png` (1200×630 PNG, 1.1 MB). This is under the 5 MB limit for X and the 8 MB limit for Facebook. It is served as a static route at `/opengraph-image.png`.
+- Added `DEFAULT_SHARE_IMAGE` to `src/lib/seo.ts`. It holds the URL, 1200×630 size, `image/png` type and alt text, and is set as `images` in `OPEN_GRAPH_DEFAULTS`.
+  - Why: Next.js only attaches a root `opengraph-image.*` file to the root segment. Every page that calls `pageMetadata()` sets its own `openGraph`, which replaces the whole object and would drop a file-only image. Keeping the image in the shared defaults gives every page `og:image`, whether it sets its own `openGraph` or inherits the root one.
+- Added `TWITTER_DEFAULTS` (`card: "summary_large_image"`, `site: "@litterlink_"`) to the root layout as `twitter`.
+  - No `twitter-image.*` file and no `twitter.images` are set, so Next fills `twitter:image`, `twitter:title` and `twitter:description` from each page's Open Graph values. X therefore shows the same image as Open Graph.
+- Added a `seo.test.ts` case that checks `pageMetadata()` keeps the default share image.
+
+**Done — generated event images (15 October 2026):**
+- `src/app/events/[id]/opengraph-image.tsx` awaits `params`, loads the event with `getEventById()`, and renders a 1200×630 PNG with `ImageResponse`.
+  - Unknown events, and events hidden by RLS, return 404, matching the page.
+- The card is a fixed branded template, with no user-uploaded photos, so it renders predictably and can't misrepresent the event. It shows:
+  - the real logo (`public/LitterLink_logo-horizontal.png`, embedded as a data URI)
+  - a status badge
+  - the title
+  - the meeting point (`address_label ?? location_postcode`)
+  - the London date and time range, e.g. "Saturday 24 October, 10:00–12:00", with the year added outside the current year (a comma, not "·", because the bundled Geist subset has no middle-dot glyph)
+  - "Hosted by {group or organiser}"
+  - `litterlink.co.uk`
+  - Participant count is deliberately left out because it changes often.
+- **Status badges:**
+  - "Upcoming litter pick" (green)
+  - "Past litter pick" (grey)
+  - "Completed litter pick" (grey)
+  - "Event cancelled" (red)
+  - "Draft event" (amber)
+  - Past, completed and cancelled events therefore don't look like invitations.
+  - RLS hides cancelled and draft events from anonymous visitors, so crawlers get a 404 for those. The cancelled badge is mainly defensive, and only the organiser sees it.
+- **Long text:**
+  - Titles step down from 80 px to 46 px as they get longer, are capped at 100 characters on a word boundary, and are limited to 4 lines.
+  - The meeting point and host are each limited to one line with an ellipsis.
+  - Checked visually with a 119-character title and very long meeting-point and group names.
+- **Code layout:**
+  - Content rules (`fitShareTitle`, `formatShareDate`, `eventShareCard`) are in `src/lib/share-image.ts`, with unit tests.
+  - The Satori template (`renderShareImage`) is in the server-only `src/lib/share-image-render.tsx`, ready to reuse for groups.
+  - Geist Regular and Bold TTFs, under the SIL OFL licence, are in `src/assets/fonts/`. `next/og` only bundles a regular weight, and Satori can't fake bold.
+- `pageMetadata()` has a new `defaultImage: false` option, which the event page uses, so Next applies the generated file image to both `og:image` and `twitter:image`.
+- **Caching:** the image response keeps `ImageResponse`'s default `Cache-Control: public, max-age=0, must-revalidate`, so a cancelled or edited event isn't served a stale card.
+  - The `?<hash>` in the image URL Next generates is a build hash, not the event content. Platforms that cache by URL (Facebook, X, LinkedIn) need a re-scrape after major edits.
+
+**Done — background photo and gradient (16 October 2026):**
+- Both generated cards sit on a stock litter-picking photo (`public/images/litter-picking-background.jpg`, embedded as a data URI and drawn with `objectFit: "cover"`).
+- A full-bleed overlay uses a CSS `linear-gradient(90deg, …)` that is solid white up to 45%, then fades to fully transparent by 90%. The text column stays on plain white for contrast, and the photo shows through on the right.
+- The domain pill has a translucent white background so it stays readable over the photo.
+- Cost: each PNG is now about 940–950 KB (previously about 90 KB), which is still well under the 5 MB X and 8 MB Facebook limits. Rendering takes about 0.9–1.4 s locally.
+
+**Done — generated group images (16 October 2026):**
+- `src/app/groups/[slug]/opengraph-image.tsx` awaits `params`, loads the group with `getGroupBySlug()`, and renders through the same `renderShareImage()` template.
+  - Unknown slugs return 404. Old slugs also return 404 for the image, but the page itself 308-redirects to the current slug, whose metadata points at the current image.
+- `groupShareCard()` in `src/lib/share-image.ts` builds the content:
+  - a "Litter picking group" badge (green)
+  - the group name as the title, with the same sizing, 100-character cap and 4-line limit as event titles
+  - the location (`location_name || location_postcode`), limited to 70 characters and one line, and left out when the group has no location
+  - the group type from `GROUP_TYPE_LABELS` (e.g. "Community group", "Charity"), with "Organisation" for unknown types
+  - no footer host line
+  - Member and upcoming-event counts are deliberately left out because they change often and platforms cache the card.
+  - Group logos are not shown. They are user uploads stored as WebP, which Satori can't render, and they could look wrong at this size.
+- The group page passes `defaultImage: false` to `pageMetadata()`, so `og:image` and `twitter:image` point at the generated image.
+- `getGroupBySlug` is now wrapped in React `cache()` (see H5).
+- `share-image.test.ts` covers the full card, the postcode fallback, the missing-location case, the unknown-type fallback and long location names.
+- Checked visually with a short name ("Batchwood Pickers") and a 63-character, three-line name.
 
 ### H7 — No structured data — Open (W6)
 
@@ -316,25 +391,33 @@ Both go through the Supabase session refresh. Exclude `robots.txt|sitemap.xml|ma
 
 ---
 
-## Work completed (W1–W3)
+## Work completed (W1–W4)
 
 ### New files
 
 | File | Purpose |
 |---|---|
-| `src/lib/seo.ts` | `SITE_URL`, `SITE_NAME`, `DEFAULT_DESCRIPTION`, `OPEN_GRAPH_DEFAULTS`, `NOINDEX`, `NOINDEX_FOLLOW`, `absoluteUrl()`, `metaDescription()`, `hasListingParams()`, `pageMetadata()` |
+| `src/app/opengraph-image.png` | Default 1200×630 share image for Open Graph and X (W4) |
+| `src/app/events/[id]/opengraph-image.tsx` | Generated per-event share image (W4) |
+| `src/app/groups/[slug]/opengraph-image.tsx` | Generated per-group share image (W4) |
+| `src/lib/share-image.ts` (+ test) | Share-card content: title fitting, London date formatting, event status badges, meeting point plus district, `groupShareCard()` (W4) |
+| `src/lib/share-image-render.tsx` | Server-only branded `ImageResponse` template shared by event and group images; background photo with a white-to-transparent gradient overlay (W4) |
+| `public/images/litter-picking-background.jpg` | Background photo for generated share images (W4) |
+| `src/assets/fonts/Geist-{Regular,Bold}.ttf`, `OFL.txt` | Fonts for generated share images (W4) |
+| `src/lib/seo.ts` | `SITE_URL`, `SITE_NAME`, `DEFAULT_DESCRIPTION`, `DEFAULT_SHARE_IMAGE`, `OPEN_GRAPH_DEFAULTS` (includes the share image), `TWITTER_DEFAULTS`, `NOINDEX`, `NOINDEX_FOLLOW`, `absoluteUrl()`, `metaDescription()`, `districtName()`, `hasListingParams()`, `pageMetadata()` (`defaultImage: false` for routes with their own `opengraph-image`) |
 | `src/lib/seo.test.ts` | Tests for URL building, description truncation, listing-parameter detection and `pageMetadata()` output |
 | `src/components/PaginationLink.tsx` | Renders a `<span>` instead of a link when pagination is disabled |
 | `src/app/(auth)/layout.tsx` | `noindex, follow` for all auth pages |
 | `src/app/dashboard/layout.tsx` | `noindex, nofollow` |
 | `src/app/profile/layout.tsx` | `noindex, nofollow` for `/profile` and `/profile/[id]` |
 | `supabase/migrations/0037_group_slug_history.sql` | Old-slug history table, RLS, and the maintenance trigger |
+| `supabase/migrations/0038_events_with_counts_location_display.sql` | Adds `location_outcode` and `location_admin_district` to `events_with_counts` (W4) |
 
 ### Modified files
 
 | File | Change |
 |---|---|
-| `src/app/layout.tsx` | Root metadata from `@/lib/seo`; removed `og:url`/`og:title`; `lang="en-GB"` |
+| `src/app/layout.tsx` | Root metadata from `@/lib/seo`; removed `og:url`/`og:title`; `lang="en-GB"`; `twitter: TWITTER_DEFAULTS` (W4) |
 | `src/proxy.ts` | Coming-soon handling removed; uses `SITE_URL` |
 | `src/app/robots.ts` | Uses `absoluteUrl()`; coming-soon handling removed |
 | `src/app/sitemap.ts` | Uses `SITE_URL`; coming-soon handling removed |
@@ -343,8 +426,9 @@ Both go through the Supabase session refresh. Exclude `robots.txt|sitemap.xml|ma
 | `src/app/events/(browse)/page.tsx` | `generateMetadata` with listing `noindex`; `parsePostcode()`; `PaginationLink` |
 | `src/app/groups/(browse)/page.tsx` | Same as `/events` |
 | `src/app/impact/page.tsx` | `generateMetadata` with period-parameter `noindex` |
-| `src/app/events/[id]/page.tsx` | Descriptive title, trimmed description, canonical, Open Graph; `absoluteUrl()` for the share URL |
-| `src/app/groups/[slug]/page.tsx` | Descriptive metadata and canonical; 308 redirect for old slugs |
+| `src/app/events/[id]/page.tsx` | Descriptive title, trimmed description, canonical, Open Graph; `absoluteUrl()` for the share URL; `defaultImage: false` so the generated image applies; `districtName()` for the title place (W4) |
+| `src/lib/events.ts` | `getEventById` and `getGroupBySlug` wrapped in React `cache()` (W4) |
+| `src/app/groups/[slug]/page.tsx` | Descriptive metadata and canonical; 308 redirect for old slugs; `defaultImage: false` so the generated image applies (W4) |
 | `src/app/privacy/page.tsx`, `src/app/terms/page.tsx` | `pageMetadata()` with canonicals; fixed the doubled terms title |
 | `src/app/(auth)/*/page.tsx` | Distinct titles |
 | `src/app/admin/layout.tsx` | `robots: NOINDEX` |
@@ -361,6 +445,8 @@ Both go through the Supabase session refresh. Exclude `robots.txt|sitemap.xml|ma
 - **Listing page with filters or pagination:** use `generateMetadata({ searchParams })` and pass `indexable: !hasListingParams(params, [...filterKeys])`.
 - **Private or account page:** set `robots: NOINDEX`, ideally in the section's layout.
 - **Never** put `alternates` or `openGraph.url` / `openGraph.title` in the root layout; child pages inherit them.
+- **Share images:** `pageMetadata()` includes `DEFAULT_SHARE_IMAGE` through `OPEN_GRAPH_DEFAULTS`. If you build `openGraph` by hand, spread `OPEN_GRAPH_DEFAULTS` so the image is kept. Don't set `twitter.images`; X inherits the Open Graph image.
+- **Generated share images:** add `opengraph-image.tsx` beside the page, render with `renderShareImage()` from `@/lib/share-image-render`, and pass `defaultImage: false` to `pageMetadata()`. Otherwise the default image wins over the file.
 - Don't include "LitterLink" in page titles; the root template adds it.
 
 ### Verification (local production build, Googlebot user agent)
@@ -376,16 +462,25 @@ Both go through the Supabase session refresh. Exclude `robots.txt|sitemap.xml|ma
 | `/terms` | `Terms & Conditions \| LitterLink`, canonical `/terms` |
 | `/sign-in?error=hello` | `noindex, follow` |
 | All pages | `<html lang="en-GB">` |
+| `/`, `/events`, `/terms`, `/sign-in` (W4) | `og:image` and `twitter:image` → `/opengraph-image.png` (1200×630, `image/png`, alt text); `twitter:card` `summary_large_image`; `twitter:site` `@litterlink_`; `twitter:title`/`twitter:description` match each page |
+| `/opengraph-image.png` (W4) | `200`, `image/png` |
+| `/events/{id}` for upcoming, completed, long-title and group-hosted events (W4) | `og:image` and `twitter:image` → `/events/{id}/opengraph-image?<hash>` (1200×630, `image/png`, alt text) |
+| `/events/{id}/opengraph-image` (W4) | `200`, `image/png`, about 950 KB with the background photo, about 1 s; `Cache-Control: public, max-age=0, must-revalidate` |
+| `/events/{unknown}/opengraph-image` (W4) | `404` |
+| `/groups/{slug}` for a short-name and a long-name group (W4) | One `og:image` and `twitter:image` each → `/groups/{slug}/opengraph-image?<hash>` (1200×630, `image/png`, alt text); `twitter:card` `summary_large_image` |
+| `/groups/{slug}/opengraph-image` (W4) | `200`, `image/png`, about 940 KB, about 0.9–1.4 s; `Cache-Control: public, max-age=0, must-revalidate` |
+| `/groups/{unknown}/opengraph-image` (W4) | `404` |
 
 ---
 
 ## Outstanding recommendations — proposed order
 
-1. **W4 – Share metadata:**
-   - Root `opengraph-image.png`.
-   - `twitter` card in the root layout.
-   - Dynamic `opengraph-image.tsx` for events and groups.
-   - `cache()` around `getEventById` and `getGroupBySlug`.
+1. ~~**W4 – Share metadata.**~~ ✅ Done:
+   - ~~Root `opengraph-image.png`.~~ Done.
+   - ~~`twitter` card in the root layout.~~ Done.
+   - ~~Dynamic `opengraph-image.tsx` for events and groups.~~ Done (see H6).
+   - ~~`cache()` around `getEventById` and `getGroupBySlug`.~~ Done.
+   - ~~Expose `location_outcode` and `location_admin_district` in `events_with_counts`.~~ Done in migration `0038`, which still needs applying (see H5).
 2. **W5 – Sitemap and robots:**
    - Add groups, `/groups`, `/impact` and the legal pages.
    - `.range()` pagination; real `lastModified`; drop stale, never-wrapped-up events.

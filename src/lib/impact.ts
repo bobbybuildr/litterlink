@@ -1,5 +1,6 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
+import { districtName } from "@/lib/seo";
 
 export type Period = "month" | "lastMonth" | "90d" | "all";
 const PERIOD_VALUES: Period[] = ["month", "lastMonth", "90d", "all"];
@@ -213,7 +214,7 @@ export async function getImpactData(
   };
   for (const event of (areaEventsData ?? []) as AreaEvent[]) {
     const district =
-      event.location_admin_district ??
+      districtName(event.location_admin_district) ??
       event.location_outcode ??
       event.location_postcode.split(" ")[0].toUpperCase();
     const existing = districtMap.get(district) ?? {

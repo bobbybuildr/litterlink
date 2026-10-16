@@ -23,6 +23,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const group = await getGroupBySlug(slug);
   if (!group) return { title: "Group not found" };
   const locationLabel = group.location_name || group.location_postcode;
+  // The generated opengraph-image.tsx beside this page supplies the share image.
   return pageMetadata({
     title: `${group.name} – Litter Picking Group`,
     description: metaDescription(
@@ -30,6 +31,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         `Litter-picking events organised by ${group.name}${locationLabel ? ` in ${locationLabel}` : ""}. Join the group on LitterLink.`
     ),
     path: `/groups/${group.slug}`,
+    defaultImage: false,
   });
 }
 

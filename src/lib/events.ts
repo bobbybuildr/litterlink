@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/database";
 
@@ -76,10 +77,11 @@ export async function getPublishedEvents(options?: {
   return rows;
 }
 
-/** Fetch a single event with its stats (for detail page). */
-export async function getEventById(
-  id: string
-): Promise<EventWithStats | null> {
+/**
+ * Fetch a single event with its stats (for detail page). Wrapped in React `cache()` so `generateMetadata` and
+ * the page share one query per request; separate requests (e.g. the share image) still fetch fresh.
+ */
+export const getEventById = cache(async (id: string): Promise<EventWithStats | null> => {
   const supabase = await createClient();
 
   const [{ data: event }, { data: stats }] = await Promise.all([
@@ -101,7 +103,7 @@ export async function getEventById(
     (stats as Database["public"]["Tables"]["event_stats"]["Row"] | null) ??
     null;
   return { ...(event as EventWithCount), event_stats: eventStats };
-}
+});
 
 /** Fetch all events a user has joined (confirmed participation only). */
 export async function getJoinedEvents(userId: string): Promise<EventWithCount[]> {
@@ -162,18 +164,19 @@ export async function getEventParticipants(eventId: string): Promise<EventPartic
   return (data ?? []) as EventParticipant[];
 }
 
-/** Fetch a group by its slug. */
-export async function getGroupBySlug(
-  slug: string
-): Promise<Database["public"]["Tables"]["groups"]["Row"] | null> {
+/**
+ * Fetch a group by its slug. Wrapped in React `cache()` so `generateMetadata` and the page share one query per
+ * request; separate requests (e.g. the share image) still fetch fresh.
+ */
+export const getGroupBySlug = cache(async (slug: string): Promise<GroupRow | null> => {
   const supabase = await createClient();
   const { data } = await supabase
     .from("groups")
     .select("*")
     .eq("slug", slug)
     .single();
-  return (data as Database["public"]["Tables"]["groups"]["Row"] | null) ?? null;
-}
+  return (data as GroupRow | null) ?? null;
+});
 
 /** Resolve a former slug (from before a rename) to the group's current slug. */
 export async function getCurrentSlugForOldGroupSlug(oldSlug: string): Promise<string | null> {

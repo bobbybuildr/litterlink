@@ -34,8 +34,8 @@ export async function Navbar() {
           <Image
             src="/LitterLink_logo-horizontal.png"
             alt="LitterLink"
-            width={358}
-            height={83}
+            width={360}
+            height={90}
             priority
             className="h-8 w-auto sm:h-10"
           />

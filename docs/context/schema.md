@@ -223,9 +223,11 @@ Extends `events` with joined profile, group, and participant count data.
 | `updated_at` | TIMESTAMPTZ | Passed through from `events` |
 | `content_updated_at` | TIMESTAMPTZ | Passed through from `events` |
 | `confirmed_count` | BIGINT | COUNT of `event_participants` where `status = 'confirmed'` |
+| `location_outcode` | TEXT | Passed through from `events` (added to the view in `0038`) |
+| `location_admin_district` | TEXT | Passed through from `events` (added to the view in `0038`); display it through `districtName()` from `@/lib/seo` |
 
 All data-fetching helpers in `src/lib/events.ts` query this view, not the raw `events` table.
-The view's explicit column list has not been rebuilt since `location_outcode` and `location_admin_district` were added to `events`, so those two fields are not currently exposed by this view.
+The view lists its columns explicitly, so new `events` columns aren't exposed until the view is rebuilt. Add them at the end with `CREATE OR REPLACE VIEW`, which keeps its grants and dependants.
 
 ## Other Views
 

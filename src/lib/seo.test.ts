@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { absoluteUrl, hasListingParams, metaDescription, pageMetadata } from "@/lib/seo";
+import { absoluteUrl, DEFAULT_SHARE_IMAGE, districtName, hasListingParams, metaDescription, pageMetadata } from "@/lib/seo";
 
 describe("absoluteUrl", () => {
   it("prefixes the site URL", () => {
@@ -34,6 +34,25 @@ describe("metaDescription", () => {
   });
 });
 
+describe("districtName", () => {
+  it("un-inverts ONS-style city and county names", () => {
+    expect(districtName("Bristol, City of")).toBe("Bristol");
+    expect(districtName("Kingston upon Hull, City of")).toBe("Kingston upon Hull");
+    expect(districtName("Herefordshire, County of")).toBe("Herefordshire");
+  });
+
+  it("leaves other names alone", () => {
+    expect(districtName("City of Edinburgh")).toBe("City of Edinburgh");
+    expect(districtName("Bromsgrove")).toBe("Bromsgrove");
+  });
+
+  it("returns null when there is no district", () => {
+    expect(districtName(null)).toBeNull();
+    expect(districtName(undefined)).toBeNull();
+    expect(districtName("  ")).toBeNull();
+  });
+});
+
 describe("hasListingParams", () => {
   const keys = ["postcode", "page"] as const;
 
@@ -59,6 +78,17 @@ describe("pageMetadata", () => {
     expect(meta.alternates?.canonical).toBe("/events");
     expect(meta.robots).toBeUndefined();
     expect(meta.openGraph).toMatchObject({ url: "/events", title: "Events", locale: "en_GB" });
+  });
+
+  it("keeps the default share image when replacing the root Open Graph object", () => {
+    const meta = pageMetadata({ title: "Events", description: "d", path: "/events", indexable: false });
+    expect(meta.openGraph?.images).toEqual(DEFAULT_SHARE_IMAGE);
+  });
+
+  it("omits the default image so a route's own opengraph-image file applies", () => {
+    const meta = pageMetadata({ title: "Event", description: "d", path: "/events/1", defaultImage: false });
+    expect(meta.openGraph).not.toHaveProperty("images");
+    expect(meta.openGraph).toMatchObject({ url: "/events/1", siteName: "LitterLink", locale: "en_GB" });
   });
 
   it("marks non-indexable variants noindex,follow without a canonical", () => {

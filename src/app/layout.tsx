@@ -6,7 +6,7 @@ import { Footer } from "@/components/layout/Footer";
 import { BetaBanner } from "@/components/layout/BetaBanner";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
-import { DEFAULT_DESCRIPTION, OPEN_GRAPH_DEFAULTS, SITE_NAME, SITE_URL } from "@/lib/seo";
+import { DEFAULT_DESCRIPTION, OPEN_GRAPH_DEFAULTS, SITE_NAME, SITE_URL, TWITTER_DEFAULTS } from "@/lib/seo";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -24,6 +24,7 @@ export const metadata: Metadata = {
   title: { default: SITE_NAME, template: `%s | ${SITE_NAME}` },
   description: DEFAULT_DESCRIPTION,
   openGraph: { ...OPEN_GRAPH_DEFAULTS },
+  twitter: { ...TWITTER_DEFAULTS },
 };
 
 export default function RootLayout({
