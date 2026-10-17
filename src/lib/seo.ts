@@ -31,7 +31,7 @@ export const CONTACT_EMAIL = "hello@litterlink.co.uk";
 
 /** LitterLink's own social profiles: linked from the footer and listed as `sameAs` in the site's JSON-LD. */
 export const SOCIAL_PROFILES = {
-  facebook: "https://www.facebook.com/profile.php?id=61576794153198",
+  facebook: "https://www.facebook.com/LitterLinkOfficial",
   instagram: "https://instagram.com/litterlink_",
   x: "https://x.com/litterlink_",
 } as const;
