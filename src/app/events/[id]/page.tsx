@@ -338,7 +338,9 @@ export default async function EventDetailPage({ params, searchParams }: Props) {
           )}
 
           {/* Event photos gallery */}
-          {isCompleted && <EventPhotosGallery photos={photoData} isOrganiser={isOrganiser} />}
+          {isCompleted && (
+            <EventPhotosGallery photos={photoData} eventTitle={event.title} isOrganiser={isOrganiser} />
+          )}
 
           {/* Organiser: upload photos */}
           {isOrganiser && isCompleted && (

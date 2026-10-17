@@ -38,12 +38,11 @@ export function GroupCard({ group, className }: GroupCardProps) {
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
-            <Link
-              href={`/groups/${group.slug}`}
-              className="truncate font-semibold text-gray-900 hover:text-accent transition-colors"
-            >
-              {group.name}
-            </Link>
+            <h3 className="min-w-0 truncate font-semibold text-gray-900">
+              <Link href={`/groups/${group.slug}`} className="hover:text-accent transition-colors">
+                {group.name}
+              </Link>
+            </h3>
             {group.creator_is_verified && (
               <BadgeCheck className="h-4 w-4 shrink-0 text-accent" aria-label="Verified group" />
             )}

@@ -47,12 +47,11 @@ export function FeaturedGroupCard({ group, className }: FeaturedGroupCardProps) 
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
-            <Link
-              href={`/groups/${group.slug}`}
-              className="truncate text-lg font-bold text-gray-900 hover:text-accent transition-colors"
-            >
-              {group.name}
-            </Link>
+            <h2 className="min-w-0 truncate text-lg font-bold text-gray-900">
+              <Link href={`/groups/${group.slug}`} className="hover:text-accent transition-colors">
+                {group.name}
+              </Link>
+            </h2>
             {group.creator_is_verified && (
               <BadgeCheck className="h-5 w-5 shrink-0 text-accent" aria-label="Verified group" />
             )}

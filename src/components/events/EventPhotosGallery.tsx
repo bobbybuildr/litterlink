@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { deleteEventPhoto } from "@/app/events/actions";
@@ -12,11 +13,17 @@ interface Photo {
 
 interface EventPhotosGalleryProps {
   photos: Photo[];
+  eventTitle: string;
   isOrganiser?: boolean;
   className?: string;
 }
 
-export function EventPhotosGallery({ photos: initialPhotos, isOrganiser, className }: EventPhotosGalleryProps) {
+function photoAlt(eventTitle: string, n: number): string {
+  const subject = /litter/i.test(eventTitle) ? eventTitle : `${eventTitle} litter pick`;
+  return `${subject} – photo ${n}`;
+}
+
+export function EventPhotosGallery({ photos: initialPhotos, eventTitle, isOrganiser, className }: EventPhotosGalleryProps) {
   const [photos, setPhotos] = useState(initialPhotos);
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -50,20 +57,20 @@ export function EventPhotosGallery({ photos: initialPhotos, isOrganiser, classNa
         {deleteError && <p className="text-sm text-red-600">{deleteError}</p>}
       </div>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-        {photos.map((photo) => (
+        {photos.map((photo, i) => (
           <div key={photo.id} className="relative group overflow-hidden rounded-lg border border-gray-200">
             <a
               href={photo.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="block hover:opacity-90 transition-opacity"
+              className="relative block h-40 hover:opacity-90 transition-opacity"
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <Image
                 src={photo.url}
-                alt="Event photo"
-                className="h-40 w-full object-cover"
-                loading="lazy"
+                alt={photoAlt(eventTitle, i + 1)}
+                fill
+                sizes="(min-width: 1024px) 190px, (min-width: 640px) 33vw, 50vw"
+                className="object-cover"
               />
             </a>
             {isOrganiser && (

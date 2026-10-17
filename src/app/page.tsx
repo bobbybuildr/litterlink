@@ -100,9 +100,9 @@ export default async function HomePage({ searchParams }: Props) {
             <StatCard value={stats.totalBags.toLocaleString()} label="Bags of litter collected" Icon={Trash} />
             <StatCard value={stats.volunteerCount.toLocaleString()} label="Volunteers involved" Icon={Users} />
           </div>
-          <h2 className="mb-2 mt-8 text-center text-sm font-normal text-gray-500">
+          <p className="mb-2 mt-8 text-center text-sm font-normal text-gray-500">
             Every bag collected helps create cleaner streets, parks and beaches across the UK.
-          </h2>
+          </p>
           <div className="mt-4 text-center">
             <Link
               href="/impact"

@@ -3,7 +3,7 @@
 **Date:** 4 October 2026
 **Scope:** Technical SEO across `src/app/`, `src/components/`, `src/lib/`, `src/proxy.ts`, `robots.ts`, `sitemap.ts`, metadata and routing. Next.js 16 behaviour was checked against the installed docs in `node_modules/next/dist/docs/`.
 **Public routes in scope:** `/`, `/events`, `/events/[id]`, `/groups`, `/groups/[slug]`, `/impact`, `/privacy`, `/terms`
-**Status:** W1–W6 implemented (W4: default image, X card and generated event images 15 October 2026; generated group images and the `events_with_counts` place-name fix 16 October 2026; W5: complete sitemap 16 October 2026; W6: JSON-LD structured data 17 October 2026). Migration `0038` has been applied, so event titles now show place names. `npm test` (227 tests), `npm run typecheck`, `npm run lint` and `npm run build` all pass. Rendered `<head>` output, JSON-LD, `sitemap.xml` and `robots.txt` were verified against a local production build using a Googlebot user agent.
+**Status:** W1–W6 implemented (W4: default image, X card and generated event images 15 October 2026; generated group images and the `events_with_counts` place-name fix 16 October 2026; W5: complete sitemap 16 October 2026; W6: JSON-LD structured data 17 October 2026). W7 in progress: heading structure (M2) and image SEO (M3) fixed 17 October 2026. Migration `0038` has been applied, so event titles now show place names. `npm test` (227 tests), `npm run typecheck`, `npm run lint` and `npm run build` all pass. Rendered `<head>` output, JSON-LD, `sitemap.xml` and `robots.txt` were verified against a local production build using a Googlebot user agent.
 
 ## Summary
 
@@ -22,7 +22,7 @@ All critical issues are now fixed. The remaining work is mainly enhancement: int
 |---|---|---|---|---|
 | Critical | 5 | 5 | 0 | 0 |
 | High | 10 | 9 | 1 | 0 |
-| Medium | 9 | 1 | 2 | 6 |
+| Medium | 9 | 3 | 2 | 4 |
 
 ### Workstreams
 
@@ -34,7 +34,7 @@ All critical issues are now fixed. The remaining work is mainly enhancement: int
 | W4 | Open Graph, X and share images | ✅ Done |
 | W5 | Sitemap and robots | ✅ Done |
 | W6 | Structured data (JSON-LD) | ✅ Done |
-| W7 | Internal linking, content and headings | Open |
+| W7 | Internal linking, content and headings | In progress (M2, M3 done) |
 | W8 | Core Web Vitals | Open |
 
 ---
@@ -45,8 +45,9 @@ All critical issues are now fixed. The remaining work is mainly enhancement: int
 2. **`COMING_SOON` environment variable:** removed from the hosting provider. Nothing reads it any more.
 3. **Google Search Console:**
    - ✅ `sitemap.xml` submitted (16 October 2026).
-   - Still to do: use URL Inspection on `/`, an event page and a group page.
-   - Still to do: run an upcoming event page and a group page through the [Rich Results Test](https://search.google.com/test/rich-results), then watch the Events and Breadcrumbs reports under Enhancements (W6).
+   - ✅ URL Inspection run on `/`, an event page and a group page; no issues found (17 October 2026).
+   - ✅ An upcoming event page and a group page passed the [Rich Results Test](https://search.google.com/test/rich-results), and the detected data is correct (17 October 2026).
+   - Ongoing: watch the Events and Breadcrumbs reports under Enhancements as Google recrawls (W6).
    - Still to do: look in the Pages report for "Duplicate without user-selected canonical" and "Indexed, though blocked by robots.txt".
 
 ---
@@ -344,19 +345,43 @@ Renaming a group regenerated its slug, and the old URL returned 404.
 - The "Top areas" on `/impact` are plain text.
 - `/events` and `/groups` don't link to each other except through the nav and footer.
 
-### M2 — Heading structure — Open (W7)
+### M2 — ~~Heading structure~~ ✅ Fixed (W7)
 
-- `src/app/page.tsx` uses an `<h2>` for an ordinary sentence ("Every bag collected helps…").
-- On `/events`, `EventCard` uses `<h3>` directly under the `<h1>`, skipping `<h2>`.
-- `GroupCard` and `FeaturedGroupCard` have no heading for the group name.
-- The group-page `<h1>` contains the share `<button>`.
-- The `/impact` H1 ("Real people. Real impact.") has no keywords; add a keyword-bearing subtitle.
+**Location:** `src/app/page.tsx`, `src/app/events/(browse)/page.tsx`, `src/app/groups/(browse)/page.tsx`, `src/components/groups/GroupCard.tsx`, `src/components/groups/FeaturedGroupCard.tsx`, `src/app/groups/[slug]/page.tsx`, `src/app/impact/ImpactHero.tsx`
 
-### M3 — Image SEO — Open (W7/W8)
+The issues were:
 
-- `EventPhotosGallery` uses `alt="Event photo"` on every image. Use `"{event title} litter pick – photo {n}"`.
-- It also loads full-size images into 160px tiles with a raw `<img>`. Switch to `next/image` with `sizes`.
-- Member-chip avatar alt text on group pages repeats the visible name; set it to `""`.
+- `src/app/page.tsx` used an `<h2>` for an ordinary sentence ("Every bag collected helps…").
+- On `/events`, `EventCard` used `<h3>` directly under the `<h1>`, skipping `<h2>`.
+- `GroupCard` and `FeaturedGroupCard` had no heading for the group name.
+- The group-page `<h1>` contained the share `<button>`.
+- The `/impact` H1 ("Real people. Real impact.") had no keywords.
+
+**Resolution:**
+- The homepage sentence is now a `<p>`.
+- `/events` has visually hidden `<h2>`s, "Upcoming litter picks" and "Past litter picks" (the past list is a labelled `<section>`), so the `EventCard` `<h3>`s nest correctly. `EventCard` keeps `<h3>` because every other page that uses it (group pages, dashboard, profiles) places it under an `<h2>`.
+- The group name in `GroupCard` is an `<h3>`. In `FeaturedGroupCard` it's an `<h2>`, since the card sits directly under the `/groups` `<h1>`. `/groups` adds a visually hidden "All groups" `<h2>` above the card grid.
+- On group pages the share button sits beside the `<h1>`, not inside it.
+- The `/impact` H1 now ends with a smaller subtitle line: "UK litter picking impact, measured by our volunteers". This matches the page title, "UK Litter Picking Impact".
+
+**Verified** on a local production build: `/`, `/events`, `/groups`, `/impact` and a group page each have one `<h1>` (plus the identical one in the streamed `loading.tsx` fallback) and no skipped levels. No group-page `<h1>` contains a `<button>`.
+
+### M3 — ~~Image SEO~~ ✅ Fixed (W7/W8)
+
+**Location:** `src/components/events/EventPhotosGallery.tsx`, `src/app/events/[id]/page.tsx`, `src/app/groups/[slug]/page.tsx`
+
+The issues were:
+
+- `EventPhotosGallery` used `alt="Event photo"` on every image.
+- It loaded full-size images into 160px tiles with a raw `<img>`.
+- Member-chip avatar alt text on group pages repeated the visible name.
+
+**Resolution:**
+- `EventPhotosGallery` takes an `eventTitle` prop. Alt text is `"{event title} litter pick – photo {n}"`; the "litter pick" suffix is left out when the title already contains "litter", to avoid doubling.
+- The gallery uses `next/image` with `fill` and `sizes="(min-width: 1024px) 190px, (min-width: 640px) 33vw, 50vw"`, which matches the 2- and 3-column grid. Lazy loading is the `next/image` default. Each tile still links to the full-size original. Supabase storage was already allowed in `images.remotePatterns`.
+- Member-chip avatars have `alt=""`, because the name is shown next to them.
+
+**Verified** on a local production build: gallery images render through `/_next/image` with the new alt text and `sizes`, and the optimised URL returns `200 image/webp`. Member-chip avatars render with `alt=""`.
 
 ### M4 — Thin past events — Partially fixed (W5)
 
@@ -413,7 +438,7 @@ Both go through the Supabase session refresh. Exclude `robots.txt|sitemap.xml|ma
 
 ---
 
-## Work completed (W1–W6)
+## Work completed (W1–W6, part of W7)
 
 ### New files
 
@@ -469,6 +494,14 @@ Both go through the Supabase session refresh. Exclude `robots.txt|sitemap.xml|ma
 | `src/components/layout/Footer.tsx` | Social links and contact email from `@/lib/seo` (W6) |
 | `src/app/page.tsx`, `src/app/events/[id]/page.tsx`, `src/app/groups/[slug]/page.tsx` | Render `<JsonLd>` (W6) |
 | `AGENTS.md` | Documents `src/lib/seo.ts` and the metadata conventions; `structured-data.ts` and the JSON-LD `dangerouslySetInnerHTML` exception (W6) |
+| `src/app/page.tsx` | The "Every bag collected…" sentence is a `<p>`, not an `<h2>` (W7, M2) |
+| `src/app/events/(browse)/page.tsx` | Visually hidden "Upcoming litter picks" / "Past litter picks" `<h2>`s above the event cards (W7, M2) |
+| `src/app/groups/(browse)/page.tsx` | Visually hidden "All groups" `<h2>` above the card grid (W7, M2) |
+| `src/components/groups/GroupCard.tsx`, `FeaturedGroupCard.tsx` | Group name wrapped in an `<h3>` / `<h2>` (W7, M2) |
+| `src/app/groups/[slug]/page.tsx` | Share button moved out of the `<h1>`; member-chip avatars `alt=""` (W7, M2/M3) |
+| `src/app/impact/ImpactHero.tsx` | Keyword-bearing H1 subtitle (W7, M2) |
+| `src/components/events/EventPhotosGallery.tsx` | `next/image` with `sizes`; per-photo alt text from the new `eventTitle` prop (W7, M3) |
+| `src/app/events/[id]/page.tsx` | Passes `eventTitle` to `EventPhotosGallery` (W7, M3) |
 
 ### Conventions for new pages
 
@@ -533,11 +566,11 @@ Both go through the Supabase session refresh. Exclude `robots.txt|sitemap.xml|ma
 4. **W7 – Linking and content:**
    - Homepage event and group sections; related or nearby events on event pages.
    - ~~Decide on profile links (public pages or `nofollow`).~~ `nofollow` (H2).
-   - Heading fixes (M2) and photo alt text (M3).
+   - ~~Heading fixes (M2) and photo alt text (M3).~~ Done.
    - Upcoming list beyond 7 days (H9); optionally remove `?back=` from card links.
 5. **W8 – Core Web Vitals:**
    - Fix the beta banner hydration/CLS (M6).
-   - Slim map props; `next/image` in the gallery.
+   - Slim map props; ~~`next/image` in the gallery~~ (done with M3).
    - Homepage stats from `national_impact_stats`; proxy matcher exclusions (M9).
 6. **Tidy-ups:**
    - Move the remaining inline site URLs in `(auth)/actions.ts` and `email.ts` to `SITE_URL` (M8).

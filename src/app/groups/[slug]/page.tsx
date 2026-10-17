@@ -173,10 +173,10 @@ export default async function GroupPage({ params }: Props) {
                 {typeLabel}
               </span>
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              {group.name}
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold text-gray-900">{group.name}</h1>
               <ShareGroupButton title={group.name} />
-            </h1>
+            </div>
             {group.description && (
               <p className="mt-2 text-sm text-gray-600 whitespace-pre-wrap">
                 {group.description}
@@ -378,7 +378,7 @@ function MemberChip({ member }: { member: GroupMember }) {
       {member.avatar_url ? (
         <Image
           src={member.avatar_url}
-          alt={name}
+          alt=""
           width={24}
           height={24}
           className="rounded-full object-cover"

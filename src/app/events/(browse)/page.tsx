@@ -166,6 +166,7 @@ export default async function EventsPage({ searchParams }: Props) {
             <EmptyState postcode={postcode} />
           ) : (
             <>
+              <h2 className="sr-only">Upcoming litter picks</h2>
               {upcomingEvents.length === 0 && (
                 <div className="rounded-xl border border-dashed border-gray-300 bg-white p-6 text-center">
                   <p className="text-sm text-gray-500">
@@ -190,40 +191,43 @@ export default async function EventsPage({ searchParams }: Props) {
                 </div>
               )}
               {pastEvents.length > 0 && (
-                <details className="group">
-                  <summary className="flex cursor-pointer list-none items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors">
-                    <svg
-                      className="h-4 w-4 shrink-0 rotate-0 transition-transform group-open:rotate-90"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                    Show {pastEvents.length} past event{pastEvents.length !== 1 ? "s" : ""}
-                  </summary>
-                  <div className="mt-4 flex flex-col gap-4">
-                    {pagedPastEvents.map((event) => (
-                      <EventCard key={event.id} event={event} backHref={backHref} />
-                    ))}
-                    {pastTotalPages > 1 && (
-                      <div className="flex items-center justify-between border-t border-gray-200 pt-4">
-                        <PaginationLink href={buildUrl({ pastPage: String(safePastPage - 1) })} disabled={safePastPage <= 1}>
-                          <ChevronLeft className="h-4 w-4" /> Previous
-                        </PaginationLink>
-                        <span className="text-sm text-gray-500">
-                          Page {safePastPage} of {pastTotalPages}
-                        </span>
-                        <PaginationLink
-                          href={buildUrl({ pastPage: String(safePastPage + 1) })}
-                          disabled={safePastPage >= pastTotalPages}
-                        >
-                          Next <ChevronRight className="h-4 w-4" />
-                        </PaginationLink>
-                      </div>
-                    )}
-                  </div>
-                </details>
+                <section aria-labelledby="past-events-heading">
+                  <h2 id="past-events-heading" className="sr-only">Past litter picks</h2>
+                  <details className="group">
+                    <summary className="flex cursor-pointer list-none items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors">
+                      <svg
+                        className="h-4 w-4 shrink-0 rotate-0 transition-transform group-open:rotate-90"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                      Show {pastEvents.length} past event{pastEvents.length !== 1 ? "s" : ""}
+                    </summary>
+                    <div className="mt-4 flex flex-col gap-4">
+                      {pagedPastEvents.map((event) => (
+                        <EventCard key={event.id} event={event} backHref={backHref} />
+                      ))}
+                      {pastTotalPages > 1 && (
+                        <div className="flex items-center justify-between border-t border-gray-200 pt-4">
+                          <PaginationLink href={buildUrl({ pastPage: String(safePastPage - 1) })} disabled={safePastPage <= 1}>
+                            <ChevronLeft className="h-4 w-4" /> Previous
+                          </PaginationLink>
+                          <span className="text-sm text-gray-500">
+                            Page {safePastPage} of {pastTotalPages}
+                          </span>
+                          <PaginationLink
+                            href={buildUrl({ pastPage: String(safePastPage + 1) })}
+                            disabled={safePastPage >= pastTotalPages}
+                          >
+                            Next <ChevronRight className="h-4 w-4" />
+                          </PaginationLink>
+                        </div>
+                      )}
+                    </div>
+                  </details>
+                </section>
               )}
             </>
           )}

@@ -156,6 +156,7 @@ export default async function GroupsPage({ searchParams }: Props) {
           <EmptyState postcode={postcode} />
         ) : (
           <>
+            <h2 className="sr-only">All groups</h2>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {pagedGroups.map((group) => (
                 <GroupCard key={group.id} group={group} />
