@@ -314,6 +314,7 @@ Key consequences:
 - PWA manifest (`src/app/manifest.ts`)
 - Open Graph meta in root layout and event detail pages
 - `sitemap.ts` and `robots.ts` present
+- JSON-LD structured data (`src/lib/structured-data.ts`): `Organization` + `WebSite` on the homepage, `Event` + `BreadcrumbList` on event pages, `Organization` + `BreadcrumbList` on group pages
 - Supabase Edge Function `send-event-reminders` (`supabase/functions/send-event-reminders/`) — Deno function scheduled every 4 hours via pg_cron + pg_net. Finds published events that ended > 12 hours ago with no stats and emails the organiser a reminder to log impact. Sets `events.stats_reminder_sent_at` after sending so the reminder is never repeated.
 - Rate limiting for event creation, event joins, and group joins
 
@@ -357,7 +358,6 @@ The following features are absent from the codebase. Do not assume these exist w
 - No bulk admin actions
 
 #### SEO & Sharing
-- No structured data (JSON-LD) for events
 - No per-page Twitter Card meta (only root-level Open Graph)
 
 #### Other

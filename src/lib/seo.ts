@@ -27,6 +27,18 @@ export const OPEN_GRAPH_DEFAULTS = {
   images: DEFAULT_SHARE_IMAGE,
 } as const;
 
+export const CONTACT_EMAIL = "hello@litterlink.co.uk";
+
+/** LitterLink's own social profiles: linked from the footer and listed as `sameAs` in the site's JSON-LD. */
+export const SOCIAL_PROFILES = {
+  facebook: "https://www.facebook.com/profile.php?id=61576794153198",
+  instagram: "https://instagram.com/litterlink_",
+  x: "https://x.com/litterlink_",
+} as const;
+
+/** Square brand mark for the `Organization` logo; Google wants at least 112×112 and recommends square. */
+export const SITE_LOGO = { url: "/android-chrome-512x512.png", width: 512, height: 512 } as const;
+
 export const TWITTER_DEFAULTS = {
   card: "summary_large_image",
   site: "@litterlink_",

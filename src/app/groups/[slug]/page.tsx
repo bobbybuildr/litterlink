@@ -13,6 +13,8 @@ import { GroupsMap } from "@/components/map/GroupsMap";
 import { ShareGroupButton } from "@/components/groups/ShareGroupButton";
 import { createClient } from "@/lib/supabase/server";
 import { FlashBanner } from "@/components/FlashBanner";
+import { JsonLd } from "@/components/JsonLd";
+import { breadcrumbJsonLd, groupOrganizationJsonLd, groupPath } from "@/lib/structured-data";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -109,6 +111,16 @@ export default async function GroupPage({ params }: Props) {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
+      <JsonLd
+        nodes={[
+          groupOrganizationJsonLd(group),
+          breadcrumbJsonLd([
+            { name: "Home", path: "/" },
+            { name: "Groups", path: "/groups" },
+            { name: group.name, path: groupPath(group.slug) },
+          ]),
+        ]}
+      />
       {/* Back + Edit/Delete */}
       <div className="mb-6 flex items-center justify-between">
         <Link

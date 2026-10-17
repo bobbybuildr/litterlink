@@ -57,7 +57,8 @@ Unit tests are Vitest, co-located as `src/**/*.test.ts`, run in a Node environme
 | `src/lib/email.ts` | Resend email helpers |
 | `src/lib/ratelimit.ts` | DB-backed rate limiting (event creation, joins, reschedule notifications) |
 | `src/lib/input.ts` | `readFormFields()` — the single entry point for free-text form fields (see Input handling below) |
-| `src/lib/html.ts` | `escapeHtml()` — for the few raw-HTML sinks (Leaflet popups) |
+| `src/lib/html.ts` | `escapeHtml()` — for the few raw-HTML sinks (Leaflet popups); `jsonLd()` — the JSON-LD serialiser (see Output below) |
+| `src/lib/structured-data.ts` | Pure schema.org JSON-LD builders: `siteOrganizationJsonLd`/`websiteJsonLd` (homepage only), `eventJsonLd` (Google `Event`; null for drafts), `groupOrganizationJsonLd` (its `@id` is also the event `organizer` reference) and `breadcrumbJsonLd` (event and group detail pages). Render them with `<JsonLd nodes={[...]} />` from `@/components/JsonLd`, which emits one `@graph` script per page |
 | `src/lib/share-image.ts` / `src/lib/share-image-render.tsx` | Generated share cards: pure content rules (title fitting, London dates, event status badges, `eventShareCard`/`groupShareCard`) and the server-only branded `ImageResponse` template `renderShareImage()` (Geist fonts in `src/assets/fonts/`; background photo under a white-to-transparent `linear-gradient` overlay). Satori needs inline `style` with flexbox, plain `<img>` (PNG/JPEG data URIs — no WebP), and no React fragments or lucide-react components |
 | `src/lib/redirect.ts` | `safeRedirectPath()` — validates every post-auth redirect target (`redirectTo`, `next`, `oauth_redirect`) |
 | `src/lib/seo.ts` | `SITE_URL`, `absoluteUrl()`, `metaDescription()`, `pageMetadata()` (title + canonical + Open Graph, including the default share image from `OPEN_GRAPH_DEFAULTS`), `TWITTER_DEFAULTS` (root `summary_large_image` card; X inherits the Open Graph image), `NOINDEX`/`NOINDEX_FOLLOW`, `hasListingParams()`. Public pages use `pageMetadata()`; filtered/paginated listing variants pass `indexable: false`; private pages/layouts set `robots: NOINDEX`; pages with their own `opengraph-image.tsx` pass `defaultImage: false`. Never put `alternates` or `openGraph.url` in the root layout — nested metadata fields are inherited |
@@ -157,7 +158,7 @@ LitterLink never accepts HTML. User text is stored as plain text, exactly as typ
   Match `max` to the input's `maxLength`. Empty optional fields return `null`; `required: true` fields are typed `string`.
 - **Enums, numbers, dates, checkboxes and identifiers** (e.g. `username`) are validated in the action against an explicit set, range or pattern.
 - **Passwords and auth emails** go to Supabase Auth unmodified.
-- **Output**: JSX escapes automatically. Any HTML built as a string (e.g. Leaflet `bindPopup`) must wrap user values in `escapeHtml()` from `@/lib/html`. Never use `dangerouslySetInnerHTML` with user data. Emails are sent as plain `text`.
+- **Output**: JSX escapes automatically. Any HTML built as a string (e.g. Leaflet `bindPopup`) must wrap user values in `escapeHtml()` from `@/lib/html`. Never use `dangerouslySetInnerHTML` with user data — the one exception is JSON-LD, which must go through `<JsonLd>` (`@/components/JsonLd`); it serialises with `jsonLd()` from `@/lib/html`, which unicode-escapes `<`, `>` and `&` so user text can't close the `<script>`. Don't hand-roll another `application/ld+json` script. Emails are sent as plain `text`.
 
 ## Component Conventions
 

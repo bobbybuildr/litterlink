@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CONTACT_EMAIL, SOCIAL_PROFILES } from "@/lib/seo";
 
 export function Footer() {
   return (
@@ -11,8 +12,8 @@ export function Footer() {
           </p>
           <p className="text-sm text-gray-500 text-center">
             Contact us:&nbsp;
-            <a href="mailto:hello@litterlink.co.uk" className="font-bold hover:text-gray-900 transition-colors">
-              hello@litterlink.co.uk
+            <a href={`mailto:${CONTACT_EMAIL}`} className="font-bold hover:text-gray-900 transition-colors">
+              {CONTACT_EMAIL}
             </a>
           </p>
           </div>
@@ -37,7 +38,7 @@ export function Footer() {
             {/* Social media icons */}
             <div className="flex items-center justify-center gap-4">
               <a
-                href="https://www.facebook.com/profile.php?id=61576794153198"
+                href={SOCIAL_PROFILES.facebook}
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="LitterLink on Facebook"
@@ -49,7 +50,7 @@ export function Footer() {
               </a>
 
               <a
-                href="https://instagram.com/litterlink_"
+                href={SOCIAL_PROFILES.instagram}
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="LitterLink on Instagram"
@@ -61,7 +62,7 @@ export function Footer() {
               </a>
 
               <a
-                href="https://x.com/litterlink_"
+                href={SOCIAL_PROFILES.x}
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="LitterLink on X"

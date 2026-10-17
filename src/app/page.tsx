@@ -6,7 +6,9 @@ import { createClient } from "@/lib/supabase/server";
 import { LucideIcon, ArrowRight } from "lucide-react";
 import { PostcodeSearch } from "@/components/PostcodeSearch";
 import { FlashBanner } from "@/components/FlashBanner";
+import { JsonLd } from "@/components/JsonLd";
 import { DEFAULT_DESCRIPTION, pageMetadata } from "@/lib/seo";
+import { siteOrganizationJsonLd, websiteJsonLd } from "@/lib/structured-data";
 
 export const metadata: Metadata = pageMetadata({
   title: "LitterLink — Find Local Litter Picks Near You",
@@ -57,6 +59,7 @@ export default async function HomePage({ searchParams }: Props) {
 
   return (
     <div>
+      <JsonLd nodes={[siteOrganizationJsonLd(), websiteJsonLd()]} />
       {/* Hero */}
       <section className="bg-linear-to-br from-green-50 to-emerald-100 px-4 py-20 sm:py-28">
         <div className="mx-auto max-w-3xl text-center">

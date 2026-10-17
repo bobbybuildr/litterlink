@@ -3,7 +3,7 @@
 **Date:** 4 October 2026
 **Scope:** Technical SEO across `src/app/`, `src/components/`, `src/lib/`, `src/proxy.ts`, `robots.ts`, `sitemap.ts`, metadata and routing. Next.js 16 behaviour was checked against the installed docs in `node_modules/next/dist/docs/`.
 **Public routes in scope:** `/`, `/events`, `/events/[id]`, `/groups`, `/groups/[slug]`, `/impact`, `/privacy`, `/terms`
-**Status:** W1–W5 implemented (W4: default image, X card and generated event images 15 October 2026; generated group images and the `events_with_counts` place-name fix 16 October 2026; W5: complete sitemap 16 October 2026). Migration `0038` has been applied, so event titles now show place names. `npm test` (204 tests), `npm run typecheck`, `npm run lint` and `npm run build` all pass. Rendered `<head>` output, `sitemap.xml` and `robots.txt` were verified against a local production build using a Googlebot user agent.
+**Status:** W1–W6 implemented (W4: default image, X card and generated event images 15 October 2026; generated group images and the `events_with_counts` place-name fix 16 October 2026; W5: complete sitemap 16 October 2026; W6: JSON-LD structured data 17 October 2026). Migration `0038` has been applied, so event titles now show place names. `npm test` (227 tests), `npm run typecheck`, `npm run lint` and `npm run build` all pass. Rendered `<head>` output, JSON-LD, `sitemap.xml` and `robots.txt` were verified against a local production build using a Googlebot user agent.
 
 ## Summary
 
@@ -16,12 +16,12 @@ The serious gaps were about **indexing control and duplication**:
 - No page had a canonical URL.
 - Coming-soon mode only hid part of the site. (The mode has since been removed entirely; see C5.)
 
-All critical issues are now fixed. The remaining work is mainly enhancement: structured data, sitemap coverage, internal linking and performance.
+All critical issues are now fixed. The remaining work is mainly enhancement: internal linking and performance.
 
 | Severity | Total | Fixed | Partially fixed | Open |
 |---|---|---|---|---|
 | Critical | 5 | 5 | 0 | 0 |
-| High | 10 | 8 | 1 | 1 |
+| High | 10 | 9 | 1 | 0 |
 | Medium | 9 | 1 | 2 | 6 |
 
 ### Workstreams
@@ -33,7 +33,7 @@ All critical issues are now fixed. The remaining work is mainly enhancement: str
 | W3 | Canonical URLs and query-parameter duplicates | ✅ Done |
 | W4 | Open Graph, X and share images | ✅ Done |
 | W5 | Sitemap and robots | ✅ Done |
-| W6 | Structured data (JSON-LD) | Open |
+| W6 | Structured data (JSON-LD) | ✅ Done |
 | W7 | Internal linking, content and headings | Open |
 | W8 | Core Web Vitals | Open |
 
@@ -46,6 +46,7 @@ All critical issues are now fixed. The remaining work is mainly enhancement: str
 3. **Google Search Console:**
    - ✅ `sitemap.xml` submitted (16 October 2026).
    - Still to do: use URL Inspection on `/`, an event page and a group page.
+   - Still to do: run an upcoming event page and a group page through the [Rich Results Test](https://search.google.com/test/rich-results), then watch the Events and Breadcrumbs reports under Enhancements (W6).
    - Still to do: look in the Pages report for "Duplicate without user-selected canonical" and "Indexed, though blocked by robots.txt".
 
 ---
@@ -276,23 +277,28 @@ The sitemap listed only `/`, `/events` and events. It used one unpaginated query
 - `share-image.test.ts` covers the full card, the postcode fallback, the missing-location case, the unknown-type fallback and long location names.
 - Checked visually with a short name ("Batchwood Pickers") and a 63-character, three-line name.
 
-### H7 — No structured data — Open (W6)
+### H7 — ~~No structured data~~ ✅ Fixed (W6)
 
-**Recommendation:**
-- **Homepage:** `Organization` (logo, `sameAs` links to Facebook, Instagram and X) and `WebSite`.
+**Location:** `src/lib/structured-data.ts`, `src/components/JsonLd.tsx`, `src/lib/html.ts`, `src/app/page.tsx`, `src/app/events/[id]/page.tsx`, `src/app/groups/[slug]/page.tsx`
+
+**Resolution:** each page renders one `<script type="application/ld+json">` holding an `@graph`. Nodes are linked by `@id`.
+- **Homepage:** `Organization` (`@id` `/#organization`; square 512×512 logo; `email`; `sameAs` Facebook, Instagram and X) and `WebSite` (`inLanguage: en-GB`, `publisher` → the organisation). No `SearchAction`: Google retired the sitelinks search box in November 2024. The social URLs and contact email now live in `SOCIAL_PROFILES` / `CONTACT_EMAIL` in `@/lib/seo`, and the footer uses the same constants, so `sameAs` can't drift from the footer.
 - **Event pages:** `Event` with:
-  - `startDate` / `endDate`
-  - `eventStatus`
+  - `startDate`, plus `endDate` when it's after the start
+  - `eventStatus`: `EventCancelled` for cancelled events, otherwise `EventScheduled`. `EventRescheduled` isn't used because it needs `previousStartDate`, which isn't stored.
   - `eventAttendanceMode: OfflineEventAttendanceMode`
-  - `location` as a `Place` with `PostalAddress` (postcode, admin district, GB) and `geo`
-  - `organizer` (the group if present, otherwise the organiser)
-  - `isAccessibleForFree`
-  - attendee capacity
-  - `image`
-- **Group pages:** `Organization` with `url`, `logo` and `sameAs` (website and social links).
-- **Detail pages:** `BreadcrumbList`.
+  - `location` as a `Place` (meeting point name, or the postcode) with a `PostalAddress` (postcode, `districtName()` locality, `GB`) and `geo` (the exact meeting point)
+  - `organizer`: the group as an `Organization` whose `@id` matches the group page, otherwise the organiser as a `Person` with no URL, since profiles are `nofollow`
+  - `isAccessibleForFree: true` and `maximumAttendeeCapacity`
+  - `image`: the generated `/events/{id}/opengraph-image`
+  - While the event is upcoming and published: `remainingAttendeeCapacity` and a free `Offer` (`price: 0`, `GBP`, `InStock` or `SoldOut` when full, `validFrom` set to the creation date)
+  - Drafts get no `Event` node.
+- **Group pages:** `Organization` with `url`, `description`, `logo`, `email`, `sameAs` (website and social links, when set) and `location` (`Place` with name, postcode and `geo`).
+- **Event and group pages:** `BreadcrumbList` (Home → Events/Groups → page).
 
-**Security:** AGENTS.md forbids `dangerouslySetInnerHTML` with user data, but JSON-LD requires a script tag. Add a single `jsonLd()` serialiser to `@/lib/html` that escapes `<` as `\u003c` (the Next.js `json-ld.md` guide). Unit-test it and document the exception in AGENTS.md.
+**Security:** `jsonLd()` in `@/lib/html` serialises the graph and unicode-escapes `<`, `>`, `&`, U+2028 and U+2029, so user text can't close the script or open a comment, and the JSON still parses to the same values. `<JsonLd>` is the only place that uses it. AGENTS.md documents this as the single sanctioned `dangerouslySetInnerHTML` sink. `html.test.ts` covers `</script>` and `<!--` payloads and round-tripping. `structured-data.test.ts` covers every builder, including cancelled, completed, past, full, unlimited-capacity, draft and missing-field cases.
+
+**Not covered:** listing pages (`/events`, `/groups`) carry no `ItemList` or breadcrumbs, and group pages don't list their events. Google only shows event rich results from each event's own page, so these add little.
 
 ### H8 — ~~Renaming a group broke its URL~~ ✅ Fixed (W3)
 
@@ -407,7 +413,7 @@ Both go through the Supabase session refresh. Exclude `robots.txt|sitemap.xml|ma
 
 ---
 
-## Work completed (W1–W5)
+## Work completed (W1–W6)
 
 ### New files
 
@@ -430,6 +436,8 @@ Both go through the Supabase session refresh. Exclude `robots.txt|sitemap.xml|ma
 | `supabase/migrations/0038_events_with_counts_location_display.sql` | Adds `location_outcode` and `location_admin_district` to `events_with_counts` (W4) |
 | `src/lib/sitemap.ts` (+ test) | `buildSitemap()`, `isSitemapEvent()` (stale-event rule), `eventLastModified()`, `STALE_EVENT_GRACE_DAYS`, `SITEMAP_URL_LIMIT` (W5) |
 | `src/lib/legal.ts` | `TERMS_LAST_UPDATED`, `PRIVACY_LAST_UPDATED`, `formatLegalDate()`, shared by the legal pages and the sitemap (W5) |
+| `src/lib/structured-data.ts` (+ test) | JSON-LD builders: `siteOrganizationJsonLd()`, `websiteJsonLd()`, `eventJsonLd()`, `groupOrganizationJsonLd()`, `breadcrumbJsonLd()`, `jsonLdGraph()` (W6) |
+| `src/components/JsonLd.tsx` | Renders one `@graph` `<script type="application/ld+json">` through `jsonLd()` (W6) |
 
 ### Modified files
 
@@ -456,7 +464,11 @@ Both go through the Supabase session refresh. Exclude `robots.txt|sitemap.xml|ma
 | `src/lib/search-params.ts` (+ test) | `parsePostcode()` |
 | `src/lib/events.ts` | `getCurrentSlugForOldGroupSlug()`; `getSitemapData()` with a throwing, paginated `fetchAllRows()` (W5) |
 | `src/types/database.ts` | `group_slug_history` table type |
-| `AGENTS.md` | Documents `src/lib/seo.ts` and the metadata conventions |
+| `src/lib/html.ts` (+ test) | `jsonLd()` serialiser (W6) |
+| `src/lib/seo.ts` | `CONTACT_EMAIL`, `SOCIAL_PROFILES`, `SITE_LOGO` (W6) |
+| `src/components/layout/Footer.tsx` | Social links and contact email from `@/lib/seo` (W6) |
+| `src/app/page.tsx`, `src/app/events/[id]/page.tsx`, `src/app/groups/[slug]/page.tsx` | Render `<JsonLd>` (W6) |
+| `AGENTS.md` | Documents `src/lib/seo.ts` and the metadata conventions; `structured-data.ts` and the JSON-LD `dangerouslySetInnerHTML` exception (W6) |
 
 ### Conventions for new pages
 
@@ -467,6 +479,7 @@ Both go through the Supabase session refresh. Exclude `robots.txt|sitemap.xml|ma
 - **Share images:** `pageMetadata()` includes `DEFAULT_SHARE_IMAGE` through `OPEN_GRAPH_DEFAULTS`. If you build `openGraph` by hand, spread `OPEN_GRAPH_DEFAULTS` so the image is kept. Don't set `twitter.images`; X inherits the Open Graph image.
 - **Generated share images:** add `opengraph-image.tsx` beside the page, render with `renderShareImage()` from `@/lib/share-image-render`, and pass `defaultImage: false` to `pageMetadata()`. Otherwise the default image wins over the file.
 - Don't include "LitterLink" in page titles; the root template adds it.
+- **Structured data:** build nodes with `@/lib/structured-data` and render them with `<JsonLd nodes={[...]} />`. Never write an `application/ld+json` script by hand.
 
 ### Verification (local production build, Googlebot user agent)
 
@@ -492,6 +505,12 @@ Both go through the Supabase session refresh. Exclude `robots.txt|sitemap.xml|ma
 | `/sitemap.xml` (W5) | `200`, `application/xml`, 149 URLs: 6 site pages, 134 events, 9 groups. Static pages carry derived or "Last updated" `lastmod` values (no request-time stamps); `/groups` and group pages carry none. Sampled event and group URLs return `200` |
 | `/robots.txt` (W5) | `Allow: /`; disallows `/dashboard`, `/admin`, `/auth` and `/api/`; `Sitemap:` line points at `/sitemap.xml` |
 | `/terms`, `/privacy` (W5) | "Last updated" text unchanged: 3 April 2026 / 24 September 2026 |
+| `/` (W6) | One JSON-LD script: `Organization` (logo, email, three `sameAs` links) and `WebSite` linked by `@id` |
+| `/events/{id}` for upcoming events, with and without a capacity limit (W6) | `Event` with `InStock` free `Offer`; `maximumAttendeeCapacity` and `remainingAttendeeCapacity` when a limit is set; group or `Person` organiser; `BreadcrumbList` Home → Events → title |
+| `/events/{id}` for past events (W6) | `Event` with `EventScheduled`, no `Offer`; multi-line descriptions are JSON-escaped correctly |
+| `/events/{id}/opengraph-image`, `/android-chrome-512x512.png` (W6) | `200`, `image/png` (the JSON-LD `image` and `logo` URLs) |
+| `/groups/{slug}` (W6) | `Organization` with logo, email, `sameAs`, `Place` with postcode and `geo`; `BreadcrumbList` Home → Groups → name |
+| `/events` (W6) | No JSON-LD |
 
 ---
 
@@ -507,10 +526,10 @@ Both go through the Supabase session refresh. Exclude `robots.txt|sitemap.xml|ma
    - ~~Add groups, `/groups`, `/impact` and the legal pages.~~ Done (see H3).
    - ~~`.range()` pagination; real `lastModified`; drop stale, never-wrapped-up events.~~ Done (see H3 and M4).
    - ~~Disallow `/api/`; resolve the `/profile` disallow (H2).~~ Done.
-3. **W6 – JSON-LD:**
-   - `jsonLd()` serialiser with tests.
-   - `Organization` / `WebSite` on the homepage, `Event` on event pages, `Organization` on group pages, `BreadcrumbList` on detail pages.
-   - Document the exception in AGENTS.md.
+3. ~~**W6 – JSON-LD:**~~ ✅ Done (see H7):
+   - ~~`jsonLd()` serialiser with tests.~~ Done.
+   - ~~`Organization` / `WebSite` on the homepage, `Event` on event pages, `Organization` on group pages, `BreadcrumbList` on detail pages.~~ Done.
+   - ~~Document the exception in AGENTS.md.~~ Done.
 4. **W7 – Linking and content:**
    - Homepage event and group sections; related or nearby events on event pages.
    - ~~Decide on profile links (public pages or `nofollow`).~~ `nofollow` (H2).

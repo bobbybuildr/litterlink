@@ -26,7 +26,9 @@ import { CancelEventButton } from "@/components/events/CancelEventButton";
 import { EventPhotosGallery } from "@/components/events/EventPhotosGallery";
 import { PhotoUpload } from "@/components/events/PhotoUpload";
 import { FlashBanner } from "@/components/FlashBanner";
+import { JsonLd } from "@/components/JsonLd";
 import { absoluteUrl, districtName, metaDescription, pageMetadata } from "@/lib/seo";
+import { breadcrumbJsonLd, eventJsonLd, eventPath } from "@/lib/structured-data";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -114,6 +116,16 @@ export default async function EventDetailPage({ params, searchParams }: Props) {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
+      <JsonLd
+        nodes={[
+          eventJsonLd(event, now),
+          breadcrumbJsonLd([
+            { name: "Home", path: "/" },
+            { name: "Events", path: "/events" },
+            { name: event.title, path: eventPath(event.id) },
+          ]),
+        ]}
+      />
       {/* Back */}
       <Link
         href={backHref}
