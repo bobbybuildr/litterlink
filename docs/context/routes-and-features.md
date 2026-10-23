@@ -12,7 +12,7 @@ All routes use the Next.js 16 App Router. There is no Pages Router.
 |---|---|---|
 | `/` | `src/app/page.tsx` | Landing / home page |
 | `/coming-soon` | `src/app/coming-soon/page.tsx` | Pre-launch holding page — `/`, `/events`, and `/events/*` redirect here when `COMING_SOON=true` |
-| `/events` | `src/app/events/(browse)/page.tsx` | Browse all published events — postcode search, radius filter, date range, map + card list |
+| `/events` | `src/app/events/(browse)/page.tsx` | Browse all published events — postcode search, radius filter, date range, map + card list. The unfiltered view also shows a paginated "Coming up later" list (`getLaterEvents`) of events after the default 7-day window |
 | `/events/[id]` | `src/app/events/[id]/page.tsx` | Event detail — join/leave, share URL, map pin, photo gallery, participants, post-event stats |
 | `/groups` | `src/app/groups/(browse)/page.tsx` | Browse all groups — postcode search, radius filter, group type filter, interactive map with popups, "Featured Group" showcase (most active in the trailing 30 days, hidden once a search/filter is applied), and a card grid sorted by member count |
 | `/groups/[slug]` | `src/app/groups/[slug]/page.tsx` | Group profile page — logo, description, links, member count, join/leave button, impact stats (events hosted, bags collected, volunteer sessions, hours volunteered), organisers section, members section, upcoming/past events |

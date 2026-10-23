@@ -315,15 +315,14 @@ Renaming a group regenerated its slug, and the old URL returned 404.
 
 **Not covered:** `/groups/{old-slug}/edit` still returns 404 (owner-only page, low impact).
 
-### H9 — `/events` duplicates and a short crawl window — Partially fixed (W3 done, W7 open)
+### H9 — ~~`/events` duplicates and a short crawl window~~ ✅ Fixed (W3, W7)
 
-**Location:** `src/app/events/(browse)/page.tsx`, `src/lib/search-params.ts`
+**Location:** `src/app/events/(browse)/page.tsx`, `src/lib/search-params.ts`, `src/lib/events.ts`
 
 **Done:**
 - Disabled Previous/Next buttons now render as `<span aria-disabled>` through the new `src/components/PaginationLink.tsx`. URLs such as `?page=0` or one past the last page are no longer generated.
-- Every `postcode`, `radius`, `from`, `to`, `page` or `pastPage` variant is `noindex, follow`.
-
-**Open (W7):** the default list only covers the next 7 days (`DEFAULT_EVENT_RANGE_DAYS`). Events further ahead are linked only from group pages and the sitemap. Add a crawlable upcoming-events list that isn't limited to 7 days, e.g. on the homepage or a "later" section.
+- Every `postcode`, `radius`, `from`, `to`, `page`, `pastPage` or `laterPage` variant is `noindex, follow`.
+- The bare `/events` page has a "Coming up later" section listing published events after the default 7-day window (`DEFAULT_EVENT_RANGE_DAYS`), 10 per page, as plain links. `getLaterEvents()` paginates in the database with an exact count, so each request reads at most 10 rows from `events_with_counts` and runs in parallel with the main query. Filtered searches (`postcode`, `from`, `to`) skip it.
 
 ### H10 — ~~`/impact` had 256 duplicate URL combinations~~ ✅ Fixed (W3)
 

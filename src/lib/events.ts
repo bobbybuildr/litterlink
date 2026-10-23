@@ -78,6 +78,47 @@ export async function getPublishedEvents(options?: {
 }
 
 /**
+ * One page of published events starting on or after `fromDate` (`YYYY-MM-DD`), for the crawlable "later" list
+ * on `/events`. Paginated in the database so only `pageSize` rows are ever read through the aggregating view.
+ * An out-of-range `page` returns the last page. `page` in the result is the page actually returned.
+ */
+export async function getLaterEvents(options: {
+  fromDate: string;
+  page: number;
+  pageSize: number;
+}): Promise<{ events: EventWithCount[]; total: number; page: number; totalPages: number }> {
+  const supabase = await createClient();
+
+  async function fetchPage(page: number) {
+    const start = (page - 1) * options.pageSize;
+    return supabase
+      .from("events_with_counts")
+      .select("*", { count: "exact" })
+      .eq("status", "published")
+      .gte("starts_at", `${options.fromDate}T00:00:00`)
+      .order("starts_at", { ascending: true })
+      .order("id")
+      .range(start, start + options.pageSize - 1);
+  }
+
+  let page = Math.max(1, options.page);
+  const first = await fetchPage(page);
+  if (first.error) return { events: [], total: 0, page: 1, totalPages: 1 };
+
+  const total = first.count ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / options.pageSize));
+  let data = first.data;
+  if (page > totalPages) {
+    page = totalPages;
+    const last = await fetchPage(page);
+    if (last.error) return { events: [], total: 0, page: 1, totalPages: 1 };
+    data = last.data;
+  }
+
+  return { events: (data ?? []) as EventWithCount[], total, page, totalPages };
+}
+
+/**
  * Fetch a single event with its stats (for detail page). Wrapped in React `cache()` so `generateMetadata` and
  * the page share one query per request; separate requests (e.g. the share image) still fetch fresh.
  */

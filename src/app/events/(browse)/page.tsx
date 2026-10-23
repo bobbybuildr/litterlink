@@ -7,10 +7,11 @@ import { EventsFilter } from "@/components/events/EventsFilter";
 import { FilterSkeleton } from "@/components/FilterSkeleton";
 import { PaginationLink } from "@/components/PaginationLink";
 import { EventsMap } from "@/components/map/EventsMap";
-import { getPublishedEvents, haversineKm } from "@/lib/events";
+import { getLaterEvents, getPublishedEvents, haversineKm } from "@/lib/events";
 import { geocodePostcode } from "@/lib/geocode";
 import {
   MAX_EVENT_RANGE_DAYS,
+  addDaysToIsoDate,
   formatIsoDate,
   parseEventDateRange,
   parsePage,
@@ -20,8 +21,18 @@ import {
 import { hasListingParams, pageMetadata } from "@/lib/seo";
 
 const PAGE_SIZE = 5;
+const LATER_PAGE_SIZE = 10;
+const LISTING_PARAMS = ["postcode", "radius", "from", "to", "page", "pastPage", "laterPage"] as const;
 
-type EventsSearchParams = { postcode?: string; radius?: string; from?: string; to?: string; page?: string; pastPage?: string };
+type EventsSearchParams = {
+  postcode?: string;
+  radius?: string;
+  from?: string;
+  to?: string;
+  page?: string;
+  pastPage?: string;
+  laterPage?: string;
+};
 
 interface Props {
   searchParams: Promise<EventsSearchParams>;
@@ -33,15 +44,16 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
     description:
       "Find local litter-picking events near you across the UK. Filter by postcode and join in.",
     path: "/events",
-    indexable: !hasListingParams(await searchParams, ["postcode", "radius", "from", "to", "page", "pastPage"]),
+    indexable: !hasListingParams(await searchParams, LISTING_PARAMS),
   });
 }
 
 export default async function EventsPage({ searchParams }: Props) {
-  const { postcode: rawPostcode, radius, from, to, page, pastPage } = await searchParams;
+  const { postcode: rawPostcode, radius, from, to, page, pastPage, laterPage } = await searchParams;
   const postcode = parsePostcode(rawPostcode) ?? undefined;
   const currentPage = parsePage(page);
   const currentPastPage = parsePage(pastPage);
+  const currentLaterPage = parsePage(laterPage);
   const radiusKm = parseRadiusKm(radius);
 
   // Geocode the search postcode server-side
@@ -53,7 +65,21 @@ export default async function EventsPage({ searchParams }: Props) {
   const now = new Date();
   const { from: fromDate, to: toDate, clamped: rangeClamped } = parseEventDateRange(from, to, now);
 
-  const allEvents = await getPublishedEvents({ from: fromDate, to: toDate });
+  const hasDateFilter = Boolean(from || to);
+  // The "later" list is for the default view only: filtered searches already choose their own range.
+  const showLater = !rawPostcode && !hasDateFilter;
+  const rangeLabel = hasDateFilter ? "for your chosen date range" : "over the next week";
+
+  const [allEvents, later] = await Promise.all([
+    getPublishedEvents({ from: fromDate, to: toDate }),
+    showLater
+      ? getLaterEvents({
+          fromDate: addDaysToIsoDate(toDate, 1),
+          page: currentLaterPage,
+          pageSize: LATER_PAGE_SIZE,
+        })
+      : null,
+  ]);
 
   // Filter the list by radius (haversine) — map always shows all pins
   const events = geo
@@ -89,6 +115,7 @@ export default async function EventsPage({ searchParams }: Props) {
     if (to) params.set("to", toDate);
     if (safePage > 1) params.set("page", String(safePage));
     if (safePastPage > 1) params.set("pastPage", String(safePastPage));
+    if (later && later.page > 1) params.set("laterPage", String(later.page));
     for (const [k, v] of Object.entries(overrides)) {
       if (v === undefined || v === "1") params.delete(k);
       else params.set(k, v);
@@ -106,7 +133,7 @@ export default async function EventsPage({ searchParams }: Props) {
           <h1 className="text-2xl font-bold text-gray-900">Litter picks near you</h1>
           <p className="mt-1 text-sm text-gray-500">
             {upcomingEvents.length} upcoming event{upcomingEvents.length !== 1 ? "s" : ""}
-            {postcode ? ` near ${postcode} for your chosen date range` : " across the UK for your chosen date range"}
+            {postcode ? ` near ${postcode} ${rangeLabel}` : ` across the UK ${rangeLabel}`}
             {pastEvents.length > 0 && (
               <span className="text-gray-400"> · {pastEvents.length} past</span>
             )}
@@ -157,6 +184,7 @@ export default async function EventsPage({ searchParams }: Props) {
             centerLat={geo?.latitude}
             centerLng={geo?.longitude}
             radiusKm={geo ? radiusKm : undefined}
+            filtered={!showLater}
           />
         </div>
 
@@ -233,6 +261,39 @@ export default async function EventsPage({ searchParams }: Props) {
           )}
         </div>
       </div>
+
+      {later && later.total > 0 && (
+        <section aria-labelledby="later-events-heading" className="mt-10">
+          <h2 id="later-events-heading" className="text-xl font-bold text-gray-900">
+            Coming up later
+          </h2>
+          <p className="mt-1 text-sm text-gray-500">
+            {later.total} more event{later.total !== 1 ? "s" : ""} after{" "}
+            {formatIsoDate(toDate)}.
+          </p>
+          <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {later.events.map((event) => (
+              <EventCard key={event.id} event={event} backHref={backHref} />
+            ))}
+          </div>
+          {later.totalPages > 1 && (
+            <div className="mt-4 flex items-center justify-between border-t border-gray-200 pt-4">
+              <PaginationLink href={buildUrl({ laterPage: String(later.page - 1) })} disabled={later.page <= 1}>
+                <ChevronLeft className="h-4 w-4" /> Previous
+              </PaginationLink>
+              <span className="text-sm text-gray-500">
+                Page {later.page} of {later.totalPages}
+              </span>
+              <PaginationLink
+                href={buildUrl({ laterPage: String(later.page + 1) })}
+                disabled={later.page >= later.totalPages}
+              >
+                Next <ChevronRight className="h-4 w-4" />
+              </PaginationLink>
+            </div>
+          )}
+        </section>
+      )}
     </div>
   );
 }

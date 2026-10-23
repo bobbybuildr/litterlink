@@ -10,7 +10,12 @@ interface EventsMapProps {
   centerLng?: number;
   radiusKm?: number;
   zoom?: number;
+  /** True while any search filter is applied; the map returns to the UK-wide view when this goes back to false. */
+  filtered?: boolean;
 }
+
+const UK_CENTER: [number, number] = [53.15, -3.6];
+const UK_ZOOM = 6;
 
 function radiusToZoom(radiusKm?: number): number {
   if (!radiusKm) return 11;
@@ -43,9 +48,10 @@ function popupHtml(event: EventWithCount): string {
  * Leaflet map rendered client-side.
  * Lazy-imports Leaflet to avoid SSR issues with window/document.
  */
-export function EventsMap({ events, centerLat, centerLng, radiusKm, zoom }: EventsMapProps) {
+export function EventsMap({ events, centerLat, centerLng, radiusKm, zoom, filtered = false }: EventsMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<import("leaflet").Map | null>(null);
+  const wasFilteredRef = useRef(filtered);
   // const hintRef = useRef<HTMLDivElement>(null);
   // const touchCleanupRef = useRef<(() => void) | null>(null);
 
@@ -68,9 +74,8 @@ export function EventsMap({ events, centerLat, centerLng, radiusKm, zoom }: Even
         shadowUrl: "/images/marker-shadow.png",
       });
 
-      const defaultLat = centerLat ?? 53.15;
-      const defaultLng = centerLng ?? -3.6;
-      const defaultZoom = zoom ?? (centerLat != null ? radiusToZoom(radiusKm) : 6);
+      const [defaultLat, defaultLng] = centerLat != null && centerLng != null ? [centerLat, centerLng] : UK_CENTER;
+      const defaultZoom = zoom ?? (centerLat != null ? radiusToZoom(radiusKm) : UK_ZOOM);
 
       const map = L.map(containerRef.current!).setView(
         [defaultLat, defaultLng],
@@ -145,6 +150,9 @@ export function EventsMap({ events, centerLat, centerLng, radiusKm, zoom }: Even
 
   // When events change (filter applied), update markers without re-creating the map
   useEffect(() => {
+    const wasFiltered = wasFilteredRef.current;
+    wasFilteredRef.current = filtered;
+
     const map = mapRef.current;
     if (!map) return;
 
@@ -165,11 +173,14 @@ export function EventsMap({ events, centerLat, centerLng, radiusKm, zoom }: Even
 
       if (centerLat != null && centerLng != null) {
         map.setView([centerLat, centerLng], zoom ?? radiusToZoom(radiusKm));
+      } else if (wasFiltered && !filtered) {
+        // Filters were cleared: undo any filter-driven zoom and any manual panning.
+        map.setView(UK_CENTER, zoom ?? UK_ZOOM);
       }
     }
 
     updateMarkers();
-  }, [events, centerLat, centerLng, radiusKm, zoom]);
+  }, [events, centerLat, centerLng, radiusKm, zoom, filtered]);
 
   return (
     <div className="relative h-full w-full">
