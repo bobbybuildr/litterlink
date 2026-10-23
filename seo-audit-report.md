@@ -95,10 +95,8 @@ Nothing set `alternates.canonical`. Event cards on filtered `/events` pages link
 
 **Resolution:**
 - These pages now have canonicals: `/`, `/events`, `/groups`, `/impact`, `/events/{id}`, `/groups/{slug}`, `/privacy` and `/terms`.
-- The event canonical ignores `?back=`.
 - Filtered and paginated listing variants get `noindex, follow` *without* a canonical, because Google advises against combining the two. Unrelated parameters such as `?flash=` and `utm_*` keep the canonical.
-
-**Still open (optional, W7):** event card links could drop `?back=` altogether and restore the list state another way, e.g. `sessionStorage`.
+- Event card links no longer add `?back=` (W7), so each event has one URL. The "All events" link on the event page always goes to `/events`; the browser Back button still restores the filtered list.
 
 ### C5 — ~~Coming-soon mode only partly hid the site~~ ✅ Removed
 
@@ -575,7 +573,8 @@ Both go through the Supabase session refresh. Exclude `robots.txt|sitemap.xml|ma
    - Homepage event and group sections; related or nearby events on event pages.
    - ~~Decide on profile links (public pages or `nofollow`).~~ `nofollow` (H2).
    - ~~Heading fixes (M2) and photo alt text (M3).~~ Done.
-   - Upcoming list beyond 7 days (H9); optionally remove `?back=` from card links.
+   - ~~Upcoming list beyond 7 days (H9).~~ Done.
+   - ~~Remove `?back=` from card links.~~ Done (see C4).
 5. **W8 – Core Web Vitals:**
    - Fix the beta banner hydration/CLS (M6).
    - Slim map props; ~~`next/image` in the gallery~~ (done with M3).

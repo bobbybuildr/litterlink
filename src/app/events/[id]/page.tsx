@@ -33,7 +33,6 @@ import { breadcrumbJsonLd, eventJsonLd, eventPath } from "@/lib/structured-data"
 
 interface Props {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ back?: string }>;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -48,7 +47,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     month: "short",
     year: "numeric",
   });
-  // ?back= only restores list filters, so every variant canonicalises to the bare event URL.
   // The generated opengraph-image.tsx beside this page supplies the share image.
   // Events that were never wrapped up only say "This event has finished", so they're noindex (and out of the sitemap).
   return pageMetadata({
@@ -63,13 +61,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   });
 }
 
-export default async function EventDetailPage({ params, searchParams }: Props) {
+export default async function EventDetailPage({ params }: Props) {
   const { id } = await params;
-  const { back } = await searchParams;
-
-  // Validate back URL is a safe relative /events path to prevent open redirects
-  const backHref =
-    back && /^\/events(\?[^#]*)?$/.test(back) ? back : "/events";
 
   const eventUrl = absoluteUrl(`/events/${id}`);
 
@@ -131,7 +124,7 @@ export default async function EventDetailPage({ params, searchParams }: Props) {
       />
       {/* Back */}
       <Link
-        href={backHref}
+        href="/events"
         className="mb-6 flex w-fit items-center gap-1 text-sm text-gray-500 hover:text-gray-800 transition-colors"
       >
         <ArrowLeft className="h-4 w-4" />

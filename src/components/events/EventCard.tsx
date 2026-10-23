@@ -6,7 +6,6 @@ import { cn } from "@/lib/utils";
 interface EventCardProps {
   event: EventWithCount;
   className?: string;
-  backHref?: string;
 }
 
 type CardState = "joinable" | "completed" | "cancelled" | "past";
@@ -56,7 +55,7 @@ const stateStyles: Record<
   },
 };
 
-export function EventCard({ event, className, backHref }: EventCardProps) {
+export function EventCard({ event, className }: EventCardProps) {
   const state = getCardState(event);
   const styles = stateStyles[state];
   const isMuted = state !== "joinable";
@@ -66,13 +65,9 @@ export function EventCard({ event, className, backHref }: EventCardProps) {
     new Date().getTime() - new Date(event.created_at).getTime() <
     48 * 60 * 60 * 1000;
 
-  const href = backHref
-    ? `/events/${event.id}?back=${encodeURIComponent(backHref)}`
-    : `/events/${event.id}`;
-
   return (
     <Link
-      href={href}
+      href={`/events/${event.id}`}
       className={cn(
         "group relative flex flex-col rounded-xl border border-l-4 p-3 shadow-sm transition-shadow hover:shadow-md",
         styles.card,
