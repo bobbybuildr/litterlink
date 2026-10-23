@@ -3,7 +3,7 @@
 **Date:** 4 October 2026
 **Scope:** Technical SEO across `src/app/`, `src/components/`, `src/lib/`, `src/proxy.ts`, `robots.ts`, `sitemap.ts`, metadata and routing. Next.js 16 behaviour was checked against the installed docs in `node_modules/next/dist/docs/`.
 **Public routes in scope:** `/`, `/events`, `/events/[id]`, `/groups`, `/groups/[slug]`, `/impact`, `/privacy`, `/terms`
-**Status:** W1–W6 implemented (W4: default image, X card and generated event images 15 October 2026; generated group images and the `events_with_counts` place-name fix 16 October 2026; W5: complete sitemap 16 October 2026; W6: JSON-LD structured data 17 October 2026). W7 in progress: heading structure (M2) and image SEO (M3) fixed 17 October 2026. Migration `0038` has been applied, so event titles now show place names. `npm test` (227 tests), `npm run typecheck`, `npm run lint` and `npm run build` all pass. Rendered `<head>` output, JSON-LD, `sitemap.xml` and `robots.txt` were verified against a local production build using a Googlebot user agent.
+**Status:** W1–W6 implemented (W4: default image, X card and generated event images 15 October 2026; generated group images and the `events_with_counts` place-name fix 16 October 2026; W5: complete sitemap 16 October 2026; W6: JSON-LD structured data 17 October 2026). W7 in progress: heading structure (M2) and image SEO (M3) fixed 17 October 2026; thin past events (M4) fixed 23 October 2026. Migration `0038` has been applied, so event titles now show place names. `npm test` (235 tests), `npm run typecheck`, `npm run lint` and `npm run build` all pass. Rendered `<head>` output, JSON-LD, `sitemap.xml` and `robots.txt` were verified against a local production build using a Googlebot user agent.
 
 ## Summary
 
@@ -22,7 +22,7 @@ All critical issues are now fixed. The remaining work is mainly enhancement: int
 |---|---|---|---|---|
 | Critical | 5 | 5 | 0 | 0 |
 | High | 10 | 9 | 1 | 0 |
-| Medium | 9 | 3 | 2 | 4 |
+| Medium | 9 | 4 | 1 | 4 |
 
 ### Workstreams
 
@@ -34,7 +34,7 @@ All critical issues are now fixed. The remaining work is mainly enhancement: int
 | W4 | Open Graph, X and share images | ✅ Done |
 | W5 | Sitemap and robots | ✅ Done |
 | W6 | Structured data (JSON-LD) | ✅ Done |
-| W7 | Internal linking, content and headings | In progress (M2, M3 done) |
+| W7 | Internal linking, content and headings | In progress (M2, M3, M4 done) |
 | W8 | Core Web Vitals | Open |
 
 ---
@@ -164,7 +164,7 @@ The sitemap listed only `/`, `/events` and events. It used one unpaginated query
   | `/groups`, `/groups/{slug}` | Omitted: groups have no edit timestamp, and Google prefers no `lastmod` to a wrong one |
 
 - `changeFrequency` and `priority` were removed. Google ignores both, and the old values (`weekly` for finished events) were misleading.
-- **Stale events:** published events that started more than 14 days ago (`STALE_EVENT_GRACE_DAYS`) were never wrapped up, so they are left out. Completed events stay listed. Drafts and cancelled events stay excluded. Organisers get the stats reminder 12 hours after the start, so 14 days leaves plenty of time to wrap up before an event drops out. See M4 for the page-level `noindex`.
+- **Stale events:** published events that started more than 14 days ago (`STALE_EVENT_GRACE_DAYS`) were never wrapped up, so they are left out. Completed events stay listed. Drafts and cancelled events stay excluded. Organisers get the stats reminder 12 hours after the start, so 14 days leaves plenty of time to wrap up before an event drops out. The event page itself is `noindex` under the same rule (see M4).
 - **Scale:** a single sitemap holds up to 50,000 URLs (`SITEMAP_URL_LIMIT`). The route logs a warning if it goes over. At that point, split it with `generateSitemaps()`. In Next 16 that serves `/sitemap/{id}.xml` with no automatic index, so `robots.ts` would need to list each file.
 - The route still renders per request because the Supabase server client reads cookies. That avoids a database dependency at build time and keeps it fresh.
 - Unit tests (`src/lib/sitemap.test.ts`) cover coverage, stale-event rules, `lastModified` derivation and the empty-data case.
@@ -382,13 +382,21 @@ The issues were:
 
 **Verified** on a local production build: gallery images render through `/_next/image` with the new alt text and `sizes`, and the optimised URL returns `200 image/webp`. Member-chip avatars render with `alt=""`.
 
-### M4 — Thin past events — Partially fixed (W5)
+### M4 — ~~Thin past events~~ ✅ Fixed (W5, W7)
+
+**Location:** `src/lib/sitemap.ts`, `src/app/events/[id]/page.tsx`
 
 Past `published` events that were never wrapped up only say "This event has finished".
 
-**Done (W5):** they are left out of the sitemap 14 days after they start (`isSitemapEvent()` in `src/lib/sitemap.ts`).
+**Resolution:**
+- **Sitemap (W5):** they are left out 14 days after they start (`isSitemapEvent()`).
+- **Event page (W7):** `generateMetadata` passes `indexable: !isStaleEvent(event, new Date())` to `pageMetadata()`, so a stale event is `noindex, follow` with no canonical. `isStaleEvent()` and `isSitemapEvent()` share one grace-period check (`STALE_EVENT_GRACE_DAYS`), so the page and the sitemap can't drift.
+- **Cancelled events stay indexable.** Their page carries `EventCancelled` structured data (H7), which Google can only use while the page can be indexed. They are still left out of the sitemap. Completed events are never stale.
+- The page is rendered per request, so an event flips to `noindex` on its own once the 14 days pass. Logging stats before then (status `completed`) keeps it indexable.
 
-**Open:** the event page itself is still indexable. To finish, apply the same predicate in `events/[id]/page.tsx` `generateMetadata` (`indexable: false`), so the page and the sitemap agree.
+**Verified** on a local production build, using a Googlebot user agent: three published events that started 20 days to 7 weeks ago return `<meta name="robots" content="noindex, follow"/>` with no canonical, and are absent from `sitemap.xml`. Upcoming events return a canonical and no robots tag.
+
+Unit tests (`src/lib/sitemap.test.ts`) cover `isStaleEvent()`, including agreement with `isSitemapEvent()`.
 
 ### M5 — ~~Language and locale~~ ✅ Fixed (W2)
 
@@ -458,7 +466,7 @@ Both go through the Supabase session refresh. Exclude `robots.txt|sitemap.xml|ma
 | `src/app/profile/layout.tsx` | `noindex, nofollow` for `/profile` and `/profile/[id]` |
 | `supabase/migrations/0037_group_slug_history.sql` | Old-slug history table, RLS, and the maintenance trigger |
 | `supabase/migrations/0038_events_with_counts_location_display.sql` | Adds `location_outcode` and `location_admin_district` to `events_with_counts` (W4) |
-| `src/lib/sitemap.ts` (+ test) | `buildSitemap()`, `isSitemapEvent()` (stale-event rule), `eventLastModified()`, `STALE_EVENT_GRACE_DAYS`, `SITEMAP_URL_LIMIT` (W5) |
+| `src/lib/sitemap.ts` (+ test) | `buildSitemap()`, `isSitemapEvent()` (stale-event rule), `isStaleEvent()` (page-level `noindex`, W7), `eventLastModified()`, `STALE_EVENT_GRACE_DAYS`, `SITEMAP_URL_LIMIT` (W5) |
 | `src/lib/legal.ts` | `TERMS_LAST_UPDATED`, `PRIVACY_LAST_UPDATED`, `formatLegalDate()`, shared by the legal pages and the sitemap (W5) |
 | `src/lib/structured-data.ts` (+ test) | JSON-LD builders: `siteOrganizationJsonLd()`, `websiteJsonLd()`, `eventJsonLd()`, `groupOrganizationJsonLd()`, `breadcrumbJsonLd()`, `jsonLdGraph()` (W6) |
 | `src/components/JsonLd.tsx` | Renders one `@graph` `<script type="application/ld+json">` through `jsonLd()` (W6) |
@@ -501,6 +509,7 @@ Both go through the Supabase session refresh. Exclude `robots.txt|sitemap.xml|ma
 | `src/app/impact/ImpactHero.tsx` | Keyword-bearing H1 subtitle (W7, M2) |
 | `src/components/events/EventPhotosGallery.tsx` | `next/image` with `sizes`; per-photo alt text from the new `eventTitle` prop (W7, M3) |
 | `src/app/events/[id]/page.tsx` | Passes `eventTitle` to `EventPhotosGallery` (W7, M3) |
+| `src/app/events/[id]/page.tsx` | `generateMetadata` sets `indexable: false` for stale events via `isStaleEvent()` (W7, M4) |
 
 ### Conventions for new pages
 
@@ -573,4 +582,4 @@ Both go through the Supabase session refresh. Exclude `robots.txt|sitemap.xml|ma
    - Homepage stats from `national_impact_stats`; proxy matcher exclusions (M9).
 6. **Tidy-ups:**
    - Move the remaining inline site URLs in `(auth)/actions.ts` and `email.ts` to `SITE_URL` (M8).
-   - Thin-event `noindex` on the page itself, reusing `isSitemapEvent()` (M4; sitemap exclusion is done).
+   - ~~Thin-event `noindex` on the page itself (M4).~~ Done.

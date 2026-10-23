@@ -28,6 +28,7 @@ import { PhotoUpload } from "@/components/events/PhotoUpload";
 import { FlashBanner } from "@/components/FlashBanner";
 import { JsonLd } from "@/components/JsonLd";
 import { absoluteUrl, districtName, metaDescription, pageMetadata } from "@/lib/seo";
+import { isStaleEvent } from "@/lib/sitemap";
 import { breadcrumbJsonLd, eventJsonLd, eventPath } from "@/lib/structured-data";
 
 interface Props {
@@ -49,6 +50,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   });
   // ?back= only restores list filters, so every variant canonicalises to the bare event URL.
   // The generated opengraph-image.tsx beside this page supplies the share image.
+  // Events that were never wrapped up only say "This event has finished", so they're noindex (and out of the sitemap).
   return pageMetadata({
     title: `${event.title} – ${place}, ${date}`,
     description: metaDescription(
@@ -56,6 +58,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         `Join the litter pick at ${event.address_label ?? event.location_postcode} on ${formatDate(event.starts_at)}.`
     ),
     path: `/events/${id}`,
+    indexable: !isStaleEvent(event, new Date()),
     defaultImage: false,
   });
 }

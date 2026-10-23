@@ -6,6 +6,7 @@ import {
   buildSitemap,
   eventLastModified,
   isSitemapEvent,
+  isStaleEvent,
   type SitemapEvent,
 } from "@/lib/sitemap";
 
@@ -45,6 +46,30 @@ describe("isSitemapEvent", () => {
   it("drops drafts and cancelled events", () => {
     expect(isSitemapEvent(event({ status: "draft" }), NOW)).toBe(false);
     expect(isSitemapEvent(event({ status: "cancelled" }), NOW)).toBe(false);
+  });
+});
+
+describe("isStaleEvent", () => {
+  it("flags published events never wrapped up after the grace period", () => {
+    expect(isStaleEvent(event({ starts_at: daysFromNow(-STALE_EVENT_GRACE_DAYS - 1) }), NOW)).toBe(true);
+  });
+
+  it("does not flag upcoming events or past events still within the grace period", () => {
+    expect(isStaleEvent(event(), NOW)).toBe(false);
+    expect(isStaleEvent(event({ starts_at: daysFromNow(-STALE_EVENT_GRACE_DAYS) }), NOW)).toBe(false);
+  });
+
+  it("does not flag completed, cancelled or draft events however old", () => {
+    for (const status of ["completed", "cancelled", "draft"] as const) {
+      expect(isStaleEvent(event({ status, starts_at: daysFromNow(-400) }), NOW)).toBe(false);
+    }
+  });
+
+  it("agrees with isSitemapEvent for published events", () => {
+    for (const days of [-400, -STALE_EVENT_GRACE_DAYS - 1, -STALE_EVENT_GRACE_DAYS, -1, 7]) {
+      const published = event({ starts_at: daysFromNow(days) });
+      expect(isStaleEvent(published, NOW)).toBe(!isSitemapEvent(published, NOW));
+    }
   });
 });
 

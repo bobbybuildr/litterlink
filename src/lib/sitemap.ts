@@ -38,11 +38,24 @@ export interface SitemapData {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+function isWithinGracePeriod(startsAt: string, now: Date): boolean {
+  return new Date(startsAt).getTime() >= now.getTime() - STALE_EVENT_GRACE_DAYS * DAY_MS;
+}
+
 /** Only completed events and published events that are upcoming or still within the wrap-up grace period. */
 export function isSitemapEvent(event: Pick<SitemapEvent, "status" | "starts_at">, now: Date): boolean {
   if (event.status === "completed") return true;
   if (event.status !== "published") return false;
-  return new Date(event.starts_at).getTime() >= now.getTime() - STALE_EVENT_GRACE_DAYS * DAY_MS;
+  return isWithinGracePeriod(event.starts_at, now);
+}
+
+/**
+ * Thin page: a published event that started more than the grace period ago and was never wrapped up. The sitemap
+ * leaves these out and the event page is `noindex`. Cancelled events are not stale: their page carries
+ * `EventCancelled` structured data, which Google can only act on while the page stays indexable.
+ */
+export function isStaleEvent(event: Pick<SitemapEvent, "status" | "starts_at">, now: Date): boolean {
+  return event.status === "published" && !isWithinGracePeriod(event.starts_at, now);
 }
 
 function latest(dates: (string | null | undefined)[]): Date | undefined {
