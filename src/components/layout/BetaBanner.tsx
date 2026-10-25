@@ -2,21 +2,24 @@
 
 import { useState } from "react";
 import { X } from "lucide-react";
+import { BETA_BANNER_DISMISSED_COOKIE } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
-const STORAGE_KEY = "beta-banner-dismissed";
+interface BetaBannerProps {
+  /** Read from the cookie on the server so the first HTML already matches (no hydration mismatch or layout shift). */
+  initiallyDismissed?: boolean;
+  className?: string;
+}
 
-export function BetaBanner({ className }: { className?: string }) {
-  const [dismissed, setDismissed] = useState(false);
-  const previouslyDismissed =
-    typeof window !== "undefined" && !!window.sessionStorage.getItem(STORAGE_KEY);
+export function BetaBanner({ initiallyDismissed = false, className }: BetaBannerProps) {
+  const [dismissed, setDismissed] = useState(initiallyDismissed);
 
   function dismiss() {
-    sessionStorage.setItem(STORAGE_KEY, "1");
+    document.cookie = `${BETA_BANNER_DISMISSED_COOKIE}=1; path=/; SameSite=Lax`;
     setDismissed(true);
   }
 
-  if (dismissed || previouslyDismissed) return null;
+  if (dismissed) return null;
 
   return (
     <div

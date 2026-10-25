@@ -3,7 +3,7 @@
 **Date:** 4 October 2026
 **Scope:** Technical SEO across `src/app/`, `src/components/`, `src/lib/`, `src/proxy.ts`, `robots.ts`, `sitemap.ts`, metadata and routing. Next.js 16 behaviour was checked against the installed docs in `node_modules/next/dist/docs/`.
 **Public routes in scope:** `/`, `/events`, `/events/[id]`, `/groups`, `/groups/[slug]`, `/impact`, `/privacy`, `/terms`
-**Status:** W1–W6 implemented (W4: default image, X card and generated event images 15 October 2026; generated group images and the `events_with_counts` place-name fix 16 October 2026; W5: complete sitemap 16 October 2026; W6: JSON-LD structured data 17 October 2026). W7 in progress: heading structure (M2) and image SEO (M3) fixed 17 October 2026; thin past events (M4) fixed 23 October 2026. Migration `0038` has been applied, so event titles now show place names. `npm test` (235 tests), `npm run typecheck`, `npm run lint` and `npm run build` all pass. Rendered `<head>` output, JSON-LD, `sitemap.xml` and `robots.txt` were verified against a local production build using a Googlebot user agent.
+**Status:** W1–W6 implemented (W4: default image, X card and generated event images 15 October 2026; generated group images and the `events_with_counts` place-name fix 16 October 2026; W5: complete sitemap 16 October 2026; W6: JSON-LD structured data 17 October 2026). W7 in progress: heading structure (M2) and image SEO (M3) fixed 17 October 2026; thin past events (M4) fixed 23 October 2026. W8 in progress: banner hydration mismatch and layout shift (M6) fixed 25 October 2026. Migration `0038` has been applied, so event titles now show place names. `npm test` (235 tests), `npm run typecheck`, `npm run lint` and `npm run build` all pass. Rendered `<head>` output, JSON-LD, `sitemap.xml` and `robots.txt` were verified against a local production build using a Googlebot user agent.
 
 ## Summary
 
@@ -22,7 +22,7 @@ All critical issues are now fixed. The remaining work is mainly enhancement: int
 |---|---|---|---|---|
 | Critical | 5 | 5 | 0 | 0 |
 | High | 10 | 9 | 1 | 0 |
-| Medium | 9 | 4 | 1 | 4 |
+| Medium | 9 | 5 | 1 | 3 |
 
 ### Workstreams
 
@@ -35,7 +35,7 @@ All critical issues are now fixed. The remaining work is mainly enhancement: int
 | W5 | Sitemap and robots | ✅ Done |
 | W6 | Structured data (JSON-LD) | ✅ Done |
 | W7 | Internal linking, content and headings | In progress (M2, M3, M4 done) |
-| W8 | Core Web Vitals | Open |
+| W8 | Core Web Vitals | In progress (M6 done) |
 
 ---
 
@@ -400,13 +400,25 @@ Unit tests (`src/lib/sitemap.test.ts`) cover `isStaleEvent()`, including agreeme
 
 `<html lang="en-GB">` and `openGraph.locale: "en_GB"`.
 
-### M6 — Beta banner hydration mismatch / CLS — Open (W8)
+### M6 — ~~Beta banner hydration mismatch / CLS~~ ✅ Fixed (W8)
 
-**Location:** `src/components/layout/BetaBanner.tsx`
+**Location:** `src/components/layout/BetaBanner.tsx`, `src/app/layout.tsx`, `src/lib/constants.ts`
 
-It reads `sessionStorage` during render. The server renders the banner and the client renders nothing, which causes a hydration mismatch and a layout shift at the top of every page for users who dismissed it.
+`BetaBanner` read `sessionStorage` during render. The server always rendered the banner and the client rendered nothing, which caused a hydration mismatch and a layout shift at the top of the page for users who had dismissed it.
 
-**Recommendation:** read the value in an effect, or use a cookie read on the server.
+**Resolution:**
+- Dismissal is stored in a session cookie (`BETA_BANNER_DISMISSED_COOKIE`, `beta-banner-dismissed`), not `sessionStorage`.
+- `RootLayout` reads the cookie on the server and passes `initiallyDismissed` to `BetaBanner`. The server HTML and the first client render now agree, so there is no mismatch and nothing shifts.
+- The layout was already dynamic because `Navbar` reads the auth cookies, so reading one more cookie adds no rendering cost.
+- The banner message, feedback link and dismiss button are unchanged. The banner is now hidden by default through `SHOW_BETA_BANNER` in `src/lib/constants.ts` (LitterLink is out of beta), and `RootLayout` only renders it, and only reads the cookie, when that flag is `true`. Nothing was removed, so it can be reactivated for temporary messages by flipping the flag.
+- A first attempt kept `sessionStorage` and read it with `useSyncExternalStore`, with a "dismissed" server snapshot. That removed the mismatch but made the banner appear after hydration for every new visitor, which measured 0.036 CLS. The cookie approach avoids that.
+
+**Verified** against the local dev server in a browser:
+- **New visitor:** the banner is in the raw server HTML, there were no layout shifts, and there were no hydration warnings.
+- **After dismissing:** the banner disappears, the cookie is set, and it stays hidden across client-side navigation.
+- **Hard reload after dismissing:** the raw server HTML has no banner, there were no layout shifts, and there were no hydration warnings.
+
+**Note:** while the banner is enabled, dismissing it sets a first-party session cookie. It holds no personal data. The privacy policy's cookie section (section 11) covers essential session technology only and does not mention it. Add a line there if the banner is reactivated.
 
 ### M7 — Server response time — Open (W8)
 
@@ -576,7 +588,7 @@ Both go through the Supabase session refresh. Exclude `robots.txt|sitemap.xml|ma
    - ~~Upcoming list beyond 7 days (H9).~~ Done.
    - ~~Remove `?back=` from card links.~~ Done (see C4).
 5. **W8 – Core Web Vitals:**
-   - Fix the beta banner hydration/CLS (M6).
+   - ~~Fix the beta banner hydration/CLS (M6).~~ Done.
    - Slim map props; ~~`next/image` in the gallery~~ (done with M3).
    - Homepage stats from `national_impact_stats`; proxy matcher exclusions (M9).
 6. **Tidy-ups:**

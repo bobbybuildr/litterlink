@@ -16,6 +16,12 @@ export const RADIUS_OPTIONS = [
 
 export const DEFAULT_RADIUS_KM = 16;
 
+/** Master switch for the site-wide banner (`BetaBanner`). Hidden by default; set to `true` to show it again. */
+export const SHOW_BETA_BANNER = false;
+
+/** Session cookie set when a visitor dismisses the site banner, so the server can omit it. */
+export const BETA_BANNER_DISMISSED_COOKIE = "beta-banner-dismissed";
+
 export const GROUP_TYPE_LABELS: Record<string, string> = {
   community: "Community group",
   school: "School",
