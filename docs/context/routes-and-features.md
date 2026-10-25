@@ -162,7 +162,7 @@ Footer
 - Rate-limited event creation (5 per user per 24 hours — `src/lib/ratelimit.ts`)
 - Input sanitization via `src/lib/sanitize.ts` (strips HTML tags)
 - Events default to `published` status on creation
-- Organiser can cancel an event (status → `cancelled`)
+- Organiser can cancel an event (status → `cancelled`). Cancelled event pages stay publicly viewable (with a "Cancelled" badge and registrations closed) so participants following the cancellation email still land on a real page; they are left out of listings and the sitemap. Only drafts are hidden from everyone but the organiser (RLS policy `events: public read non-draft`)
 - Event detail page with full info, participant count, map pin, share URL, photo gallery (completed events), and participant list
 - Verified organiser badge shown on event cards and detail pages
 - Open Graph meta tags on event detail pages

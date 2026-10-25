@@ -241,7 +241,7 @@ The sitemap listed only `/`, `/events` and events. It used one unpaginated query
   - "Event cancelled" (red)
   - "Draft event" (amber)
   - Past, completed and cancelled events therefore don't look like invitations.
-  - RLS hides cancelled and draft events from anonymous visitors, so crawlers get a 404 for those. The cancelled badge is mainly defensive, and only the organiser sees it.
+  - Cancelled events are publicly readable (migration `0039`), so crawlers and anyone with the link get the page and the red "Event cancelled" card. RLS still hides drafts from everyone except the organiser, so crawlers get a 404 for those.
 - **Long text:**
   - Titles step down from 80 px to 46 px as they get longer, are capped at 100 characters on a word boundary, and are limited to 4 lines.
   - The meeting point and host are each limited to one line with an ellipsis.
@@ -430,7 +430,7 @@ Both go through the Supabase session refresh. Exclude `robots.txt|sitemap.xml|ma
 
 - `metadataBase` and a `%s | LitterLink` title template in the root layout.
 - Per-page metadata on most routes; `generateMetadata` with awaited `params` on event and group detail pages.
-- `robots.ts` and `sitemap.ts` exist; the sitemap excludes drafts and cancelled events (RLS also hides them from anonymous users).
+- `robots.ts` and `sitemap.ts` exist; the sitemap excludes drafts and cancelled events (RLS also hides drafts from anonymous users; cancelled event pages stay public and indexable).
 - Every private route redirects anonymous visitors, via the proxy (`updateSession`) or an in-page `redirect()`.
 - 308 redirect from www to the bare domain; profiles accessed by UUID redirect to the username URL.
 - Detail pages call `notFound()` without a `loading.tsx`, so they return real 404s rather than soft 404s.
