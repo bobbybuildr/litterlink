@@ -44,7 +44,7 @@ export function NavbarMobileMenu({
 
       <div
         id="mobile-nav-menu"
-        aria-hidden={!open}
+        inert={!open}
         className={cn(
           "absolute right-0 top-full mt-2 w-64 rounded-xl border border-gray-200 bg-white p-3 shadow-lg",
           "origin-top-right transition-all duration-200 ease-out",
