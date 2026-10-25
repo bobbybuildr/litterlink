@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { getLaterEvents, haversineKm } from "@/lib/events";
+import { boundingBox, getLaterEvents, getRelatedEvents, haversineKm, nearestEvent } from "@/lib/events";
 import { createClient } from "@/lib/supabase/server";
 
 // events.ts imports the cookie-based server client; haversineKm doesn't need it.
@@ -101,5 +101,168 @@ describe("haversineKm", () => {
     const inUk = haversineKm(54, 0, 54, 1);
     expect(inUk).toBeLessThan(atEquator);
     expect(inUk).toBeCloseTo(atEquator * Math.cos((54 * Math.PI) / 180), 1);
+  });
+});
+
+describe("boundingBox", () => {
+  it("contains points just inside the radius in every direction", () => {
+    const box = boundingBox(LONDON.lat, LONDON.lng, 10);
+    // ~9.9 km due north, south, east and west
+    const km = 9.9;
+    const dLat = km / 111.19;
+    const dLng = km / (111.19 * Math.cos((LONDON.lat * Math.PI) / 180));
+    expect(LONDON.lat + dLat).toBeLessThan(box.maxLat);
+    expect(LONDON.lat - dLat).toBeGreaterThan(box.minLat);
+    expect(LONDON.lng + dLng).toBeLessThan(box.maxLng);
+    expect(LONDON.lng - dLng).toBeGreaterThan(box.minLng);
+  });
+
+  it("is no wider than needed", () => {
+    const box = boundingBox(LONDON.lat, LONDON.lng, 10);
+    expect(haversineKm(LONDON.lat, LONDON.lng, box.maxLat, LONDON.lng)).toBeCloseTo(10, 1);
+    expect(box.maxLng - LONDON.lng).toBeCloseTo(LONDON.lng - box.minLng, 10);
+  });
+});
+
+describe("nearestEvent", () => {
+  const origin = { latitude: LONDON.lat, longitude: LONDON.lng };
+  // About 1.1 km, 2.2 km and 111 km north of the origin
+  const near = { id: "near", latitude: LONDON.lat + 0.01, longitude: LONDON.lng, starts_at: "2026-11-05T10:00:00Z" };
+  const nearer = { id: "nearer", latitude: LONDON.lat + 0.02, longitude: LONDON.lng, starts_at: "2026-11-01T10:00:00Z" };
+  const far = { id: "far", latitude: LONDON.lat + 1, longitude: LONDON.lng, starts_at: "2026-11-02T10:00:00Z" };
+
+  it("picks the closest event, not the earliest", () => {
+    expect(nearestEvent([nearer, near, far], origin, 10)?.id).toBe("near");
+  });
+
+  it("ignores events beyond the radius", () => {
+    expect(nearestEvent([far], origin, 10)).toBeNull();
+    expect(nearestEvent([nearer, far], origin, 10)?.id).toBe("nearer");
+  });
+
+  it("skips excluded ids", () => {
+    expect(nearestEvent([near, nearer], origin, 10, ["near"])?.id).toBe("nearer");
+    expect(nearestEvent([near], origin, 10, ["near"])).toBeNull();
+  });
+
+  it("breaks distance ties with the earlier start", () => {
+    const sameSpotLater = { ...near, id: "later", starts_at: "2026-12-01T10:00:00Z" };
+    expect(nearestEvent([sameSpotLater, near], origin, 10)?.id).toBe("near");
+  });
+
+  it("returns null for no candidates", () => {
+    expect(nearestEvent([], origin, 10)).toBeNull();
+  });
+});
+
+describe("getRelatedEvents", () => {
+  const source = {
+    id: "current",
+    organiser_id: "org-1",
+    group_id: "group-1",
+    latitude: LONDON.lat,
+    longitude: LONDON.lng,
+  };
+  const now = new Date("2026-10-25T12:00:00Z");
+
+  // Each `from()` call gets the next result, in call order: organiser query, then nearby query.
+  function mockRelatedQueries(results: Array<{ data: unknown[] | null; error?: unknown }>) {
+    const calls: Array<Array<[string, ...unknown[]]>> = [];
+    let call = 0;
+    vi.mocked(createClient).mockResolvedValue({
+      from: vi.fn(() => {
+        const filters: Array<[string, ...unknown[]]> = [];
+        calls.push(filters);
+        const result = { error: null, ...results[call++] };
+        const query: Record<string, unknown> = {
+          then: (resolve: (value: unknown) => unknown, reject: (reason: unknown) => unknown) =>
+            Promise.resolve(result).then(resolve, reject),
+        };
+        for (const name of ["select", "eq", "neq", "gte", "lte", "or", "order", "limit"]) {
+          query[name] = vi.fn((...args: unknown[]) => {
+            filters.push([name, ...args]);
+            return query;
+          });
+        }
+        return query;
+      }),
+    } as never);
+    return calls;
+  }
+
+  const eventAt = (id: string, latOffset: number, startsAt = "2026-11-01T10:00:00Z") => ({
+    id,
+    latitude: LONDON.lat + latOffset,
+    longitude: LONDON.lng,
+    starts_at: startsAt,
+  });
+
+  it("returns the organiser's next event and the closest nearby event", async () => {
+    const calls = mockRelatedQueries([
+      { data: [eventAt("by-organiser", 2)] },
+      { data: [eventAt("far-ish", 0.05), eventAt("closest", 0.01)] },
+    ]);
+
+    const result = await getRelatedEvents(source, now);
+
+    expect(result.moreFromOrganiser?.id).toBe("by-organiser");
+    expect(result.nearby?.id).toBe("closest");
+    for (const filters of calls) {
+      expect(filters).toContainEqual(["eq", "status", "published"]);
+      expect(filters).toContainEqual(["gte", "starts_at", now.toISOString()]);
+      expect(filters).toContainEqual(["neq", "id", "current"]);
+    }
+    expect(calls[0]).toContainEqual(["or", "organiser_id.eq.org-1,group_id.eq.group-1"]);
+    expect(calls[0]).toContainEqual(["limit", 1]);
+    expect(calls[1].map(([name]) => name)).toEqual(
+      expect.arrayContaining(["gte", "lte"])
+    );
+  });
+
+  it("doesn't suggest the organiser's event again as the nearby event", async () => {
+    mockRelatedQueries([
+      { data: [eventAt("by-organiser", 0.01)] },
+      { data: [eventAt("by-organiser", 0.01), eventAt("someone-else", 0.03)] },
+    ]);
+
+    const result = await getRelatedEvents(source, now);
+
+    expect(result.moreFromOrganiser?.id).toBe("by-organiser");
+    expect(result.nearby?.id).toBe("someone-else");
+  });
+
+  it("returns nothing when there are no other upcoming events", async () => {
+    mockRelatedQueries([{ data: [] }, { data: [] }]);
+    expect(await getRelatedEvents(source, now)).toEqual({ moreFromOrganiser: null, nearby: null });
+  });
+
+  it("ignores candidates in the bounding box that are outside the radius", async () => {
+    // About 8.9 km north and 6.9 km east: inside the square 10 km box, but 11.2 km away.
+    mockRelatedQueries([{ data: [] }, { data: [{ ...eventAt("corner", 0.08), longitude: LONDON.lng + 0.1 }] }]);
+    expect((await getRelatedEvents(source, now)).nearby).toBeNull();
+  });
+
+  it("matches on the group alone when the organiser account is gone", async () => {
+    const calls = mockRelatedQueries([{ data: [] }, { data: [] }]);
+    await getRelatedEvents({ ...source, organiser_id: null }, now);
+    expect(calls[0]).toContainEqual(["or", "group_id.eq.group-1"]);
+  });
+
+  it("skips the organiser query when there is neither an organiser nor a group", async () => {
+    const calls = mockRelatedQueries([{ data: [eventAt("near", 0.01)] }]);
+
+    const result = await getRelatedEvents({ ...source, organiser_id: null, group_id: null }, now);
+
+    expect(calls).toHaveLength(1);
+    expect(result.moreFromOrganiser).toBeNull();
+    expect(result.nearby?.id).toBe("near");
+  });
+
+  it("treats query errors as no suggestion", async () => {
+    mockRelatedQueries([
+      { data: null, error: { message: "boom" } },
+      { data: null, error: { message: "boom" } },
+    ]);
+    expect(await getRelatedEvents(source, now)).toEqual({ moreFromOrganiser: null, nearby: null });
   });
 });

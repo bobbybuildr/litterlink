@@ -441,3 +441,120 @@ export function haversineKm(
 function toRad(deg: number) {
   return (deg * Math.PI) / 180;
 }
+
+/** Furthest an event can be from the one being viewed and still be suggested as "nearby". */
+export const NEARBY_EVENT_RADIUS_KM = 20;
+
+const EARTH_RADIUS_KM = 6371;
+
+/**
+ * Latitude/longitude box containing every point within `radiusKm` of the origin. Used to narrow the database query
+ * (there's an index on latitude/longitude) before the exact distance is checked with `haversineKm`.
+ */
+export function boundingBox(latitude: number, longitude: number, radiusKm: number) {
+  const angularDistance = radiusKm / EARTH_RADIUS_KM;
+  const latDelta = (angularDistance * 180) / Math.PI;
+  // The widest longitude span of a circle is at its east/west tangent points, not at the origin's latitude.
+  const sinRatio = Math.sin(angularDistance) / Math.cos(toRad(latitude));
+  const lngDelta = (Math.asin(Math.min(1, sinRatio)) * 180) / Math.PI;
+  return {
+    minLat: latitude - latDelta,
+    maxLat: latitude + latDelta,
+    minLng: longitude - lngDelta,
+    maxLng: longitude + lngDelta,
+  };
+}
+
+/**
+ * The candidate closest to `origin` within `radiusKm`, or null. Ties on distance go to the earlier start.
+ * Candidates in `excludeIds` are skipped.
+ */
+export function nearestEvent<T extends Pick<EventRow, "id" | "latitude" | "longitude" | "starts_at">>(
+  candidates: T[],
+  origin: { latitude: number; longitude: number },
+  radiusKm: number,
+  excludeIds: string[] = []
+): T | null {
+  let best: { event: T; km: number } | null = null;
+  for (const event of candidates) {
+    if (excludeIds.includes(event.id)) continue;
+    const km = haversineKm(origin.latitude, origin.longitude, event.latitude, event.longitude);
+    if (km > radiusKm) continue;
+    if (
+      !best ||
+      km < best.km ||
+      (km === best.km && event.starts_at < best.event.starts_at)
+    ) {
+      best = { event, km };
+    }
+  }
+  return best?.event ?? null;
+}
+
+type RelatedEventsSource = Pick<EventRow, "id" | "organiser_id" | "group_id" | "latitude" | "longitude">;
+
+export type RelatedEvents = {
+  /** The organiser's (or group's) next upcoming event, if any. */
+  moreFromOrganiser: EventWithCount | null;
+  /** The closest upcoming event within `NEARBY_EVENT_RADIUS_KM`, if any. */
+  nearby: EventWithCount | null;
+};
+
+/**
+ * Suggestions for the event detail sidebar. Only published events that haven't started yet are suggested. The
+ * nearby suggestion never repeats the organiser suggestion. Query failures just mean no suggestion.
+ */
+export async function getRelatedEvents(
+  event: RelatedEventsSource,
+  now: Date = new Date()
+): Promise<RelatedEvents> {
+  const supabase = await createClient();
+  const nowIso = now.toISOString();
+
+  function upcomingOthers() {
+    return supabase
+      .from("events_with_counts")
+      .select("*")
+      .eq("status", "published")
+      .gte("starts_at", nowIso)
+      .neq("id", event.id);
+  }
+
+  // Events by the same organiser, or run on behalf of the same group, count as "from this organiser".
+  const owners = [
+    event.organiser_id && `organiser_id.eq.${event.organiser_id}`,
+    event.group_id && `group_id.eq.${event.group_id}`,
+  ].filter((filter): filter is string => !!filter);
+
+  const box = boundingBox(event.latitude, event.longitude, NEARBY_EVENT_RADIUS_KM);
+
+  const [organiserResult, nearbyResult] = await Promise.all([
+    owners.length > 0
+      ? upcomingOthers().or(owners.join(",")).order("starts_at", { ascending: true }).order("id").limit(1)
+      : null,
+    upcomingOthers()
+      .gte("latitude", box.minLat)
+      .lte("latitude", box.maxLat)
+      .gte("longitude", box.minLng)
+      .lte("longitude", box.maxLng)
+      .order("starts_at", { ascending: true })
+      .order("id"),
+  ]);
+
+  const moreFromOrganiser =
+    organiserResult && !organiserResult.error
+      ? ((organiserResult.data?.[0] as EventWithCount | undefined) ?? null)
+      : null;
+
+  const nearby =
+    nearbyResult.error || !nearbyResult.data
+      ? null
+      : nearestEvent(
+          nearbyResult.data as EventWithCount[],
+          event,
+          NEARBY_EVENT_RADIUS_KM,
+          moreFromOrganiser ? [moreFromOrganiser.id] : []
+        );
+
+  return { moreFromOrganiser, nearby };
+}

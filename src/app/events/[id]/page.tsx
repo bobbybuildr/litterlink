@@ -16,9 +16,11 @@ import {
   BadgeCheck,
   Sparkles
 } from "lucide-react";
-import { getEventById, getUserParticipation, getEventPhotos, getEventParticipants } from "@/lib/events";
+import { getEventById, getUserParticipation, getEventPhotos, getEventParticipants, getRelatedEvents } from "@/lib/events";
+import type { EventWithCount } from "@/lib/events";
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
+import { SidebarEventCard } from "@/components/events/SidebarEventCard";
 import { JoinButton } from "@/components/events/JoinButton";
 import { ShareUrl } from "@/components/events/ShareUrl";
 import { EventsMap } from "@/components/map/EventsMap";
@@ -80,10 +82,11 @@ export default async function EventDetailPage({ params }: Props) {
     event.max_attendees != null &&
     event.confirmed_count >= event.max_attendees;
 
-  const [{ data: { user } }, photos, participants] = await Promise.all([
+  const [{ data: { user } }, photos, participants, { moreFromOrganiser, nearby }] = await Promise.all([
     supabase.auth.getUser(),
     isCompleted ? getEventPhotos(id) : Promise.resolve([] as Awaited<ReturnType<typeof getEventPhotos>>),
     getEventParticipants(id),
+    getRelatedEvents(event),
   ]);
 
   const participationStatus = user
@@ -501,16 +504,28 @@ export default async function EventDetailPage({ params }: Props) {
             <p className="text-xs font-medium text-gray-500 mb-2">Invite others to join</p>
             <ShareUrl title={event.title} url={eventUrl} />
           </div>
-        </div>
 
-        {/* Last in the DOM so it follows the sidebar in one column; sits under the main content at lg+ */}
+        {/* sits under the main content at lg+ */}
         <EventTimestamps
           createdAt={event.created_at}
           updatedAt={event.content_updated_at}
           className="lg:col-span-2 lg:col-start-1"
         />
+          {nearby && <RelatedEventSection title="Other Events Nearby" event={nearby} />}
+          {moreFromOrganiser && <RelatedEventSection title="More From This Organiser" event={moreFromOrganiser} />}
+        </div>
+
       </div>
     </div>
+  );
+}
+
+function RelatedEventSection({ title, event }: { title: string; event: EventWithCount }) {
+  return (
+    <section>
+      <h2 className="mb-2 text-sm font-semibold text-gray-900">{title}</h2>
+      <SidebarEventCard event={event} />
+    </section>
   );
 }
 
