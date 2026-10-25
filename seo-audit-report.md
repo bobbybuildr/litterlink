@@ -3,7 +3,7 @@
 **Date:** 4 October 2026
 **Scope:** Technical SEO across `src/app/`, `src/components/`, `src/lib/`, `src/proxy.ts`, `robots.ts`, `sitemap.ts`, metadata and routing. Next.js 16 behaviour was checked against the installed docs in `node_modules/next/dist/docs/`.
 **Public routes in scope:** `/`, `/events`, `/events/[id]`, `/groups`, `/groups/[slug]`, `/impact`, `/privacy`, `/terms`
-**Status:** W1–W6 implemented (W4: default image, X card and generated event images 15 October 2026; generated group images and the `events_with_counts` place-name fix 16 October 2026; W5: complete sitemap 16 October 2026; W6: JSON-LD structured data 17 October 2026). W7 in progress: heading structure (M2) and image SEO (M3) fixed 17 October 2026; thin past events (M4) fixed 23 October 2026. W8 in progress: banner hydration mismatch and layout shift (M6) fixed 25 October 2026. Migration `0038` has been applied, so event titles now show place names. `npm test` (235 tests), `npm run typecheck`, `npm run lint` and `npm run build` all pass. Rendered `<head>` output, JSON-LD, `sitemap.xml` and `robots.txt` were verified against a local production build using a Googlebot user agent.
+**Status:** W1–W6 implemented (W4: default image, X card and generated event images 15 October 2026; generated group images and the `events_with_counts` place-name fix 16 October 2026; W5: complete sitemap 16 October 2026; W6: JSON-LD structured data 17 October 2026). W7 in progress: heading structure (M2) and image SEO (M3) fixed 17 October 2026; thin past events (M4) fixed 23 October 2026. W8 in progress: banner hydration mismatch and layout shift (M6) and the proxy running on metadata files (M9) fixed 25 October 2026. Migration `0038` has been applied, so event titles now show place names. `npm test` (263 tests), `npm run typecheck`, `npm run lint` and `npm run build` all pass. Rendered `<head>` output, JSON-LD, `sitemap.xml` and `robots.txt` were verified against a local production build using a Googlebot user agent.
 
 ## Summary
 
@@ -22,7 +22,7 @@ All critical issues are now fixed. The remaining work is mainly enhancement: int
 |---|---|---|---|---|
 | Critical | 5 | 5 | 0 | 0 |
 | High | 10 | 9 | 1 | 0 |
-| Medium | 9 | 5 | 1 | 3 |
+| Medium | 9 | 6 | 1 | 2 |
 
 ### Workstreams
 
@@ -35,7 +35,7 @@ All critical issues are now fixed. The remaining work is mainly enhancement: int
 | W5 | Sitemap and robots | ✅ Done |
 | W6 | Structured data (JSON-LD) | ✅ Done |
 | W7 | Internal linking, content and headings | In progress (M2, M3, M4 done) |
-| W8 | Core Web Vitals | In progress (M6 done) |
+| W8 | Core Web Vitals | In progress (M6, M9 done) |
 
 ---
 
@@ -432,9 +432,21 @@ Unit tests (`src/lib/sitemap.test.ts`) cover `isStaleEvent()`, including agreeme
 
 **Open:** `src/app/(auth)/actions.ts` and `src/lib/email.ts` still inline `process.env.NEXT_PUBLIC_SITE_URL ?? "https://litterlink.co.uk"`.
 
-### M9 — The proxy runs on `robots.txt` and `sitemap.xml` — Open (W8, low)
+### M9 — ~~The proxy runs on `robots.txt` and `sitemap.xml`~~ ✅ Fixed (W8)
 
-Both go through the Supabase session refresh. Exclude `robots.txt|sitemap.xml|manifest.webmanifest` from the proxy matcher.
+**Location:** `src/proxy.ts`, `src/proxy.test.ts`
+
+`robots.txt`, `sitemap.xml` and `manifest.webmanifest` went through the proxy, so every crawler fetch of them paid for a Supabase `getUser()` call and could pick up refreshed auth cookies.
+
+**Resolution:**
+- The proxy matcher now excludes `robots.txt`, `sitemap.xml` and `manifest.webmanifest`, so the proxy does not run on them at all.
+- The `www` → bare-domain 308 for these files comes from the Vercel domain redirect, which runs before the proxy. The proxy's own `www` check stays as a fallback for the paths it still runs on, but it no longer covers these three files, so don't rely on it for them.
+- Auth and profile route protection is unchanged. Protected routes were never covered by the excluded paths.
+
+**Verified:**
+- `src/proxy.test.ts` uses Next's `unstable_doesMiddlewareMatch()` to assert that the proxy runs on pages and protected routes, and skips the three metadata files, static assets and `favicon.ico`.
+- The compiled matchers in `.next/server/functions-config-manifest.json` match the source.
+- On a local production build, `/robots.txt`, `/sitemap.xml` and `/manifest.webmanifest` all return `200`.
 
 ---
 
@@ -478,6 +490,7 @@ Both go through the Supabase session refresh. Exclude `robots.txt|sitemap.xml|ma
 | `supabase/migrations/0038_events_with_counts_location_display.sql` | Adds `location_outcode` and `location_admin_district` to `events_with_counts` (W4) |
 | `src/lib/sitemap.ts` (+ test) | `buildSitemap()`, `isSitemapEvent()` (stale-event rule), `isStaleEvent()` (page-level `noindex`, W7), `eventLastModified()`, `STALE_EVENT_GRACE_DAYS`, `SITEMAP_URL_LIMIT` (W5) |
 | `src/lib/legal.ts` | `TERMS_LAST_UPDATED`, `PRIVACY_LAST_UPDATED`, `formatLegalDate()`, shared by the legal pages and the sitemap (W5) |
+| `src/proxy.test.ts` | Asserts the proxy matcher: runs on pages, skips metadata files and static assets (W8, M9) |
 | `src/lib/structured-data.ts` (+ test) | JSON-LD builders: `siteOrganizationJsonLd()`, `websiteJsonLd()`, `eventJsonLd()`, `groupOrganizationJsonLd()`, `breadcrumbJsonLd()`, `jsonLdGraph()` (W6) |
 | `src/components/JsonLd.tsx` | Renders one `@graph` `<script type="application/ld+json">` through `jsonLd()` (W6) |
 
@@ -486,7 +499,7 @@ Both go through the Supabase session refresh. Exclude `robots.txt|sitemap.xml|ma
 | File | Change |
 |---|---|
 | `src/app/layout.tsx` | Root metadata from `@/lib/seo`; removed `og:url`/`og:title`; `lang="en-GB"`; `twitter: TWITTER_DEFAULTS` (W4) |
-| `src/proxy.ts` | Coming-soon handling removed; uses `SITE_URL` |
+| `src/proxy.ts` | Coming-soon handling removed; uses `SITE_URL`; matcher skips `robots.txt`, `sitemap.xml` and `manifest.webmanifest` (W8, M9) |
 | `src/app/robots.ts` | Uses `absoluteUrl()`; coming-soon handling removed; disallows `/api/`, no longer `/profile` (W5) |
 | `src/app/sitemap.ts` | Uses `SITE_URL`; coming-soon handling removed; now a thin wrapper around `getSitemapData()` and `buildSitemap()`, with a warning over 50,000 URLs (W5) |
 | `src/app/coming-soon/page.tsx` | Deleted |
@@ -590,7 +603,7 @@ Both go through the Supabase session refresh. Exclude `robots.txt|sitemap.xml|ma
 5. **W8 – Core Web Vitals:**
    - ~~Fix the beta banner hydration/CLS (M6).~~ Done.
    - Slim map props; ~~`next/image` in the gallery~~ (done with M3).
-   - Homepage stats from `national_impact_stats`; proxy matcher exclusions (M9).
+   - Homepage stats from `national_impact_stats`. ~~Proxy matcher exclusions (M9).~~ Done.
 6. **Tidy-ups:**
    - Move the remaining inline site URLs in `(auth)/actions.ts` and `email.ts` to `SITE_URL` (M8).
    - ~~Thin-event `noindex` on the page itself (M4).~~ Done.

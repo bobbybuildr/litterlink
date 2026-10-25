@@ -22,8 +22,9 @@ export const config = {
      * - _next/static  (static files)
      * - _next/image   (image optimisation)
      * - favicon.ico   (favicon)
+     * - robots.txt, sitemap.xml, manifest.webmanifest (public metadata files — no session needed)
      * - Public assets (png, svg, jpg, etc.)
      */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
