@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { getEventById, getUserParticipation, getEventPhotos, getEventParticipants } from "@/lib/events";
 import { createClient } from "@/lib/supabase/server";
+import { cn } from "@/lib/utils";
 import { JoinButton } from "@/components/events/JoinButton";
 import { ShareUrl } from "@/components/events/ShareUrl";
 import { EventsMap } from "@/components/map/EventsMap";
@@ -133,9 +134,9 @@ export default async function EventDetailPage({ params }: Props) {
 
       <FlashBanner className="mb-6" />
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-x-8 gap-y-6 lg:grid-cols-3 lg:grid-rows-[auto_1fr]">
         {/* Main content */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-4 lg:space-y-6">
           {/* Title + status */}
           <div>
             <div className="mb-2 flex flex-wrap gap-2">
@@ -197,7 +198,7 @@ export default async function EventDetailPage({ params }: Props) {
           </div>
 
           {event.organiser_is_verified && (
-            <div className="mb-6 flex items-center gap-2 md:gap-3 rounded-xl border border-brand/20 px-3 py-2">
+            <div className="flex items-center gap-2 md:gap-3 rounded-xl border border-brand/20 px-3 py-2">
               <BadgeCheck className="h-5 w-5 shrink-0 text-brand" />
               <p className="text-xs font-medium text-brand">
                 <span className="font-semibold">{event.organiser_name}</span>&nbsp;is a Verified Organiser — Verified Organisers have a proven record of organising events. This helps
@@ -225,7 +226,7 @@ export default async function EventDetailPage({ params }: Props) {
           {/* Description */}
           {event.description && (
             <div className="prose prose-sm max-w-none text-gray-700 rounded-xl border border-gray-200 bg-white p-5">
-              <p className="whitespace-pre-wrap">{event.description}</p>
+              <p className="whitespace-pre-wrap wrap-break-word">{event.description}</p>
             </div>
           )}
 
@@ -233,7 +234,7 @@ export default async function EventDetailPage({ params }: Props) {
           {event.organiser_contact_details && (
             <div className="rounded-xl border border-gray-200 bg-white p-5">
               <h2 className="mb-2 text-sm font-semibold text-gray-900">Organiser contact details</h2>
-              <p className="whitespace-pre-wrap text-sm text-gray-700">{event.organiser_contact_details}</p>
+              <p className="whitespace-pre-wrap wrap-break-word text-sm text-gray-700">{event.organiser_contact_details}</p>
             </div>
           )}
 
@@ -454,36 +455,10 @@ export default async function EventDetailPage({ params }: Props) {
               <p className="mt-1 text-sm text-gray-500">Check back later for impact updates from the organiser.</p>
             </div>
           )}
-          {event.created_at && (
-                <p className="pt-1 -mb-1 text-xs text-gray-400">
-                  Event created:{" "}
-                  {new Date(event.created_at).toLocaleString("en-GB", {
-                    timeZone: "Europe/London",
-                    day: "numeric",
-                    month: "short",
-                    year: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </p>
-              )}
-          {event.content_updated_at && (
-                <p className="pt-1 text-xs text-gray-400">
-                  Last updated:{" "}
-                  {new Date(event.content_updated_at).toLocaleString("en-GB", {
-                    timeZone: "Europe/London",
-                    day: "numeric",
-                    month: "short",
-                    year: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </p>
-              )}
         </div>
 
         {/* Sidebar */}
-        <div className="space-y-4">
+        <div className="space-y-4 lg:space-y-6 lg:col-start-3 lg:row-span-2 lg:row-start-1">
           {/* RSVP */}
           <div className="rounded-xl border border-gray-200 bg-white p-5">
             <JoinButton
@@ -527,9 +502,46 @@ export default async function EventDetailPage({ params }: Props) {
             <ShareUrl title={event.title} url={eventUrl} />
           </div>
         </div>
+
+        {/* Last in the DOM so it follows the sidebar in one column; sits under the main content at lg+ */}
+        <EventTimestamps
+          createdAt={event.created_at}
+          updatedAt={event.content_updated_at}
+          className="lg:col-span-2 lg:col-start-1"
+        />
       </div>
     </div>
   );
+}
+
+function EventTimestamps({
+  createdAt,
+  updatedAt,
+  className,
+}: {
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  className?: string;
+}) {
+  if (!createdAt && !updatedAt) return null;
+
+  return (
+    <div className={cn("pt-1 text-xs text-gray-400", className)}>
+      {createdAt && <p>Event created: {formatTimestamp(createdAt)}</p>}
+      {updatedAt && <p>Last updated: {formatTimestamp(updatedAt)}</p>}
+    </div>
+  );
+}
+
+function formatTimestamp(iso: string) {
+  return new Date(iso).toLocaleString("en-GB", {
+    timeZone: "Europe/London",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function InfoRow({
