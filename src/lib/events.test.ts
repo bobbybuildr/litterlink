@@ -1,5 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
-import { boundingBox, getLaterEvents, getRelatedEvents, haversineKm, nearestEvent } from "@/lib/events";
+import {
+  NEARBY_EVENT_RADIUS_KM,
+  boundingBox,
+  getLaterEvents,
+  getRelatedEvents,
+  haversineKm,
+  nearestEvent,
+} from "@/lib/events";
 import { createClient } from "@/lib/supabase/server";
 
 // events.ts imports the cookie-based server client; haversineKm doesn't need it.
@@ -237,8 +244,21 @@ describe("getRelatedEvents", () => {
   });
 
   it("ignores candidates in the bounding box that are outside the radius", async () => {
-    // About 8.9 km north and 6.9 km east: inside the square 10 km box, but 11.2 km away.
-    mockRelatedQueries([{ data: [] }, { data: [{ ...eventAt("corner", 0.08), longitude: LONDON.lng + 0.1 }] }]);
+    // 80% of the radius north and 80% east: inside the square box, but about 113% of the radius away.
+    const kmPerDegreeLat = 111.19;
+    const kmPerDegreeLng = kmPerDegreeLat * Math.cos((LONDON.lat * Math.PI) / 180);
+    const corner = {
+      ...eventAt("corner", (0.8 * NEARBY_EVENT_RADIUS_KM) / kmPerDegreeLat),
+      longitude: LONDON.lng + (0.8 * NEARBY_EVENT_RADIUS_KM) / kmPerDegreeLng,
+    };
+    const box = boundingBox(source.latitude, source.longitude, NEARBY_EVENT_RADIUS_KM);
+    expect(corner.latitude).toBeLessThan(box.maxLat);
+    expect(corner.longitude).toBeLessThan(box.maxLng);
+    expect(haversineKm(source.latitude, source.longitude, corner.latitude, corner.longitude)).toBeGreaterThan(
+      NEARBY_EVENT_RADIUS_KM
+    );
+
+    mockRelatedQueries([{ data: [] }, { data: [corner] }]);
     expect((await getRelatedEvents(source, now)).nearby).toBeNull();
   });
 

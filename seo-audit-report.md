@@ -338,7 +338,7 @@ Renaming a group regenerated its slug, and the old URL returned 404.
 
 - Event and impact pages link organisers to `/profile/*`, which requires sign-in, so crawlers hit a dead end. Use `rel="nofollow"` or decide to make organiser pages public.
 - The homepage body has no event or group links. Add "Upcoming near you" and "Featured groups" sections.
-- ~~Event pages don't link to more events from the same group or nearby.~~ Done: the sidebar on `/events/[id]` shows "Other events nearby" (closest upcoming event within 10 km) and "More from this organiser" (the organiser's or group's next upcoming event). Each section is omitted when there is nothing to show. See `getRelatedEvents()` in `src/lib/events.ts`.
+- ~~Event pages don't link to more events from the same group or nearby.~~ Done: the sidebar on `/events/[id]` shows "Other events nearby" (closest upcoming event within 20 km) and "More from this organiser" (the organiser's or group's next upcoming event). Each section is omitted when there is nothing to show. See `getRelatedEvents()` in `src/lib/events.ts`.
 - The "Top areas" on `/impact` are plain text.
 - `/events` and `/groups` don't link to each other except through the nav and footer.
 
