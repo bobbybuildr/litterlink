@@ -2,11 +2,13 @@ import { notFound, permanentRedirect } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, Globe, Mail, Users, Calendar, Pencil, ShieldCheck, MapPin, Trash, Clock } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Globe, Mail, Users, Calendar, Pencil, ShieldCheck, MapPin, Trash, Clock } from "lucide-react";
 import { getGroupBySlug, getEventsByGroupId, getGroupMembers, getCurrentSlugForOldGroupSlug } from "@/lib/events";
 import { GROUP_TYPE_LABELS } from "@/lib/constants";
-import { metaDescription, pageMetadata } from "@/lib/seo";
+import { hasListingParams, metaDescription, pageMetadata } from "@/lib/seo";
+import { parsePage } from "@/lib/search-params";
 import { EventCard } from "@/components/events/EventCard";
+import { PaginationLink } from "@/components/PaginationLink";
 import { JoinGroupButton } from "@/components/groups/JoinGroupButton";
 import { DeleteGroupButton } from "@/components/groups/DeleteGroupButton";
 import { GroupsMap } from "@/components/map/GroupsMap";
@@ -16,11 +18,14 @@ import { FlashBanner } from "@/components/FlashBanner";
 import { JsonLd } from "@/components/JsonLd";
 import { breadcrumbJsonLd, groupOrganizationJsonLd, groupPath } from "@/lib/structured-data";
 
+const PAST_PAGE_SIZE = 6;
+
 interface Props {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ pastPage?: string }>;
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const { slug } = await params;
   const group = await getGroupBySlug(slug);
   if (!group) return { title: "Group not found" };
@@ -34,11 +39,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     ),
     path: `/groups/${group.slug}`,
     defaultImage: false,
+    indexable: !hasListingParams(await searchParams, ["pastPage"]),
   });
 }
 
-export default async function GroupPage({ params }: Props) {
-  const { slug } = await params;
+export default async function GroupPage({ params, searchParams }: Props) {
+  const [{ slug }, { pastPage }] = await Promise.all([params, searchParams]);
 
   const [group, supabase] = await Promise.all([
     getGroupBySlug(slug),
@@ -83,6 +89,16 @@ export default async function GroupPage({ params }: Props) {
   const past = events.filter(
     (e) => e.status === "completed" || (e.status !== "cancelled" && new Date(e.starts_at) < now) || e.status === "cancelled"
   ).sort((a, b) => new Date(b.starts_at).getTime() - new Date(a.starts_at).getTime());
+
+  const pastTotalPages = Math.max(1, Math.ceil(past.length / PAST_PAGE_SIZE));
+  const safePastPage = Math.min(parsePage(pastPage), pastTotalPages);
+  const pagedPast = past.slice((safePastPage - 1) * PAST_PAGE_SIZE, safePastPage * PAST_PAGE_SIZE);
+
+  // The anchor keeps readers at the past events list instead of jumping back to the top of the page.
+  const basePath = groupPath(group.slug);
+  function pastPageUrl(n: number) {
+    return `${basePath}${n > 1 ? `?pastPage=${n}` : ""}#past-events`;
+  }
 
   // Impact stats — aggregated from event_stats for this group's completed
   // events. Batched at 1000 ids per request since PostgREST caps results at
@@ -352,15 +368,31 @@ export default async function GroupPage({ params }: Props) {
           )}
 
           {past.length > 0 && (
-            <section>
+            <section id="past-events" className="scroll-mt-20">
               <h2 className="mb-4 text-lg font-semibold text-gray-900">
                 Past events ({past.length})
               </h2>
               <div className="grid gap-4 sm:grid-cols-2">
-                {past.map((event) => (
+                {pagedPast.map((event) => (
                   <EventCard key={event.id} event={event} />
                 ))}
               </div>
+              {pastTotalPages > 1 && (
+                <nav
+                  aria-label="Past events pagination"
+                  className="mt-4 flex items-center justify-between border-t border-gray-200 pt-4"
+                >
+                  <PaginationLink href={pastPageUrl(safePastPage - 1)} disabled={safePastPage <= 1}>
+                    <ChevronLeft className="h-4 w-4" /> Previous
+                  </PaginationLink>
+                  <span className="text-sm text-gray-500">
+                    Page {safePastPage} of {pastTotalPages}
+                  </span>
+                  <PaginationLink href={pastPageUrl(safePastPage + 1)} disabled={safePastPage >= pastTotalPages}>
+                    Next <ChevronRight className="h-4 w-4" />
+                  </PaginationLink>
+                </nav>
+              )}
             </section>
           )}
         </div>
