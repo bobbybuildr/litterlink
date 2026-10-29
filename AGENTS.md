@@ -53,6 +53,7 @@ Unit tests are Vitest, co-located as `src/**/*.test.ts`, run in a Node environme
 | `src/lib/events.ts` | Data-fetching helpers (typed query wrappers) — despite the name, also contains group helpers (`getPublishedGroups`, `getFeaturedGroup`, `getGroupBySlug`, etc.) |
 | `src/lib/constants.ts` | Client-safe shared constants (e.g. `GROUP_TYPE_LABELS`, `UK_POSTCODE_PATTERN`) with no server-only imports — safe to import from Client Components |
 | `src/lib/geolocation.ts` | Browser-side location helpers — Geolocation API wrapper, shared error copy, and `lookupPostcode`/`lookupNearestPostcode` calls to the `/api` geocoding routes |
+| `src/lib/map-pins.ts` | Client-safe slim marker shapes for the maps: `toEventPins()` / `toGroupPins()` (see Component Conventions) |
 | `src/lib/image.ts` | Client-side image pipeline — HEIC decoding + WebP compression, shared by event photo, avatar and group logo uploads |
 | `src/lib/email.ts` | Resend email helpers |
 | `src/lib/ratelimit.ts` | DB-backed rate limiting (event creation, joins, reschedule notifications) |
@@ -67,7 +68,7 @@ Unit tests are Vitest, co-located as `src/**/*.test.ts`, run in a Node environme
 | `src/lib/supabase/` | Supabase client factories |
 | `src/types/database.ts` | Hand-written DB types — update when schema changes |
 | `supabase/migrations/` | SQL migration files |
-| `src/proxy.ts` | Auth session refresh proxy (replaces `middleware.ts`) |
+| `src/proxy.ts` | Auth session refresh proxy (replaces `middleware.ts`); the logic lives in `src/lib/supabase/middleware.ts` — it verifies with `getUser()` only on protected and sign-in/sign-up routes and refreshes the session through `getClaims()` everywhere else |
 
 ### Key tables
 
@@ -108,6 +109,7 @@ import { createClient } from "@/lib/supabase/client";  // Client Components only
 const { data: { user } } = await supabase.auth.getUser();
 if (!user) redirect("/sign-in");
 ```
+The one exception is display-only UI such as `Navbar`: `getClaims()` reads the access-token claims, verified locally against the project's cached signing keys, so it costs no Auth round trip. Never use claims to decide access — pages, Server Actions and the proxy's protected routes still call `getUser()`. A session revoked elsewhere can therefore keep showing as signed in in the navbar until its token expires.
 
 **Environment variables**:
 - `NEXT_PUBLIC_SUPABASE_URL`
@@ -164,6 +166,7 @@ LitterLink never accepts HTML. User text is stored as plain text, exactly as typ
 
 - Server Components by default; add `"use client"` only for interactivity or browser APIs
 - Props typed inline with interfaces; `className?: string` accepted on most components
+- Props passed to a Client Component are serialised into the page HTML, so pass only what it renders. The maps take slim pins (`toEventPins()` / `toGroupPins()` from `@/lib/map-pins`), never full event or group rows
 - Use `cn()` for conditional class merging, not string concatenation
 - `EventCard`, `JoinButton`, `ShareUrl`, `EventsMap` are exemplar components for style reference; `GroupCard`, `GroupsMap`, `FeaturedGroupCard` mirror the same patterns for groups
 - `EventLocationPicker` (`src/components/events/`) is the shared event-location section for the create and edit forms: postcode input, "Use my current location", and a click-to-pick `LocationPickerMap`. It emits hidden `latitude`, `longitude` and `location_mode` (`postcode` | `pin`) fields; the server action re-resolves the postcode metadata via `resolveEventLocation()` and never trusts those hidden values for postcode/outcode/admin-district

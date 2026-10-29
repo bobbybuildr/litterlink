@@ -25,8 +25,10 @@ import { createClient } from "@/lib/supabase/client";  // Client Components only
 ### Auth rules
 
 - Always use `getUser()` on the server — never `getSession()` (getUser validates the JWT)
+- Display-only UI such as the navbar may read `getClaims()` instead: the token is verified locally against the cached signing keys, so it costs no Auth round trip. Never use claims to decide access
 - Auth is checked in Server Actions and Server Components directly
 - Every protected page checks `getUser()` itself and redirects to `/sign-in?redirectTo=…`. `src/proxy.ts` also redirects early for `/dashboard`, `/events/create`, and `/profile*`, but it is not the authoritative check (see `routes-and-features.md`)
+- `src/proxy.ts` refreshes the session on every request. It verifies with `getUser()` only on those protected routes and on `/sign-in` and `/sign-up`; everywhere else it uses `getClaims()`, which refreshes an expiring session without an Auth round trip
 
 ### Environment variables
 

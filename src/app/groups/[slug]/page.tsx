@@ -5,6 +5,7 @@ import Image from "next/image";
 import { ArrowLeft, ChevronLeft, ChevronRight, Globe, Mail, Users, Calendar, Pencil, ShieldCheck, MapPin, Trash, Clock } from "lucide-react";
 import { getGroupBySlug, getEventsByGroupId, getGroupMembers, getCurrentSlugForOldGroupSlug } from "@/lib/events";
 import { GROUP_TYPE_LABELS } from "@/lib/constants";
+import { toGroupPins } from "@/lib/map-pins";
 import { hasListingParams, metaDescription, pageMetadata } from "@/lib/seo";
 import { parsePage } from "@/lib/search-params";
 import { EventCard } from "@/components/events/EventCard";
@@ -269,7 +270,7 @@ export default async function GroupPage({ params, searchParams }: Props) {
         <section className="mb-8 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
           <div className="h-52 sm:h-64">
             <GroupsMap
-              groups={[group]}
+              groups={toGroupPins([group])}
               centerLat={group.latitude ?? undefined}
               centerLng={group.longitude ?? undefined}
               zoom={12}

@@ -12,6 +12,7 @@ import { PaginationLink } from "@/components/PaginationLink";
 import { GroupsMap } from "@/components/map/GroupsMap";
 import { getPublishedGroups, getFeaturedGroup, haversineKm } from "@/lib/events";
 import { geocodePostcode } from "@/lib/geocode";
+import { toGroupPins } from "@/lib/map-pins";
 import { parsePage, parsePostcode, parseRadiusKm } from "@/lib/search-params";
 import { hasListingParams, pageMetadata } from "@/lib/seo";
 
@@ -142,7 +143,7 @@ export default async function GroupsPage({ searchParams }: Props) {
           )}
         >
           <GroupsMap
-            groups={mapGroups}
+            groups={toGroupPins(mapGroups)}
             centerLat={geo?.latitude}
             centerLng={geo?.longitude}
             radiusKm={geo ? radiusKm : undefined}

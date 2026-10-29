@@ -52,6 +52,36 @@ export function getPeriodDescription(period: Period): string {
   }
 }
 
+type NationalStats = {
+  total_bags: number;
+  total_volunteers: number;
+  total_hours: number;
+};
+
+/**
+ * Headline figures for the homepage. The totals come pre-summed from the `national_impact_stats` view, so the page
+ * never reads the whole `event_stats` table (which PostgREST would also silently cut off at 1000 rows).
+ */
+export async function getHomepageStats() {
+  const supabase = await createClient();
+
+  const [{ count: eventCount }, { data: nationalStats }] = await Promise.all([
+    supabase
+      .from("events")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "completed"),
+    supabase.from("national_impact_stats").select("total_bags, total_volunteers").single(),
+  ]);
+
+  const stats = nationalStats as Pick<NationalStats, "total_bags" | "total_volunteers"> | null;
+
+  return {
+    eventCount: eventCount ?? 0,
+    totalBags: stats?.total_bags ?? 0,
+    volunteerCount: stats?.total_volunteers ?? 0,
+  };
+}
+
 export async function getImpactData(
   organisersPeriod: Period,
   areasPeriod: Period,
@@ -157,11 +187,6 @@ export async function getImpactData(
     groupEventsQuery,
   ]);
 
-  type NationalStats = {
-    total_bags: number;
-    total_volunteers: number;
-    total_hours: number;
-  };
   type LitterTypeCount = { litter_type: string; count: number };
 
   const totalBags = (nationalStats as NationalStats | null)?.total_bags ?? 0;

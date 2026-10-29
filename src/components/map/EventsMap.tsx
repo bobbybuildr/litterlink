@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import type { EventWithCount } from "@/lib/events";
 import { escapeHtml } from "@/lib/html";
+import type { EventPin } from "@/lib/map-pins";
 
 interface EventsMapProps {
-  events: EventWithCount[];
+  events: EventPin[];
   centerLat?: number;
   centerLng?: number;
   radiusKm?: number;
@@ -25,7 +25,7 @@ function radiusToZoom(radiusKm?: number): number {
   return 8;
 }
 
-function popupHtml(event: EventWithCount): string {
+function popupHtml(event: EventPin): string {
   const date = new Date(event.starts_at).toLocaleDateString("en-GB", {
     timeZone: "Europe/London",
     day: "numeric",

@@ -3,22 +3,10 @@
 import { useEffect, useRef } from "react";
 import { GROUP_TYPE_LABELS } from "@/lib/constants";
 import { escapeHtml } from "@/lib/html";
-
-type GroupMapItem = {
-  id: string;
-  name: string;
-  slug: string;
-  group_type: string;
-  latitude: number | null;
-  longitude: number | null;
-  location_name: string | null;
-  location_postcode: string | null;
-  member_count?: number;
-  upcoming_event_count?: number;
-};
+import type { GroupPin } from "@/lib/map-pins";
 
 interface GroupsMapProps {
-  groups: GroupMapItem[];
+  groups: GroupPin[];
   centerLat?: number;
   centerLng?: number;
   radiusKm?: number;
@@ -33,7 +21,7 @@ function radiusToZoom(radiusKm?: number): number {
   return 8;
 }
 
-function popupHtml(group: GroupMapItem): string {
+function popupHtml(group: GroupPin): string {
   const typeLabel = GROUP_TYPE_LABELS[group.group_type] ?? "Organisation";
   const locationLabel = escapeHtml(group.location_name ?? group.location_postcode ?? "");
   const memberCount = group.member_count ?? 0;

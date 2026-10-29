@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { SITE_URL, absoluteUrl } from "@/lib/seo";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const from = process.env.RESEND_FROM ?? "LitterLink <noreply@litterlink.co.uk>";
@@ -53,7 +54,7 @@ export async function sendApplicationEmails({
           "",
           "Log in to Supabase to review and approve or reject the application:",
           "",
-          `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://litterlink.co.uk"}/admin/applications`,
+          absoluteUrl("/admin/applications"),
         ].join("\n"),
       })
     );
@@ -72,7 +73,7 @@ export async function sendApplicationEmails({
         "We'll review your application and get back to you by email. In the",
         "meantime you can check your application status at any time by visiting:",
         "",
-        `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://litterlink.co.uk"}/become-a-verified-organiser`,
+        absoluteUrl("/become-a-verified-organiser"),
         "",
         "Thanks,",
         "The LitterLink team",
@@ -111,8 +112,7 @@ export async function sendEventCreatedEmail({
   addressLabel: string | null;
   postcode: string;
 }) {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://litterlink.co.uk";
-  const eventUrl = `${siteUrl}/events/${eventId}`;
+  const eventUrl = absoluteUrl(`/events/${eventId}`);
 
   const formatDate = (iso: string) =>
     new Date(iso).toLocaleString("en-GB", {
@@ -180,8 +180,7 @@ export async function sendEventJoinedEmail({
 }) {
   if (isEmailRateLimited(`join-leave:${userId}:${eventId}`)) return;
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://litterlink.co.uk";
-  const eventUrl = `${siteUrl}/events/${eventId}`;
+  const eventUrl = absoluteUrl(`/events/${eventId}`);
 
   const formatDate = (iso: string) =>
     new Date(iso).toLocaleString("en-GB", {
@@ -242,8 +241,7 @@ export async function sendEventLeftEmail({
 }) {
   if (isEmailRateLimited(`join-leave:${userId}:${eventId}`)) return;
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://litterlink.co.uk";
-  const eventUrl = `${siteUrl}/events/${eventId}`;
+  const eventUrl = absoluteUrl(`/events/${eventId}`);
 
   const formatDate = (iso: string) =>
     new Date(iso).toLocaleString("en-GB", {
@@ -294,9 +292,8 @@ export async function sendEventCancelledEmails({
 }) {
   if (!participants.length) return;
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://litterlink.co.uk";
-  const eventUrl = `${siteUrl}/events/${eventId}`;
-  const eventsUrl = `${siteUrl}/events`;
+  const eventUrl = absoluteUrl(`/events/${eventId}`);
+  const eventsUrl = absoluteUrl("/events");
 
   const formatDate = (iso: string) =>
     new Date(iso).toLocaleString("en-GB", {
@@ -370,8 +367,7 @@ export async function sendEventUpdatedEmails({
   // The DB-backed cooldown in the action is the authoritative cross-instance check.
   if (isEmailRateLimited(`event_reschedule:${eventId}`)) return;
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://litterlink.co.uk";
-  const eventUrl = `${siteUrl}/events/${eventId}`;
+  const eventUrl = absoluteUrl(`/events/${eventId}`);
 
   const formatDate = (iso: string) =>
     new Date(iso).toLocaleString("en-GB", {
@@ -450,8 +446,7 @@ export async function sendStatsReminderEmail({
   title: string;
   startsAt: string;
 }) {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://litterlink.co.uk";
-  const eventUrl = `${siteUrl}/events/${eventId}`;
+  const eventUrl = absoluteUrl(`/events/${eventId}`);
 
   const formatDate = (iso: string) =>
     new Date(iso).toLocaleString("en-GB", {
@@ -476,7 +471,7 @@ export async function sendStatsReminderEmail({
     "Thank you for organising and making a difference in your community.",
     "The LitterLink team",
     "",
-    siteUrl,
+    SITE_URL,
   ];
 
   try {
@@ -507,8 +502,7 @@ export async function sendGroupCreatedEmail({
   groupName: string;
   groupSlug: string;
 }) {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://litterlink.co.uk";
-  const groupUrl = `${siteUrl}/groups/${groupSlug}`;
+  const groupUrl = absoluteUrl(`/groups/${groupSlug}`);
 
   const lines = [
     `Hi${creatorName ? ` ${creatorName}` : ""},`,
@@ -552,7 +546,6 @@ export async function sendApplicationOutcomeEmail({
   applicantName: string | null;
   outcome: "approved" | "rejected";
 }) {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://litterlink.co.uk";
   const greeting = `Hi${applicantName ? ` ${applicantName}` : ""},`;
 
   const body =
@@ -566,7 +559,7 @@ export async function sendApplicationOutcomeEmail({
           "You now have a Verified Organiser badge on all your events and can",
           "create community groups. Get started by creating your first event:",
           "",
-          `${siteUrl}/events/create`,
+          absoluteUrl("/events/create"),
           "",
           "Thanks for helping keep our communities clean.",
           "The LitterLink team",

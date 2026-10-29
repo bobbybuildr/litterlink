@@ -8,21 +8,22 @@ import { CalendarPlus } from "lucide-react";
 
 export async function Navbar() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Display only: the proxy has already refreshed the session on this request, and the claims are verified
+  // locally, so no Auth round trip is needed. Anything that grants access must still call getUser().
+  const { data } = await supabase.auth.getClaims();
+  const claims = data?.claims ?? null;
 
-  const profile = user
+  const profile = claims
     ? (
         await supabase
           .from("profiles")
           .select("display_name, avatar_url")
-          .eq("id", user.id)
+          .eq("id", claims.sub)
           .single()
       ).data
     : null;
 
-  const initials = (profile?.display_name ?? user?.email ?? "?")
+  const initials = (profile?.display_name ?? claims?.email ?? "?")
     .charAt(0)
     .toUpperCase();
 
@@ -44,7 +45,7 @@ export async function Navbar() {
         <div className="flex items-center gap-4">
           <NavLinks className="hidden sm:flex" />
 
-          {user ? (
+          {claims ? (
             <div className="flex items-center gap-3">
               <NavbarMobileMenu isAuthenticated />
               <Link

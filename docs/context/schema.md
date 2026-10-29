@@ -236,7 +236,7 @@ These aggregation views use `security_invoker = true`, so underlying table RLS a
 | View | Columns | Purpose |
 |---|---|---|
 | `groups_with_counts` | Group columns; `creator_is_verified`, `member_count`, `upcoming_event_count`, `activity_score` | Published group discovery and aggregate activity (recent joins ×3, events ×5, confirmed participants ×2 over 30 days) |
-| `national_impact_stats` | `total_bags`, `total_volunteers`, `total_hours` | Pre-aggregated national litter-picking impact totals |
+| `national_impact_stats` | `total_bags`, `total_volunteers`, `total_hours` | Pre-aggregated national litter-picking impact totals, used by `/impact` and the homepage |
 | `litter_type_counts` | `litter_type`, `count` | Frequency of each recorded litter type |
 
 ## SQL Function

@@ -84,7 +84,7 @@ Handled in `src/proxy.ts` (Next.js 16 middleware replacement; auth logic lives i
 - Unauthenticated users visiting any path starting with `/dashboard`, `/events/create`, or `/profile` → redirect to `/sign-in?redirectTo=…`. For `/profile/[id]` a `message` param is added ("Sign in to view member profiles on LitterLink.")
 - Authenticated users visiting `/sign-in` or `/sign-up` → redirect to `/dashboard`
 
-The proxy is an early redirect only. Every protected page does its own `getUser()` check and redirects to `/sign-in?redirectTo=…`, and that check is authoritative. It is the only check for `/events/[id]/edit`, `/events/[id]/stats`, `/become-a-verified-organiser`, `/groups/create`, and `/groups/[slug]/edit`. New protected pages must include the page-level check; adding them to the proxy is optional.
+The proxy is an early redirect only. It verifies the user with `getUser()` on those routes and on `/sign-in` and `/sign-up`; on every other route it only refreshes the session with `getClaims()`, which checks the token locally. Every protected page does its own `getUser()` check and redirects to `/sign-in?redirectTo=…`, and that check is authoritative. It is the only check for `/events/[id]/edit`, `/events/[id]/stats`, `/become-a-verified-organiser`, `/groups/create`, and `/groups/[slug]/edit`. New protected pages must include the page-level check; adding them to the proxy is optional.
 
 The admin gate for `/admin/*` is enforced in `src/app/admin/layout.tsx` (checks `profiles.is_admin`).
 

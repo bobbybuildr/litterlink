@@ -6,6 +6,17 @@ import { publicEnv } from "@/lib/env/public";
 const PROFILE_ROBOTS_TAG = "noindex, nofollow";
 
 export async function updateSession(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  const isProfileRoute = pathname.startsWith("/profile");
+
+  // Protect dashboard, event-creation, and profile routes
+  const isProtectedRoute =
+    pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/events/create") ||
+    isProfileRoute;
+
+  const isAuthRoute = pathname === "/sign-in" || pathname === "/sign-up";
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient<Database>(
@@ -29,25 +40,28 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // Refresh the session — do NOT add logic between createServerClient and
-  // getUser(); a stale session can cause infinite redirect loops.
+  // Refresh the session — do NOT add logic between createServerClient and the
+  // auth call below; a stale session can cause infinite redirect loops.
+  //
+  // Only protected and sign-in/sign-up routes make an access decision, so only
+  // they verify the user with the Auth server. Everywhere else the proxy just
+  // needs the refreshed cookies: getClaims() refreshes an expiring session and
+  // checks the token locally, saving an Auth round trip on every page view and
+  // link prefetch.
+  if (!isProtectedRoute && !isAuthRoute) {
+    await supabase.auth.getClaims();
+    return supabaseResponse;
+  }
+
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const isProfileRoute = request.nextUrl.pathname.startsWith("/profile");
-
-  // Protect dashboard, event-creation, and profile routes
-  const isProtectedRoute =
-    request.nextUrl.pathname.startsWith("/dashboard") ||
-    request.nextUrl.pathname.startsWith("/events/create") ||
-    isProfileRoute;
-
   if (isProtectedRoute && !user) {
     const url = request.nextUrl.clone();
     url.pathname = "/sign-in";
-    url.searchParams.set("redirectTo", request.nextUrl.pathname);
-    if (request.nextUrl.pathname.startsWith("/profile/")) {
+    url.searchParams.set("redirectTo", pathname);
+    if (pathname.startsWith("/profile/")) {
       url.searchParams.set("message", "Sign in to view member profiles on LitterLink.");
     }
     const redirectResponse = NextResponse.redirect(url);
@@ -59,10 +73,6 @@ export async function updateSession(request: NextRequest) {
   if (isProfileRoute) supabaseResponse.headers.set("X-Robots-Tag", PROFILE_ROBOTS_TAG);
 
   // Redirect authenticated users away from auth pages
-  const isAuthRoute =
-    request.nextUrl.pathname === "/sign-in" ||
-    request.nextUrl.pathname === "/sign-up";
-
   if (isAuthRoute && user) {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";

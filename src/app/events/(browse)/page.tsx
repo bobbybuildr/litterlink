@@ -9,6 +9,7 @@ import { PaginationLink } from "@/components/PaginationLink";
 import { EventsMap } from "@/components/map/EventsMap";
 import { getLaterEvents, getPublishedEvents, haversineKm } from "@/lib/events";
 import { geocodePostcode } from "@/lib/geocode";
+import { toEventPins } from "@/lib/map-pins";
 import {
   MAX_EVENT_RANGE_DAYS,
   addDaysToIsoDate,
@@ -178,7 +179,7 @@ export default async function EventsPage({ searchParams }: Props) {
         {/* Map */}
         <div className="order-1 lg:order-2 h-105 overflow-hidden rounded-xl border border-gray-200 shadow-sm">
           <EventsMap
-            events={allEvents}
+            events={toEventPins(allEvents)}
             centerLat={geo?.latitude}
             centerLng={geo?.longitude}
             radiusKm={geo ? radiusKm : undefined}

@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { getEventById, getUserParticipation, getEventPhotos, getEventParticipants, getRelatedEvents } from "@/lib/events";
 import type { EventWithCount } from "@/lib/events";
+import { toEventPins } from "@/lib/map-pins";
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 import { SidebarEventCard } from "@/components/events/SidebarEventCard";
@@ -492,7 +493,7 @@ export default async function EventDetailPage({ params }: Props) {
           {/* Mini map */}
           <div className="h-48 overflow-hidden rounded-xl border border-gray-200">
             <EventsMap
-              events={[event]}
+              events={toEventPins([event])}
               centerLat={event.latitude}
               centerLng={event.longitude}
               zoom={15}

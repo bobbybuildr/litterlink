@@ -2,11 +2,11 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Calendar, Trash, Users } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
 import { LucideIcon, ArrowRight } from "lucide-react";
 import { PostcodeSearch } from "@/components/PostcodeSearch";
 import { FlashBanner } from "@/components/FlashBanner";
 import { JsonLd } from "@/components/JsonLd";
+import { getHomepageStats } from "@/lib/impact";
 import { DEFAULT_DESCRIPTION, pageMetadata } from "@/lib/seo";
 import { siteOrganizationJsonLd, websiteJsonLd } from "@/lib/structured-data";
 
@@ -16,23 +16,6 @@ export const metadata: Metadata = pageMetadata({
   description: DEFAULT_DESCRIPTION,
   path: "/",
 });
-
-async function getImpactStats() {
-  const supabase = await createClient();
-
-  const [{ count: eventCount }, { data: statsData }] = await Promise.all([
-    supabase
-      .from("events")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "completed"),
-    supabase.from("event_stats").select("bags_collected, actual_attendees"),
-  ]);
-
-  const totalBags = statsData?.reduce((sum, s) => sum + (s.bags_collected ?? 0), 0) ?? 0;
-  const volunteerCount = statsData?.reduce((sum, s) => sum + (s.actual_attendees ?? 0), 0) ?? 0;
-
-  return { eventCount: eventCount ?? 0, totalBags, volunteerCount };
-}
 
 interface Props {
   searchParams: Promise<{ error?: string; error_code?: string; error_description?: string }>;
@@ -55,7 +38,7 @@ export default async function HomePage({ searchParams }: Props) {
     redirect("/sign-in?error=" + encodeURIComponent(description));
   }
 
-  const stats = await getImpactStats();
+  const stats = await getHomepageStats();
 
   return (
     <div>

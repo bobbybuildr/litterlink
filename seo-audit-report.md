@@ -3,7 +3,7 @@
 **Date:** 4 October 2026
 **Scope:** Technical SEO across `src/app/`, `src/components/`, `src/lib/`, `src/proxy.ts`, `robots.ts`, `sitemap.ts`, metadata and routing. Next.js 16 behaviour was checked against the installed docs in `node_modules/next/dist/docs/`.
 **Public routes in scope:** `/`, `/events`, `/events/[id]`, `/groups`, `/groups/[slug]`, `/impact`, `/privacy`, `/terms`
-**Status:** W1–W6 implemented (W4: default image, X card and generated event images 15 October 2026; generated group images and the `events_with_counts` place-name fix 16 October 2026; W5: complete sitemap 16 October 2026; W6: JSON-LD structured data 17 October 2026). W7 in progress: heading structure (M2) and image SEO (M3) fixed 17 October 2026; thin past events (M4) fixed 23 October 2026. W8 in progress: banner hydration mismatch and layout shift (M6) and the proxy running on metadata files (M9) fixed 25 October 2026. Migration `0038` has been applied, so event titles now show place names. `npm test` (263 tests), `npm run typecheck`, `npm run lint` and `npm run build` all pass. Rendered `<head>` output, JSON-LD, `sitemap.xml` and `robots.txt` were verified against a local production build using a Googlebot user agent.
+**Status:** W1–W6 implemented (W4: default image, X card and generated event images 15 October 2026; generated group images and the `events_with_counts` place-name fix 16 October 2026; W5: complete sitemap 16 October 2026; W6: JSON-LD structured data 17 October 2026). W7 in progress: heading structure (M2) and image SEO (M3) fixed 17 October 2026; thin past events (M4) fixed 23 October 2026. W8 done, all fixed 25 October 2026: banner hydration mismatch and layout shift (M6), the proxy running on metadata files (M9) and server response time (M7). Migration `0038` has been applied, so event titles now show place names. `npm test` (291 tests), `npm run typecheck`, `npm run lint` and `npm run build` all pass. Rendered `<head>` output, JSON-LD, `sitemap.xml` and `robots.txt` were verified against a local production build using a Googlebot user agent.
 
 ## Summary
 
@@ -16,13 +16,13 @@ The serious gaps were about **indexing control and duplication**:
 - No page had a canonical URL.
 - Coming-soon mode only hid part of the site. (The mode has since been removed entirely; see C5.)
 
-All critical issues are now fixed. The remaining work is mainly enhancement: internal linking and performance.
+All critical issues are now fixed. The remaining work is mainly enhancement: internal linking (M1).
 
 | Severity | Total | Fixed | Partially fixed | Open |
 |---|---|---|---|---|
 | Critical | 5 | 5 | 0 | 0 |
 | High | 10 | 9 | 1 | 0 |
-| Medium | 9 | 6 | 1 | 2 |
+| Medium | 9 | 8 | 0 | 1 |
 
 ### Workstreams
 
@@ -35,7 +35,7 @@ All critical issues are now fixed. The remaining work is mainly enhancement: int
 | W5 | Sitemap and robots | ✅ Done |
 | W6 | Structured data (JSON-LD) | ✅ Done |
 | W7 | Internal linking, content and headings | In progress (M2, M3, M4 done) |
-| W8 | Core Web Vitals | In progress (M6, M9 done) |
+| W8 | Core Web Vitals | ✅ Done |
 
 ---
 
@@ -420,17 +420,69 @@ Unit tests (`src/lib/sitemap.test.ts`) cover `isStaleEvent()`, including agreeme
 
 **Note:** while the banner is enabled, dismissing it sets a first-party session cookie. It holds no personal data. The privacy policy's cookie section (section 11) covers essential session technology only and does not mention it. Add a line there if the banner is reactivated.
 
-### M7 — Server response time — Open (W8)
+### M7 — ~~Server response time~~ ✅ Fixed (W8)
 
-- `Navbar` calls `getUser()` plus a profile query in the root layout on every request, and the proxy also calls `getUser()`.
-- `/events` and `/groups` send every event or group (descriptions included) to the client map component, so page weight grows with the data. Pass a slim pin shape instead.
-- The homepage's `getImpactStats` fetches every `event_stats` row, which is also capped at 1,000. Use the existing `national_impact_stats` view.
+**Location:** `src/lib/supabase/middleware.ts`, `src/components/layout/Navbar.tsx`, `src/lib/map-pins.ts`, `src/components/map/EventsMap.tsx`, `src/components/map/GroupsMap.tsx`, `src/lib/impact.ts`, `src/app/page.tsx`
 
-### M8 — Site URL defined in many places — Partially fixed (W2)
+Three things made responses slower or heavier than they needed to be. Signed-in visitors paid for extra Supabase Auth round trips on every request. The `/events` and `/groups` pages, and both detail pages, serialised whole event and group rows into the HTML for their map components. The homepage summed every `event_stats` row in the app, and PostgREST caps that read at 1,000 rows.
 
-**Done:** `SITE_URL` / `absoluteUrl()` in `src/lib/seo.ts` are now used by `layout.tsx`, `robots.ts`, `sitemap.ts`, `proxy.ts` and `events/[id]/page.tsx`.
+**Resolution:**
+- **Auth calls.** `Navbar` and the proxy no longer ask the Auth server about the user on every request.
+  - `Navbar` reads the access-token claims with `getClaims()` and loads the profile with `claims.sub`. The claims are verified locally against the project's signing keys, which the SDK fetches once and caches for 10 minutes. The project already publishes an ES256 key.
+  - The proxy (`updateSession`) calls `getUser()` only where it makes an access decision: `/dashboard`, `/events/create`, `/profile` and `/profile/*`, `/sign-in` and `/sign-up`. Every other route calls `getClaims()`, which still refreshes an expiring session and sets the cookies. The proxy also runs on link prefetches, so each of those used to cost an Auth call as well.
+  - Pages, Server Actions and the protected routes keep `getUser()`. Claims are never used to grant access. `AGENTS.md` documents the split.
+  - If a token is still signed with the legacy HS256 secret, `getClaims()` falls back to a normal `getUser()` call, so it is never slower than before.
+  - Anonymous visitors and crawlers were not affected: the SDK returns early when there is no session, so they never made an Auth call.
+- **Map payloads.** New `src/lib/map-pins.ts` defines `EventPin` and `GroupPin` and the converters `toEventPins()` and `toGroupPins()`. `EventsMap` and `GroupsMap` now take pins, and the four pages that render them convert before passing props. A pin holds only what a marker and its popup show. `toGroupPins()` also drops groups without coordinates, which the map never drew. Props passed to a Client Component are serialised into the page, so the full rows had put every description, organiser detail and group contact email into the HTML. `AGENTS.md` now records the rule.
+- **Homepage stats.** `getHomepageStats()` in `src/lib/impact.ts` reads the completed-event count and the pre-summed `total_bags` and `total_volunteers` from the existing `national_impact_stats` view, as `/impact` already did. The homepage no longer reads or truncates `event_stats`. `NationalStats` is now a module-level type shared by both functions.
 
-**Open:** `src/app/(auth)/actions.ts` and `src/lib/email.ts` still inline `process.env.NEXT_PUBLIC_SITE_URL ?? "https://litterlink.co.uk"`.
+**Trade-off:** a session revoked elsewhere (signed out everywhere, or a deleted user) can keep showing as signed in in the navbar on public pages until its access token expires, which is 1 hour by default. Pages and Server Actions still call `getUser()`, so access is unaffected. The cookies are still cleared on `/sign-in`, `/sign-up` and the protected routes, so there is no redirect loop.
+
+**Not changed:**
+- `Navbar` still runs one profile query for signed-in visitors. Anonymous visitors run none.
+- Every page is still rendered per request, because `Navbar` reads the auth cookies in the root layout. Caching public pages would need the signed-in navbar out of the static shell, which is a larger change than this item.
+- On protected pages the number of `GET /auth/v1/user` calls is the same as before: the proxy's verified call plus the page's own. `Navbar`'s call and the page's were already shared within a render.
+
+**Verified** with `npm test` (291 tests), `npm run typecheck`, `npm run lint` and `npm run build` all passing:
+- **Page weight**, on a local production build against the live data. HTML bytes, with gzip in brackets:
+
+  | Page | Before | After |
+  |---|---|---|
+  | `/events?from=…&to=…` (a 12-month window, 164 events) | 338,871 (51,041) | 163,317 (25,402) |
+  | `/events` (next 7 days, 2 events) | 111,478 (14,756) | 108,496 (14,203) |
+  | `/groups` (9 groups) | 107,927 (14,786) | 102,715 (13,535) |
+  | `/events/{id}` | 72,360 (13,938) | 69,949 (13,546) |
+  | `/groups/{slug}` | 79,958 (13,645) | 79,157 (13,582) |
+  | `/` | 45,680 (8,798) | 45,680 (8,798) |
+
+  Full event and group rows in the HTML went from 164 to 0 on the wide `/events` page, and from 9 to 0 on `/groups`.
+- **Maps in a browser:** `/events` (164 markers), `/groups` (9 markers) and the event and group detail pages (1 each) draw all their markers. The popups still show the title, date and address, or the group type, place and counts, with the right link.
+- **Homepage figures** are the same before and after: 125 events, 1,703 bags and 1,080 volunteers.
+- **Auth calls**, counted with `next dev` against a local fake of the Supabase Auth and REST endpoints that serves an ES256 key and signed-in cookies. This counts requests, not time:
+
+  | Request | `GET /auth/v1/user` before | After |
+  |---|---|---|
+  | Anonymous, any page | 0 | 0 |
+  | Signed in, public page (`/terms`, `/`) | 2 | 0 |
+  | Signed in, access token expired | 2, plus 1 refresh | 0, plus 1 refresh and the new cookie set |
+  | Signed in, `/dashboard` or `/events/create` | 2 | 2 |
+  | Signed in, `/sign-in` (redirects to `/dashboard`) | 1 | 1 |
+  | Revoked session, `/sign-in` | 1, cookie cleared | 1, cookie cleared |
+  | Revoked session, public page | 1, cookie cleared, navbar signed out | 0, navbar still signed in (the trade-off above) |
+  | Legacy HS256 token, public page | 2 | 2 (falls back to the Auth server) |
+
+  The signing keys were fetched on the first signed-in request only, once for the proxy and once for the page render in `next dev`, then cached.
+- **Unit tests:** `src/lib/map-pins.test.ts` asserts that pins hold only the allowed fields. `src/lib/impact.test.ts` asserts that the homepage reads `national_impact_stats` and never `event_stats`. `src/lib/supabase/middleware.test.ts` asserts which routes call `getUser()` and which call `getClaims()`, the redirects, the `noindex` header on profile routes, and that cookies refreshed by `getClaims()` reach the response.
+
+**Note:** the saving relies on asymmetric JWT signing keys, which the project has enabled. With legacy HS256 keys the code still works, but `getClaims()` would call the Auth server each time and the saving would disappear.
+
+### M8 — ~~Site URL defined in many places~~ ✅ Fixed (W2)
+
+**Location:** `src/lib/seo.ts`, `src/app/(auth)/actions.ts`, `src/lib/email.ts`
+
+**Resolution:** `SITE_URL` / `absoluteUrl()` in `src/lib/seo.ts` are now the single source of the site URL in `layout.tsx`, `robots.ts`, `sitemap.ts`, `proxy.ts`, `events/[id]/page.tsx`, `(auth)/actions.ts` and `email.ts`. The auth actions and every email link now go through `absoluteUrl()`, which also strips a trailing slash from `NEXT_PUBLIC_SITE_URL`.
+
+**Not changed:** the `send-event-reminders` Supabase Edge Function (Deno) keeps its own fallback because it cannot import from `src/`.
 
 ### M9 — ~~The proxy runs on `robots.txt` and `sitemap.xml`~~ ✅ Fixed (W8)
 
@@ -493,6 +545,9 @@ Unit tests (`src/lib/sitemap.test.ts`) cover `isStaleEvent()`, including agreeme
 | `src/proxy.test.ts` | Asserts the proxy matcher: runs on pages, skips metadata files and static assets (W8, M9) |
 | `src/lib/structured-data.ts` (+ test) | JSON-LD builders: `siteOrganizationJsonLd()`, `websiteJsonLd()`, `eventJsonLd()`, `groupOrganizationJsonLd()`, `breadcrumbJsonLd()`, `jsonLdGraph()` (W6) |
 | `src/components/JsonLd.tsx` | Renders one `@graph` `<script type="application/ld+json">` through `jsonLd()` (W6) |
+| `src/lib/map-pins.ts` (+ test) | Client-safe `EventPin` / `GroupPin` shapes and `toEventPins()` / `toGroupPins()`, so the maps only receive what they draw (W8, M7) |
+| `src/lib/supabase/middleware.test.ts` | Asserts which routes call `getUser()` and which call `getClaims()`, the redirects, the profile `noindex` header and cookie pass-through (W8, M7) |
+| `src/lib/impact.test.ts` | Asserts the homepage stats read the `national_impact_stats` view, not `event_stats` (W8, M7) |
 
 ### Modified files
 
@@ -533,6 +588,12 @@ Unit tests (`src/lib/sitemap.test.ts`) cover `isStaleEvent()`, including agreeme
 | `src/components/events/EventPhotosGallery.tsx` | `next/image` with `sizes`; per-photo alt text from the new `eventTitle` prop (W7, M3) |
 | `src/app/events/[id]/page.tsx` | Passes `eventTitle` to `EventPhotosGallery` (W7, M3) |
 | `src/app/events/[id]/page.tsx` | `generateMetadata` sets `indexable: false` for stale events via `isStaleEvent()` (W7, M4) |
+| `src/lib/supabase/middleware.ts` | `getUser()` only on protected and sign-in/sign-up routes; `getClaims()` refreshes the session everywhere else (W8, M7) |
+| `src/components/layout/Navbar.tsx` | Reads the token claims with `getClaims()` instead of calling `getUser()` (W8, M7) |
+| `src/components/map/EventsMap.tsx`, `src/components/map/GroupsMap.tsx` | Take `EventPin[]` / `GroupPin[]` instead of full rows (W8, M7) |
+| `src/app/events/(browse)/page.tsx`, `src/app/groups/(browse)/page.tsx`, `src/app/events/[id]/page.tsx`, `src/app/groups/[slug]/page.tsx` | Convert to pins before passing props to the maps (W8, M7) |
+| `src/lib/impact.ts`, `src/app/page.tsx` | `getHomepageStats()` reads `national_impact_stats`; the homepage no longer sums `event_stats` itself (W8, M7) |
+| `AGENTS.md` | Documents the display-only `getClaims()` exception, the proxy split and the slim-pins rule (W8, M7) |
 
 ### Conventions for new pages
 
@@ -600,10 +661,11 @@ Unit tests (`src/lib/sitemap.test.ts`) cover `isStaleEvent()`, including agreeme
    - ~~Heading fixes (M2) and photo alt text (M3).~~ Done.
    - ~~Upcoming list beyond 7 days (H9).~~ Done.
    - ~~Remove `?back=` from card links.~~ Done (see C4).
-5. **W8 – Core Web Vitals:**
+5. ~~**W8 – Core Web Vitals:**~~ ✅ Done (see M3, M6, M7 and M9):
    - ~~Fix the beta banner hydration/CLS (M6).~~ Done.
-   - Slim map props; ~~`next/image` in the gallery~~ (done with M3).
-   - Homepage stats from `national_impact_stats`. ~~Proxy matcher exclusions (M9).~~ Done.
+   - ~~Slim map props (M7);~~ ~~`next/image` in the gallery~~ (done with M3).
+   - ~~Homepage stats from `national_impact_stats` (M7).~~ ~~Proxy matcher exclusions (M9).~~ Done.
+   - ~~Fewer Auth round trips in the proxy and `Navbar` (M7).~~ Done.
 6. **Tidy-ups:**
-   - Move the remaining inline site URLs in `(auth)/actions.ts` and `email.ts` to `SITE_URL` (M8).
+   - ~~Move the remaining inline site URLs in `(auth)/actions.ts` and `email.ts` to `SITE_URL` (M8).~~ Done.
    - ~~Thin-event `noindex` on the page itself (M4).~~ Done.

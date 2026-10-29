@@ -7,11 +7,10 @@ import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { readFormFields } from "@/lib/input";
 import { safeRedirectPath } from "@/lib/redirect";
+import { absoluteUrl } from "@/lib/seo";
 
 // Use the canonical site URL rather than the (spoofable) Host header.
-async function getSiteUrl() {
-  return process.env.NEXT_PUBLIC_SITE_URL ?? "https://litterlink.co.uk";
-}
+const AUTH_CALLBACK_URL = absoluteUrl("/auth/callback");
 
 export async function signInWithEmail(formData: FormData) {
   const supabase = await createClient();
@@ -36,7 +35,6 @@ export async function signInWithEmail(formData: FormData) {
 
 export async function signUpWithEmail(formData: FormData) {
   const supabase = await createClient();
-  const siteUrl = await getSiteUrl();
 
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
@@ -66,7 +64,7 @@ export async function signUpWithEmail(formData: FormData) {
           newsletter,
         },
       },
-      emailRedirectTo: `${siteUrl}/auth/callback`,
+      emailRedirectTo: AUTH_CALLBACK_URL,
     },
   });
 
@@ -85,7 +83,6 @@ export async function signUpWithEmail(formData: FormData) {
 
 export async function signInWithGoogle(formData: FormData) {
   const supabase = await createClient();
-  const siteUrl = await getSiteUrl();
 
   const redirectTo = safeRedirectPath(formData.get("redirectTo"));
 
@@ -103,7 +100,7 @@ export async function signInWithGoogle(formData: FormData) {
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: `${siteUrl}/auth/callback`,
+      redirectTo: AUTH_CALLBACK_URL,
     },
   });
 
@@ -118,7 +115,6 @@ export async function signInWithGoogle(formData: FormData) {
 
 export async function resendConfirmationEmail(formData: FormData) {
   const supabase = await createClient();
-  const siteUrl = await getSiteUrl();
 
   const email = formData.get("email") as string;
 
@@ -126,7 +122,7 @@ export async function resendConfirmationEmail(formData: FormData) {
     type: "signup",
     email,
     options: {
-      emailRedirectTo: `${siteUrl}/auth/callback`,
+      emailRedirectTo: AUTH_CALLBACK_URL,
     },
   });
 
@@ -146,12 +142,11 @@ export async function signOut() {
 
 export async function requestPasswordReset(formData: FormData) {
   const supabase = await createClient();
-  const siteUrl = await getSiteUrl();
 
   const email = formData.get("email") as string;
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${siteUrl}/auth/callback?next=/reset-password`,
+    redirectTo: absoluteUrl("/auth/callback?next=/reset-password"),
   });
 
   if (error) {
