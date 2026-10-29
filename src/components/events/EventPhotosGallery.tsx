@@ -5,6 +5,7 @@ import Image from "next/image";
 import { Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { deleteEventPhoto } from "@/app/events/actions";
+import { PhotoLightbox } from "@/components/events/PhotoLightbox";
 
 interface Photo {
   id: string;
@@ -27,6 +28,7 @@ export function EventPhotosGallery({ photos: initialPhotos, eventTitle, isOrgani
   const [photos, setPhotos] = useState(initialPhotos);
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   useEffect(() => {
     setPhotos(initialPhotos);
@@ -59,11 +61,11 @@ export function EventPhotosGallery({ photos: initialPhotos, eventTitle, isOrgani
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {photos.map((photo, i) => (
           <div key={photo.id} className="relative group overflow-hidden rounded-lg border border-gray-200">
-            <a
-              href={photo.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="relative block h-40 hover:opacity-90 transition-opacity"
+            <button
+              type="button"
+              onClick={() => setOpenIndex(i)}
+              aria-haspopup="dialog"
+              className="relative block h-40 w-full cursor-zoom-in hover:opacity-90 transition-opacity"
             >
               <Image
                 src={photo.url}
@@ -72,7 +74,7 @@ export function EventPhotosGallery({ photos: initialPhotos, eventTitle, isOrgani
                 sizes="(min-width: 1024px) 190px, (min-width: 640px) 33vw, 50vw"
                 className="object-cover"
               />
-            </a>
+            </button>
             {isOrganiser && (
               <button
                 onClick={() => handleDelete(photo.id)}
@@ -90,6 +92,14 @@ export function EventPhotosGallery({ photos: initialPhotos, eventTitle, isOrgani
           </div>
         ))}
       </div>
+      {openIndex !== null && openIndex < photos.length && (
+        <PhotoLightbox
+          photos={photos.map((photo, i) => ({ ...photo, alt: photoAlt(eventTitle, i + 1) }))}
+          initialIndex={openIndex}
+          label={`${eventTitle} photos`}
+          onClose={() => setOpenIndex(null)}
+        />
+      )}
     </div>
   );
 }
