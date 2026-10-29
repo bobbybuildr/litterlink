@@ -2,19 +2,23 @@ import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { BadgeCheck, Globe, Calendar, Clock, Trash, Users, CalendarPlus } from "lucide-react";
+import { BadgeCheck, Globe, Calendar, Clock, Trash, Users, CalendarPlus, ChevronLeft, ChevronRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { EventCard } from "@/components/events/EventCard";
 import { LatestEventHighlight } from "@/components/events/LatestEventHighlight";
+import { PaginationLink } from "@/components/PaginationLink";
 import type { EventWithCount } from "@/lib/events";
+import { parsePage } from "@/lib/search-params";
 import type { Database } from "@/types/database";
 
 type EventStatsRow = Database["public"]["Tables"]["event_stats"]["Row"];
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const PAST_PAGE_SIZE = 6;
 
 interface Props {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ pastPage?: string }>;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -39,8 +43,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function PublicProfilePage({ params }: Props) {
-  const { id: slug } = await params;
+export default async function PublicProfilePage({ params, searchParams }: Props) {
+  const [{ id: slug }, { pastPage }] = await Promise.all([params, searchParams]);
   const supabase = await createClient();
 
   const { data: { user } } = await supabase.auth.getUser();
@@ -214,6 +218,19 @@ export default async function PublicProfilePage({ params }: Props) {
     (e) => e.starts_at >= ninetyDaysAgo && e.starts_at <= now
   ).sort((a, b) => new Date(b.starts_at).getTime() - new Date(a.starts_at).getTime());
 
+  const pastTotalPages = Math.max(1, Math.ceil(recentlyAttended.length / PAST_PAGE_SIZE));
+  const safePastPage = Math.min(parsePage(pastPage), pastTotalPages);
+  const pagedRecentlyAttended = recentlyAttended.slice(
+    (safePastPage - 1) * PAST_PAGE_SIZE,
+    safePastPage * PAST_PAGE_SIZE
+  );
+
+  // The anchor keeps readers at the previous events list instead of jumping back to the top of the page.
+  const profilePath = `/profile/${profile.username ?? profile.id}`;
+  function pastPageUrl(n: number) {
+    return `${profilePath}${n > 1 ? `?pastPage=${n}` : ""}#previous-events`;
+  }
+
   const bagsFromAttended = (attendedStatsRows ?? []).reduce(
     (sum, row) => sum + (row.bags_collected ?? 0),
     0
@@ -356,16 +373,32 @@ export default async function PublicProfilePage({ params }: Props) {
       
       {/* Recently attended events */}
       {recentlyAttended.length > 0 && (
-        <section className="mt-10">
+        <section id="previous-events" className="mt-10 scroll-mt-20">
           <h2 className="mb-4 text-base font-semibold text-gray-800">
             Previous events
             <span className="ml-2 text-sm font-normal text-gray-400">last 90 days</span>
           </h2>
           <div className="grid gap-4 sm:grid-cols-2">
-            {recentlyAttended.map((event) => (
+            {pagedRecentlyAttended.map((event) => (
               <EventCard key={event.id} event={event} />
             ))}
           </div>
+          {pastTotalPages > 1 && (
+            <nav
+              aria-label="Previous events pagination"
+              className="mt-4 flex items-center justify-between border-t border-gray-200 pt-4"
+            >
+              <PaginationLink href={pastPageUrl(safePastPage - 1)} disabled={safePastPage <= 1}>
+                <ChevronLeft className="h-4 w-4" /> Previous
+              </PaginationLink>
+              <span className="text-sm text-gray-500">
+                Page {safePastPage} of {pastTotalPages}
+              </span>
+              <PaginationLink href={pastPageUrl(safePastPage + 1)} disabled={safePastPage >= pastTotalPages}>
+                Next <ChevronRight className="h-4 w-4" />
+              </PaginationLink>
+            </nav>
+          )}
         </section>
       )}
 
