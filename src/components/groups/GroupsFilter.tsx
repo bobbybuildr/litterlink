@@ -90,7 +90,7 @@ export function GroupsFilter() {
               placeholder="e.g. SW1A 1AA"
               autoComplete="postal-code"
               defaultValue={params.get("postcode") ?? ""}
-              className="w-full rounded-lg border border-gray-300 bg-white pl-9 pr-32 py-2 text-xs sm:text-sm uppercase placeholder-gray-400 outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+              className="w-full rounded-lg border border-gray-300 bg-white pl-9 pr-9 md:pr-32 py-2 text-xs sm:text-sm uppercase placeholder-gray-400 outline-none focus:border-brand focus:ring-1 focus:ring-brand"
             />
             <button
               type="button"
@@ -104,7 +104,9 @@ export function GroupsFilter() {
               ) : (
                 <LocateFixed className="h-3.5 w-3.5" />
               )}
-              {isLocating ? "Locating..." : "Use location"}
+              <span className="hidden md:inline">
+                {isLocating ? "Locating..." : "Use location"}
+              </span>
             </button>
           </div>
           {locationError && (
