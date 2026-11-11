@@ -4,6 +4,7 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { createEvent } from "./actions";
 import type { CreateEventState } from "./actions";
 import { SubmitButton } from "./SubmitButton";
+import { EventIconPicker } from "@/components/events/EventIconPicker";
 import { EventLocationPicker } from "@/components/events/EventLocationPicker";
 import type { GroupRow } from "@/lib/events";
 
@@ -111,6 +112,9 @@ export function CreateEventForm({
           className={inputCls}
         />
       </Field>
+
+      {/* Event icon */}
+      <EventIconPicker defaultValue={f?.icon_key} />
 
       {/* Event location */}
       <EventLocationPicker

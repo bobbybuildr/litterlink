@@ -9,6 +9,7 @@ import { readFormFields } from "@/lib/input";
 import { isEventCreationRateLimited } from "@/lib/ratelimit";
 import { londonToUTC } from "@/lib/datetime";
 import { fail, type FormState } from "@/lib/forms";
+import { parseEventIconKey } from "@/lib/event-icons";
 
 const TITLE_MAX = 120;
 const DESC_MAX = 2000;
@@ -46,6 +47,10 @@ export async function createEvent(
     postcode: { type: "postcode", label: "Postcode" },
   });
   if (!input.ok) return fail(input.error, formData);
+
+  // Enum-like value: must be an exact key from the icon allowlist, or empty for the default icon.
+  const iconKey = parseEventIconKey(formData.get("icon_key"));
+  if (!iconKey.ok) return fail(iconKey.error, formData);
 
   const {
     title,
@@ -133,6 +138,7 @@ export async function createEvent(
       group_id: groupId,
       title,
       description,
+      icon_key: iconKey.key,
       location_postcode: location.postcode,
       latitude: location.latitude,
       longitude: location.longitude,

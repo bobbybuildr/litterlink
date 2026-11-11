@@ -54,6 +54,7 @@ Unit tests are Vitest, co-located as `src/**/*.test.ts`, run in a Node environme
 | `src/lib/constants.ts` | Client-safe shared constants (e.g. `GROUP_TYPE_LABELS`, `UK_POSTCODE_PATTERN`) with no server-only imports — safe to import from Client Components |
 | `src/lib/geolocation.ts` | Browser-side location helpers — Geolocation API wrapper, shared error copy, and `lookupPostcode`/`lookupNearestPostcode` calls to the `/api` geocoding routes |
 | `src/lib/map-pins.ts` | Client-safe slim marker shapes for the maps: `toEventPins()` / `toGroupPins()` (see Component Conventions) |
+| `src/lib/event-icons.ts` | Allowlist of event icons (stable lowercase key, label, category, Lucide component) plus `getEventIcon()` (null/unknown keys → default icon), `isEventIconKey()` and `parseEventIconKey()` (server-side validation for `icon_key`). Keys are persisted in `events.icon_key` — never rename or reuse one; the database value is only ever looked up here, never used as a component name |
 | `src/lib/image.ts` | Client-side image pipeline — HEIC decoding + WebP compression, shared by event photo, avatar and group logo uploads |
 | `src/lib/email.ts` | Resend email helpers |
 | `src/lib/ratelimit.ts` | DB-backed rate limiting (event creation, joins, reschedule notifications) |
@@ -75,7 +76,7 @@ Unit tests are Vitest, co-located as `src/**/*.test.ts`, run in a Node environme
 | Table | Notes |
 |-------|-------|
 | `profiles` | `is_verified_organiser` BOOLEAN, `is_admin` BOOLEAN |
-| `events` | `group_id` (nullable FK), `organiser_contact_details` (nullable text), `updated_at` (auto-maintained by trigger), `reschedule_notified_at` (nullable), `stats_reminder_sent_at` (nullable); `organiser_id` is nullable (SET NULL on account deletion). `location_postcode` is **NOT NULL** — map/device-selected meeting points are reverse-geocoded server-side to fill it, along with `location_outcode` and `location_admin_district`. `latitude`/`longitude` hold the organiser's exact meeting point for map/device selections, or the postcode centroid for typed postcodes |
+| `events` | `group_id` (nullable FK), `organiser_contact_details` (nullable text), `icon_key` (nullable text — key from `@/lib/event-icons`, NULL = default icon), `updated_at` (auto-maintained by trigger), `reschedule_notified_at` (nullable), `stats_reminder_sent_at` (nullable); `organiser_id` is nullable (SET NULL on account deletion). `location_postcode` is **NOT NULL** — map/device-selected meeting points are reverse-geocoded server-side to fill it, along with `location_outcode` and `location_admin_district`. `latitude`/`longitude` hold the organiser's exact meeting point for map/device selections, or the postcode centroid for typed postcodes |
 | `groups` | `group_type` enum-like text, `created_by` nullable (SET NULL on account deletion); `location_postcode`/`latitude`/`longitude`/`location_name` for map discovery |
 | `organiser_applications` | status: `pending \| approved \| rejected` |
 | `email_preferences` | per-user opt-in/out, auto-created on profile creation |
@@ -170,3 +171,4 @@ LitterLink never accepts HTML. User text is stored as plain text, exactly as typ
 - Use `cn()` for conditional class merging, not string concatenation
 - `EventCard`, `JoinButton`, `ShareUrl`, `EventsMap` are exemplar components for style reference; `GroupCard`, `GroupsMap`, `FeaturedGroupCard` mirror the same patterns for groups
 - `EventLocationPicker` (`src/components/events/`) is the shared event-location section for the create and edit forms: postcode input, "Use my current location", and a click-to-pick `LocationPickerMap`. It emits hidden `latitude`, `longitude` and `location_mode` (`postcode` | `pin`) fields; the server action re-resolves the postcode metadata via `resolveEventLocation()` and never trusts those hidden values for postcode/outcode/admin-district
+- `EventIconPicker` (`src/components/events/`) is the optional icon chooser in the create and edit forms; it emits a hidden `icon_key` (empty = default icon) and both actions validate it with `parseEventIconKey()`. `EventIconTile` renders the rounded-square icon tile and is shared by `EventCard`, the event detail page header and the picker — render icons through it (or `getEventIcon()`), never from a raw database value

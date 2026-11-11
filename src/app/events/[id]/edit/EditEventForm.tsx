@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import { updateEvent } from "./actions";
 import type { EditEventState } from "./actions";
+import { EventIconPicker } from "@/components/events/EventIconPicker";
 import { EventLocationPicker } from "@/components/events/EventLocationPicker";
 import { FormSubmitButton } from "@/components/FormSubmitButton";
 
@@ -12,6 +13,7 @@ interface EditEventFormProps {
   defaultValues: {
     title: string;
     description: string;
+    icon_key: string; // "" when the event uses the default icon
     postcode: string;
     latitude: number;
     longitude: number;
@@ -78,6 +80,9 @@ export function EditEventForm({ eventId, minDatetime, defaultValues }: EditEvent
           className={inputCls}
         />
       </Field>
+
+      {/* Event icon */}
+      <EventIconPicker defaultValue={f?.icon_key ?? defaultValues.icon_key} />
 
       {/* Event location */}
       <EventLocationPicker

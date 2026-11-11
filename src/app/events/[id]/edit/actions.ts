@@ -16,6 +16,7 @@ import { isRescheduleNotificationRateLimited } from "@/lib/ratelimit";
 import { normalisePostcode } from "@/lib/utils";
 import { londonToUTC } from "@/lib/datetime";
 import { fail, type FormState } from "@/lib/forms";
+import { parseEventIconKey } from "@/lib/event-icons";
 
 const TITLE_MAX = 120;
 const DESC_MAX = 2000;
@@ -75,6 +76,10 @@ export async function updateEvent(
     postcode: { type: "postcode", label: "Postcode" },
   });
   if (!input.ok) return fail(input.error, formData);
+
+  // Enum-like value: must be an exact key from the icon allowlist, or empty for the default icon.
+  const iconKey = parseEventIconKey(formData.get("icon_key"));
+  if (!iconKey.ok) return fail(iconKey.error, formData);
 
   const {
     title,
@@ -195,6 +200,7 @@ export async function updateEvent(
     .update({
       title,
       description,
+      icon_key: iconKey.key,
       address_label: addressLabel,
       starts_at: startsAtUTC,
       ends_at: endsAtUTC,

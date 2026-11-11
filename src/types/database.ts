@@ -81,6 +81,7 @@ export interface Database {
           stats_reminder_sent_at: string | null;
           location_outcode: string | null;
           location_admin_district: string | null;
+          icon_key: string | null;
         };
         Insert: {
           id?: string;
@@ -104,6 +105,7 @@ export interface Database {
           stats_reminder_sent_at?: string | null;
           location_outcode?: string | null;
           location_admin_district?: string | null;
+          icon_key?: string | null;
         };
         Update: {
           id?: string;
@@ -127,6 +129,7 @@ export interface Database {
           stats_reminder_sent_at?: string | null;
           location_outcode?: string | null;
           location_admin_district?: string | null;
+          icon_key?: string | null;
         };
         Relationships: [];
       };

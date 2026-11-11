@@ -51,7 +51,7 @@ export default async function CreateEventPage({ searchParams }: Props) {
     const { data: originalEvent } = await supabase
       .from("events")
       .select(
-        "title, description, location_postcode, latitude, longitude, address_label, max_attendees, group_id, organiser_contact_details",
+        "title, description, icon_key, location_postcode, latitude, longitude, address_label, max_attendees, group_id, organiser_contact_details",
       )
       .eq("id", origId)
       .eq("organiser_id", user.id)
@@ -67,6 +67,7 @@ export default async function CreateEventPage({ searchParams }: Props) {
         group_id: validGroupId ?? "",
         title: originalEvent.title,
         description: originalEvent.description ?? "",
+        icon_key: originalEvent.icon_key ?? "",
         postcode: originalEvent.location_postcode,
         // Carries the original meeting point over rather than the postcode centroid.
         latitude: String(originalEvent.latitude),

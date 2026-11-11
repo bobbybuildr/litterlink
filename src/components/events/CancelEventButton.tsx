@@ -32,7 +32,7 @@ export function CancelEventButton({ action, className }: CancelEventButtonProps)
         className
       )}
     >
-      {isPending ? "Cancelling…" : "Cancel this event"}
+      {isPending ? "Cancelling…" : "Cancel event"}
     </button>
   );
 }

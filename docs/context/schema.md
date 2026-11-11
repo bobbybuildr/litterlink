@@ -52,10 +52,13 @@ Auto-created on sign-up via a `on_auth_user_created` trigger (reads `raw_user_me
 | `location_outcode` | TEXT \| null | Postcode outward code / district (e.g. `SW1A`), returned directly by `postcodes.io` as `outcode`. Populated on create/edit. |
 | `location_admin_district` | TEXT \| null | Human-readable local authority / district name from `postcodes.io` (`admin_district`). Populated on create/edit; null if postcodes.io has no admin_district for that postcode. |
 | `content_updated_at` | TIMESTAMPTZ \| null | Set by the application when organiser-visible event content changes; unlike `updated_at`, not changed by system-only updates |
+| `icon_key` | TEXT \| null | Stable key of the organiser-selected event icon (e.g. `tree-pine`), added in `0040`. Null = default icon. Only the key is stored — never a component name or markup. The create/edit actions validate it against the allowlist in `src/lib/event-icons.ts`; an unknown stored key renders the default icon |
 
 **Indexes:** `organiser_id`, `group_id`, `(status, starts_at)`, `(latitude, longitude)`, `location_outcode`
 
 **Constraint:** `organiser_contact_details IS NULL OR organiser_id IS NOT NULL` — contact details are cleared if the organiser deletes their account
+
+**Constraint:** `events_icon_key_format` — `icon_key` is null, or at most 50 characters matching `^[a-z0-9]+(-[a-z0-9]+)*$`. It checks the key's *shape* only, not the icon allowlist, so adding an icon never needs a migration. It backstops direct PostgREST writes (organisers can update their own events) that skip the server action's allowlist check
 
 ### `event_participants`
 
@@ -225,6 +228,7 @@ Extends `events` with joined profile, group, and participant count data.
 | `confirmed_count` | BIGINT | COUNT of `event_participants` where `status = 'confirmed'` |
 | `location_outcode` | TEXT | Passed through from `events` (added to the view in `0038`) |
 | `location_admin_district` | TEXT | Passed through from `events` (added to the view in `0038`); display it through `districtName()` from `@/lib/seo` |
+| `icon_key` | TEXT | Passed through from `events` (added to the view in `0040`); resolve it with `getEventIcon()` from `@/lib/event-icons`, which falls back to the default icon for null or unknown keys |
 
 All data-fetching helpers in `src/lib/events.ts` query this view, not the raw `events` table.
 The view lists its columns explicitly, so new `events` columns aren't exposed until the view is rebuilt. Add them at the end with `CREATE OR REPLACE VIEW`, which keeps its grants and dependants.
@@ -326,7 +330,7 @@ type OrganiserApplicationStatus  = "pending" | "approved" | "rejected";
 Extended types defined in `src/lib/events.ts`:
 
 ```ts
-type EventWithCount  // EventRow + organiser_name, organiser_avatar, organiser_is_verified,
+type EventWithCount  // EventRow (incl. icon_key) + organiser_name, organiser_avatar, organiser_is_verified,
                      //           confirmed_count, group_name, group_slug
 type EventWithStats  // EventWithCount + event_stats row (nullable)
 type GroupMember     // user_id, role, joined_at, display_name, avatar_url, username

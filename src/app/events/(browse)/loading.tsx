@@ -38,8 +38,13 @@ export default function EventsLoading() {
 function EventCardSkeleton() {
   return (
     <div className="animate-pulse rounded-xl border border-l-4 border-gray-200 bg-white p-3 shadow-sm">
-      <div className="h-5 w-2/3 rounded bg-gray-200" />
-      <div className="mt-2 h-4 w-full rounded bg-gray-100" />
+      <div className="flex items-start gap-3">
+        <div className="h-16 w-16 shrink-0 rounded-2xl bg-gray-100" />
+        <div className="min-w-0 flex-1">
+          <div className="h-5 w-2/3 rounded bg-gray-200" />
+          <div className="mt-2 h-4 w-full rounded bg-gray-100" />
+        </div>
+      </div>
       <div className="mt-4 space-y-2">
         <div className="h-3 w-40 rounded bg-gray-100" />
         <div className="h-3 w-52 rounded bg-gray-100" />

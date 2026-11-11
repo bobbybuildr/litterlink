@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { MapPin, Calendar, Users, CheckCircle, XCircle, Clock, BadgeCheck } from "lucide-react";
 import type { EventWithCount } from "@/lib/events";
+import { EventIconTile } from "@/components/events/EventIconTile";
 import { cn } from "@/lib/utils";
 
 interface EventCardProps {
@@ -94,23 +95,26 @@ export function EventCard({ event, className }: EventCardProps) {
         </span>
       )}
 
-      <div className="flex justify-between">
-        <h3
-          className={cn(
-            "font-semibold transition-colors line-clamp-2",
-            isMuted ? "text-gray-600" : "text-gray-900 group-hover:text-brand",
-            isVerifiedOrganiser && "pr-8"
-          )}
-        >
-          {event.title}
-        </h3>
-      </div>
+      <div className="flex items-start gap-3">
+        <EventIconTile iconKey={event.icon_key} muted={isMuted} />
+        <div className="min-w-0 flex-1">
+          <h3
+            className={cn(
+              "font-semibold transition-colors line-clamp-2",
+              isMuted ? "text-gray-600" : "text-gray-900 group-hover:text-brand",
+              isVerifiedOrganiser && "pr-8"
+            )}
+          >
+            {event.title}
+          </h3>
 
-      {event.description && (
-        <p className={cn("mt-1 text-sm line-clamp-2", isMuted ? "text-gray-500" : "text-gray-500")}>
-          {event.description}
-        </p>
-      )}
+          {event.description && (
+            <p className={cn("mt-1 text-sm line-clamp-2", isMuted ? "text-gray-500" : "text-gray-500")}>
+              {event.description}
+            </p>
+          )}
+        </div>
+      </div>
 
       <div className="mt-4 flex flex-col gap-1.5">
         <EventMeta icon={<Calendar className="h-3.5 w-3.5" />}>

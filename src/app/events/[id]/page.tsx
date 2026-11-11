@@ -22,6 +22,7 @@ import { toEventPins } from "@/lib/map-pins";
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 import { SidebarEventCard } from "@/components/events/SidebarEventCard";
+import { EventIconTile } from "@/components/events/EventIconTile";
 import { JoinButton } from "@/components/events/JoinButton";
 import { ShareUrl } from "@/components/events/ShareUrl";
 import { EventsMap } from "@/components/map/EventsMap";
@@ -175,30 +176,35 @@ export default async function EventDetailPage({ params }: Props) {
                 </span>
               )}
             </div>
-            <h1 className="text-2xl font-bold text-gray-900">{event.title}</h1>
-            {event.organiser_name && (
-              <p className="mt-1 flex items-center gap-1 text-sm text-gray-500 min-w-0">
-                <User className="h-3.5 w-3.5 shrink-0" />
-                <span className="whitespace-nowrap">Organised by</span>
-                <span className="font-medium text-brand">
-                  <Link href={`/profile/${event.organiser_username ?? event.organiser_id}`} rel="nofollow" className="hover:underline">
-                    {event.organiser_name}
-                  </Link>
-                  {event.organiser_is_verified && (
-                    <BadgeCheck className="ml-1 inline h-4 w-4 align-text-bottom text-brand" aria-label="Verified Organiser" />
-                  )}
-                </span>
-              </p>
-            )}
-            {event.group_name && event.group_slug && (
-              <p className="mt-0.5 flex items-center gap-1 text-sm text-gray-500 min-w-0">
-                <Users className="h-3.5 w-3.5 shrink-0" />
-                <span className="whitespace-nowrap">On behalf of</span>
-                <Link href={`/groups/${event.group_slug}`} className="font-medium text-brand hover:underline">
-                  {event.group_name}
-                </Link>
-              </p>
-            )}
+            <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 sm:flex">
+              <EventIconTile iconKey={event.icon_key} muted={isCancelled || isCompleted || isPast} />
+              <div className="contents sm:block sm:min-w-0 sm:flex-1">
+                <h1 className="text-2xl font-bold text-gray-900">{event.title}</h1>
+                {event.organiser_name && (
+                  <p className="col-span-2 mt-4 sm:mt-1 flex items-center gap-1 text-sm text-gray-500 min-w-0">
+                    <User className="h-3.5 w-3.5 shrink-0" />
+                    <span className="whitespace-nowrap">Organised by</span>
+                    <span className="font-medium text-brand">
+                      <Link href={`/profile/${event.organiser_username ?? event.organiser_id}`} rel="nofollow" className="hover:underline">
+                        {event.organiser_name}
+                      </Link>
+                      {event.organiser_is_verified && (
+                        <BadgeCheck className="ml-1 inline h-4 w-4 align-text-bottom text-brand" aria-label="Verified Organiser" />
+                      )}
+                    </span>
+                  </p>
+                )}
+                {event.group_name && event.group_slug && (
+                  <p className="col-span-2 mt-0.5 flex items-center gap-1 text-sm text-gray-500 min-w-0">
+                    <Users className="h-3.5 w-3.5 shrink-0" />
+                    <span className="whitespace-nowrap">On behalf of</span>
+                    <Link href={`/groups/${event.group_slug}`} className="font-medium text-brand hover:underline">
+                      {event.group_name}
+                    </Link>
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
 
           {event.organiser_is_verified && (
@@ -431,20 +437,20 @@ export default async function EventDetailPage({ params }: Props) {
 
           {/* Organiser: edit event */}
           {isOrganiser && !isCompleted && !isCancelled && !isPast && (
-            <Link href={`/events/${id}/edit`} className="me-4 text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline transition-colors">
-              Edit this event
+            <Link href={`/events/${id}/edit`} className="me-5 text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline transition-colors">
+              Edit event
             </Link>
           )}
 
           {/* Organiser: duplicate event */}
           {isOrganiser && !isCompleted && !isCancelled && !isPast && (
-            <Link href={`/events/create?origId=${id}`} className="me-4 text-sm font-medium text-green-600 hover:text-green-700 hover:underline transition-colors">
-              Duplicate this event
+            <Link href={`/events/create?origId=${id}`} className="me-5 text-sm font-medium text-green-600 hover:text-green-700 hover:underline transition-colors">
+              Duplicate event
             </Link>
           )}
           {isOrganiser && (isCompleted || isCancelled || isPast) && (
             <Link href={`/events/create?origId=${id}`} className="inline-flex gap-2 rounded-lg bg-brand px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-dark transition-colors">
-              <Calendars className="inline w-4 h-4" /> Duplicate this event
+              <Calendars className="inline w-4 h-4" /> Duplicate event
             </Link>
           )}
 

@@ -11,13 +11,12 @@ All routes use the Next.js 16 App Router. There is no Pages Router.
 | Route | Component | Description |
 |---|---|---|
 | `/` | `src/app/page.tsx` | Landing / home page |
-| `/coming-soon` | `src/app/coming-soon/page.tsx` | Pre-launch holding page — `/`, `/events`, and `/events/*` redirect here when `COMING_SOON=true` |
 | `/events` | `src/app/events/(browse)/page.tsx` | Browse all published events — postcode search, radius filter, date range, map + card list. The unfiltered view also shows a paginated "Coming up later" list (`getLaterEvents`) of events after the default 7-day window |
-| `/events/[id]` | `src/app/events/[id]/page.tsx` | Event detail — join/leave, share URL, map pin, photo gallery, participants, post-event stats; sidebar suggests the closest upcoming event within 20 km ("Other events nearby") and the organiser's or group's next upcoming event ("More from this organiser"), each hidden when there is none |
+| `/events/[id]` | `src/app/events/[id]/page.tsx` | Event detail — event icon beside the title, join/leave, share URL, map pin, photo gallery, participants, post-event stats; sidebar suggests the closest upcoming event within 20 km ("Other events nearby") and the organiser's or group's next upcoming event ("More from this organiser"), each hidden when there is none |
 | `/groups` | `src/app/groups/(browse)/page.tsx` | Browse all groups — postcode search, radius filter, group type filter, interactive map with popups, "Featured Group" showcase (most active in the trailing 30 days, hidden once a search/filter is applied), and a card grid sorted by member count |
 | `/groups/[slug]` | `src/app/groups/[slug]/page.tsx` | Group profile page — logo, description, links, member count, join/leave button, impact stats (events hosted, bags collected, volunteer sessions, hours volunteered), organisers section, members section, upcoming/past events |
 | `/impact` | `src/app/impact/page.tsx` | National impact dashboard — collective stats (bags collected, volunteer sessions, events completed, hours), period-filterable recent activity, top areas, top organisers, most active groups, community stats, and a litter-type breakdown |
-| `/profile/[id]` | `src/app/profile/[id]/page.tsx` | Public profile page, keyed by username or user ID (canonicalises to the username URL when one is set) — avatar, bio, social link, verified-organiser badge, impact stats, organised/joined events, and group memberships. Content is gated to signed-in viewers (unauthenticated visitors see a sign-in prompt) |
+| `/profile/[id]` | `src/app/profile/[id]/page.tsx` | Member profile page, keyed by username or user ID (canonicalises to the username URL when one is set) — avatar, bio, social link, verified-organiser badge, impact stats, organised/joined events, and group memberships. The proxy redirects unauthenticated visitors to sign-in |
 | `/privacy` | `src/app/privacy/page.tsx` | Privacy policy |
 | `/terms` | `src/app/terms/page.tsx` | Terms of service |
 
@@ -36,9 +35,9 @@ All routes use the Next.js 16 App Router. There is no Pages Router.
 | Route | Component | Description |
 |---|---|---|
 | `/dashboard` | `src/app/dashboard/page.tsx` | Personal dashboard — upcoming/past joined events, organised events, groups, verified-organiser badge |
-| `/profile` | `src/app/profile/page.tsx` | Edit display name, postcode, avatar, email preferences; delete account |
-| `/events/create` | `src/app/events/create/page.tsx` | Create a new litter-pick event (requires auth; verified organisers can link a group) |
-| `/events/[id]/edit` | `src/app/events/[id]/edit/page.tsx` | Edit a published event — title, description, date/time, location (postcode, current location, or map pin), capacity, contact details (organiser only; redirects to event detail if started/completed/cancelled) |
+| `/profile` | `src/app/profile/page.tsx` | Edit display name, postcode, avatar, username, bio, social link, and email preferences; delete account |
+| `/events/create` | `src/app/events/create/page.tsx` | Create a new litter-pick event, including an optional event icon (requires auth; verified organisers can link a group). `?origId=` prefills the form from one of the organiser's own events, icon included |
+| `/events/[id]/edit` | `src/app/events/[id]/edit/page.tsx` | Edit a published event — title, description, icon, date/time, location (postcode, current location, or map pin), capacity, contact details (organiser only; redirects to event detail if started/completed/cancelled) |
 | `/events/[id]/stats` | `src/app/events/[id]/stats/page.tsx` | Log post-event impact data (organiser only — returns 404 for other users) |
 | `/become-a-verified-organiser` | `src/app/become-a-verified-organiser/page.tsx` | Apply for verified-organiser status; shows existing application status |
 | `/groups/create` | `src/app/groups/create/page.tsx` | Create a new group (verified organisers only) |
@@ -57,8 +56,8 @@ All routes use the Next.js 16 App Router. There is no Pages Router.
 |---|---|---|
 | `src/app/(auth)/actions.ts` | `signInWithEmail`, `signUpWithEmail`, `signInWithGoogle`, `signOut` | Sign-in / sign-up pages, `SignOutButton` |
 | `src/app/events/actions.ts` | `joinEvent`, `leaveEvent`, `cancelEvent`, `uploadEventPhoto`, `deleteEventPhoto` | `JoinButton` component, event detail page, `PhotoUpload`, `EventPhotosGallery` |
-| `src/app/events/[id]/edit/actions.ts` | `updateEvent` | Edit event page |
-| `src/app/events/create/actions.ts` | `createEvent` | Create event page |
+| `src/app/events/[id]/edit/actions.ts` | `updateEvent` | Edit event page (validates `icon_key` with `parseEventIconKey()` after the ownership/status checks) |
+| `src/app/events/create/actions.ts` | `createEvent` | Create event page (validates `icon_key` with `parseEventIconKey()`) |
 | `src/app/events/[id]/stats/actions.ts` | `submitStats` | Stats page |
 | `src/app/profile/actions.ts` | `updateProfile`, `deleteAccount` | `ProfileForm`, `DeleteAccountSection` |
 | `src/app/become-a-verified-organiser/actions.ts` | `submitOrganiserApplication` | `ApplicationForm` |
@@ -78,13 +77,12 @@ Both are thin server-side proxies over `src/lib/geocode.ts` so `postcodes.io` is
 
 ### Route Protection Logic
 
-Handled in `src/proxy.ts` (Next.js 16 middleware replacement; auth logic lives in `src/lib/supabase/middleware.ts`):
+`src/proxy.ts` redirects the `www` host to the canonical site host, then delegates session handling to `updateSession()` in `src/lib/supabase/middleware.ts`:
 
-- `COMING_SOON=true` → only `/`, `/events`, and `/events/*` redirect to `/coming-soon`; all other routes (auth, admin, etc.) remain accessible
 - Unauthenticated users visiting any path starting with `/dashboard`, `/events/create`, or `/profile` → redirect to `/sign-in?redirectTo=…`. For `/profile/[id]` a `message` param is added ("Sign in to view member profiles on LitterLink.")
 - Authenticated users visiting `/sign-in` or `/sign-up` → redirect to `/dashboard`
 
-The proxy is an early redirect only. It verifies the user with `getUser()` on those routes and on `/sign-in` and `/sign-up`; on every other route it only refreshes the session with `getClaims()`, which checks the token locally. Every protected page does its own `getUser()` check and redirects to `/sign-in?redirectTo=…`, and that check is authoritative. It is the only check for `/events/[id]/edit`, `/events/[id]/stats`, `/become-a-verified-organiser`, `/groups/create`, and `/groups/[slug]/edit`. New protected pages must include the page-level check; adding them to the proxy is optional.
+The session helper verifies the user with `getUser()` on protected and sign-in/sign-up routes; on other routes it refreshes the session with `getClaims()`, which checks the token locally. Every protected page does its own `getUser()` check and redirects to `/sign-in?redirectTo=…`, and that check is authoritative. It is the only check for `/events/[id]/edit`, `/events/[id]/stats`, `/become-a-verified-organiser`, `/groups/create`, and `/groups/[slug]/edit`. New protected pages must include the page-level check; adding them to the proxy is optional.
 
 The admin gate for `/admin/*` is enforced in `src/app/admin/layout.tsx` (checks `profiles.is_admin`).
 
@@ -96,6 +94,9 @@ The admin gate for `/admin/*` is enforced in `src/app/admin/layout.tsx` (checks 
 | `radius` | number (km) | 16 | Search radius |
 | `from` | ISO date string | today | Events starting from |
 | `to` | ISO date string | today + 7 days | Events starting before |
+| `page` | number | 1 | Pagination for upcoming events |
+| `pastPage` | number | 1 | Pagination for past events |
+| `laterPage` | number | 1 | Pagination for the unfiltered "Coming up later" list |
 
 ### Search Parameters — `/groups`
 
@@ -112,12 +113,12 @@ When `postcode` or `type` is set, the "Featured Group" card is hidden (only show
 
 | Param | Type | Default | Description |
 |---|---|---|---|
-| `orgPeriod` | `month` \| `lastMonth` \| `year` \| `90d` \| `all` | `month` | Period filter for the "Top organisers" section |
+| `orgPeriod` | `month` \| `lastMonth` \| `90d` \| `all` | `month` | Period filter for the "Top organisers" section |
 | `areaPeriod` | same as above | `month` | Period filter for the "Top areas" section |
 | `statsPeriod` | same as above | `month` | Period filter for the "Recent activity" section |
 | `groupPeriod` | same as above | `month` | Period filter for the "Most active groups" section |
 
-Each section's period pills link to a URL with a `#`-anchor back to that section (scroll position preserved via `scroll={false}`).
+Each section's period pills link to a URL with a `#`-anchor back to that section (scroll position preserved via `scroll={false}`). The valid period values are `month`, `lastMonth`, `90d`, and `all`.
 
 ### Navigation Structure
 
@@ -125,14 +126,19 @@ Each section's period pills link to a URL with a `#`-anchor back to that section
 Navbar
 ├── Logo → /
 ├── Events → /events
+├── Groups → /groups
 ├── + Create event (authenticated only) → /events/create
-└── Avatar dropdown (authenticated) / Sign in button (unauthenticated)
+└── Avatar dropdown (authenticated) / Sign in + Sign up buttons (unauthenticated)
     ├── Dashboard → /dashboard
+    ├── Edit profile → /profile
     └── Sign out
 
 Footer
 ├── Browse events → /events
-└── Host an event → /events/create
+├── Discover Groups → /groups
+├── Impact stats → /impact
+├── Privacy Policy → /privacy
+└── Terms & Conditions → /terms
 ```
 
 ---
@@ -151,7 +157,15 @@ Footer
 - Route protection (unauthenticated redirect to `/sign-in`)
 
 #### Events
-- Create a new litter-pick event with title, description, location, start/end times, max attendees, optional organiser contact details, and optional group affiliation
+- Create a new litter-pick event with title, description, optional icon, location, start/end times, max attendees, optional organiser contact details, and optional group affiliation
+- **Event icons** (optional) — organisers can pick a small icon to represent their event, in the create and edit forms (`EventIconPicker`, `src/components/events/EventIconPicker.tsx`)
+  - Icons come from a fixed allowlist of Lucide icons (currently 22, in 6 categories: Parks and nature, Coastal and waterways, Community, Schools and organisations, Environment, Other) defined in `src/lib/event-icons.ts`. There are no uploads, Storage buckets or other icon infrastructure
+  - Only the icon's stable lowercase key (e.g. `tree-pine`) is stored, in `events.icon_key`. The key is only ever looked up in the allowlist (`getEventIcon()`); it is never used as a component name, so keys must never be renamed or reused — add a new entry instead. Adding an icon needs no migration
+  - Selection is optional. "Clear" (or never choosing one) saves `null`, which renders the default `Trash2` icon, as do existing events and any stored key no longer in the allowlist
+  - The picker is a native radio group inside a collapsible panel (keyboard-navigable, grouped by category), emitting a hidden `icon_key` field. Its saved value is preselected on edit and on a failed submit
+  - `createEvent` and `updateEvent` both validate the submitted key server-side with `parseEventIconKey()` and reject anything outside the allowlist ("Please choose an icon from the list.") without saving; `updateEvent` still checks authentication, ownership and event status first. The `events_icon_key_format` DB constraint backstops direct API writes
+  - Shown by the shared `EventCard` — `/events`, the dashboard, group pages and profile pages — as a 64px rounded-square tile (`EventIconTile`) with a pastel colour per category, and on the event detail page (`/events/[id]`) to the left of the title, organiser and group lines. The tile is desaturated on cancelled, completed and past events. Not shown on `SidebarEventCard`, `LatestEventHighlight`, map popups or generated share images
+  - Changing an event's icon does not email participants — only date/time and location changes do
 - **Event location selection** (`EventLocationPicker`, shared by the create and edit forms) — the organiser never needs to know the postcode of a beach, park or woodland. Three interchangeable approaches:
   1. **Type a UK postcode** — geocoded to its centroid, as before
   2. **"Use my current location"** — browser Geolocation API, then reverse-geocoded to the nearest postcode
@@ -160,7 +174,7 @@ Footer
 - `events.location_postcode` is **never nullable** — map and device selections resolve the postcode, outcode and admin district server-side via `postcodes.io`, so postcode-radius search and `/impact` area aggregation keep working. For map/device selections the organiser's **exact coordinates** are stored as the event's `latitude`/`longitude`; only typed postcodes store the postcode centroid
 - `address_label` remains a free-text, human-facing meeting point description (e.g. "Meet by the lifeguard station")
 - Rate-limited event creation (5 per user per 24 hours — `src/lib/ratelimit.ts`)
-- Input sanitization via `src/lib/sanitize.ts` (strips HTML tags)
+- Free-text form fields are normalised and validated with `readFormFields()` from `src/lib/input.ts`; input is kept as plain text and is not HTML-stripped. Output is escaped by React or `escapeHtml()` at raw-HTML sinks
 - Events default to `published` status on creation
 - Organiser can cancel an event (status → `cancelled`). Cancelled event pages stay publicly viewable (with a "Cancelled" badge and registrations closed) so participants following the cancellation email still land on a real page; they are left out of listings and the sitemap. Only drafts are hidden from everyone but the organiser (RLS policy `events: public read non-draft`)
 - Event detail page with full info, participant count, map pin, share URL, photo gallery (completed events), and participant list
@@ -207,7 +221,7 @@ Organiser-only form at `/events/[id]/stats`:
 - Upload avatar (JPEG/PNG/WebP/HEIC in, normalised to WebP client-side, ≤ 5 MB server-side) stored in Supabase Storage as `{user_id}/avatar.webp`
 - Avatar shown in navbar
 - Email preference management (transactional and marketing opt-ins)
-- Public profile page at `/profile/[id]` (accepts a username or a user UUID; redirects to the canonical username URL when one is set) — displays avatar, bio, social link, verified-organiser badge, member-since date, activity stats (events joined/organised with impact logged, bags collected, hours volunteered), upcoming and past organised events, recently attended events, and group memberships. Gated to signed-in viewers — unauthenticated visitors are shown a sign-in/sign-up prompt instead of profile data
+- Member profile page at `/profile/[id]` (accepts a username or a user UUID; redirects to the canonical username URL when one is set) — displays avatar, bio, social link, verified-organiser badge, member-since date, activity stats (events joined/organised with impact logged, bags collected, hours volunteered), upcoming organised events, a latest-impact highlight when available, recently attended events from the last 90 days, and group memberships. The proxy redirects unauthenticated visitors to sign-in; the page also has a sign-in/sign-up fallback
 - Organiser names on events, groups, and the impact page link to the organiser's public profile
 - Account deletion — removes personal data, sets FK to null on events/groups, deletes auth user
 
@@ -308,7 +322,7 @@ Key consequences:
 - Access gated by `profiles.is_admin = true` (set manually in DB)
 
 #### Infrastructure
-- Pre-launch coming-soon gate (toggled via `COMING_SOON` env var; scoped to home and events routes)
+- Optional dismissible beta banner (`SHOW_BETA_BANNER` in `src/lib/constants.ts`; currently disabled)
 - Vercel Analytics and Speed Insights integrated
 - Row-Level Security on all tables
 - PWA manifest (`src/app/manifest.ts`)
@@ -338,7 +352,7 @@ The following features are absent from the codebase. Do not assume these exist w
 - True "events near me" sorted by distance using live browser geolocation (geolocation currently resolves to a postcode, which is then used for the existing radius search — not distance-based sorting)
 - Saved/bookmarked events
 - Search by event title or keyword
-- Category/tag filtering (beach, park, street, etc.)
+- Category/tag filtering (beach, park, street, etc.) — event icons are display-only and are not a filterable category
 
 #### Organiser Tools
 - Waitlist management
@@ -358,9 +372,9 @@ The following features are absent from the codebase. Do not assume these exist w
 - No bulk admin actions
 
 #### SEO & Sharing
-- No per-page Twitter Card meta (only root-level Open Graph)
+- No page-specific X/Twitter Card metadata; the root defines `summary_large_image` defaults, while public pages set page-specific Open Graph metadata
 
 #### Other
-- No test suite (unit, integration, or e2e)
+- Vitest unit tests are co-located in 18 `*.test.ts` files; there is no integration or end-to-end test suite
 - No paid/premium tier or monetisation
 - PWA service worker not implemented (manifest exists, offline support does not)
