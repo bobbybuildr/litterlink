@@ -177,7 +177,7 @@ export default async function EventDetailPage({ params }: Props) {
               )}
             </div>
             <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 sm:flex">
-              <EventIconTile iconKey={event.icon_key} muted={isCancelled || isCompleted || isPast} />
+              <EventIconTile iconKey={event.icon_key} />
               <div className="contents sm:block sm:min-w-0 sm:flex-1">
                 <h1 className="text-2xl font-bold text-gray-900">{event.title}</h1>
                 {event.organiser_name && (
