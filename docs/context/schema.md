@@ -239,7 +239,7 @@ These aggregation views use `security_invoker = true`, so underlying table RLS a
 
 | View | Columns | Purpose |
 |---|---|---|
-| `groups_with_counts` | Group columns; `creator_is_verified`, `member_count`, `upcoming_event_count`, `activity_score` | Published group discovery and aggregate activity (recent joins ×3, events ×5, confirmed participants ×2 over 30 days) |
+| `groups_with_counts` | Group columns; `creator_is_verified`, `member_count`, `upcoming_event_count`, `activity_score` | Published group discovery and aggregate activity (recent joins ×3, events ×5, confirmed participants ×2 over 30 days); cancelled events are excluded from recent event and participant counts |
 | `national_impact_stats` | `total_bags`, `total_volunteers`, `total_hours` | Pre-aggregated national litter-picking impact totals, used by `/impact` and the homepage |
 | `litter_type_counts` | `litter_type`, `count` | Frequency of each recorded litter type |
 
@@ -295,7 +295,7 @@ Returns distance in kilometres using the Haversine formula. IMMUTABLE. Used for 
 | Table | Read | Write |
 |---|---|---|
 | `profiles` | Public | Owner only; admin can update |
-| `events` | Public (published/completed; organiser sees own drafts) | Organiser only; delete only for drafts; admins can also update (e.g. cancel) |
+| `events` | Public (published/completed/cancelled; organiser sees own drafts) | Organiser only; delete only for drafts; admins can also update (e.g. cancel) |
 | `event_participants` | Own rows + organiser sees all for their events; confirmed rows public | Self |
 | `event_stats` | Public | Organiser only |
 | `event_photos` | Public | Insert: event organiser only, for completed events; delete: uploader only |
